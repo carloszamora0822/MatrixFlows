@@ -172,7 +172,7 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
   const startAutoScheduler = (boardId) => {
     console.log('🚀 Starting auto scheduler for board:', boardId);
     
-    if (runningSchedulers[boardId]) {
+    if (schedulerRefs.current[boardId]) {
       console.log('⚠️ Scheduler already running');
       return;
     }
@@ -185,6 +185,8 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
       return;
     }
 
+    // Mark as running immediately in ref (not state)
+    schedulerRefs.current[boardId] = true;
     setRunningSchedulers(prev => ({ ...prev, [boardId]: true }));
     
     let currentStepIndex = 0;
@@ -192,7 +194,8 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
     const runNextStep = async () => {
       console.log(`🔄 Running step ${currentStepIndex + 1}/${boardWorkflow.steps.length}`);
       
-      if (!runningSchedulers[boardId] && !schedulerRefs.current[boardId]) {
+      // Check ref instead of state
+      if (!schedulerRefs.current[boardId]) {
         console.log('⏹️ Scheduler stopped');
         return;
       }
