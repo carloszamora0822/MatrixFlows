@@ -1463,10 +1463,12 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
       });
 
       if (response.ok) {
-        await response.json();
+        const savedData = await response.json();
+        console.log('✅ Screen saved:', savedData);
         alert(`✅ Screen "${formData.screenName}" saved!`);
         // Refresh saved screens list
-        fetchSavedScreens();
+        await fetchSavedScreens();
+        console.log('📚 Saved screens after save:', savedScreens.length);
         // Reset form
         setFormData({
           ...formData,
@@ -1708,10 +1710,15 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
       </div>
 
       {/* Saved Screens Library */}
-      {savedScreens.length > 0 && (
-        <div className="lg:col-span-2 mt-8">
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">➕ Saved Custom Screens</h2>
+      <div className="lg:col-span-2 mt-8">
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">➕ Saved Custom Screens ({savedScreens.length})</h2>
+          {savedScreens.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <div className="text-4xl mb-2">📚</div>
+              <p>No saved screens yet. Create and save a screen above!</p>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {savedScreens.map((screen) => {
                 const expiresDate = new Date(screen.expiresAt);
@@ -1756,9 +1763,9 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
                 );
               })}
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
     </div>
   );
