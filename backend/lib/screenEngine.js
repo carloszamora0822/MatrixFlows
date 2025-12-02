@@ -460,10 +460,35 @@ class ScreenEngine {
 
   /**
    * Render Custom Message screen
+   * Uses pre-generated matrix from Pin Screen feature
    */
   async renderCustomMessage(config) {
-    // This will be implemented later if needed
-    return this.renderErrorScreen('Custom messages coming soon');
+    try {
+      // If a pre-generated matrix is provided, use it
+      if (config.matrix && Array.isArray(config.matrix)) {
+        console.log(`✅ Using pre-generated custom message matrix`);
+        return config.matrix;
+      }
+
+      // Fallback: generate simple centered message
+      const message = config.message || 'CUSTOM MESSAGE';
+      const matrix = new Array(6).fill(null).map(() => new Array(22).fill(0));
+      
+      // Simple centered text on row 2
+      const messageCodes = this.textToCodes(message);
+      const startCol = Math.floor((22 - messageCodes.length) / 2);
+      
+      for (let i = 0; i < messageCodes.length && (startCol + i) < 22; i++) {
+        matrix[2][startCol + i] = messageCodes[i];
+      }
+      
+      console.log(`✅ Generated custom message: "${message}"`);
+      return matrix;
+
+    } catch (error) {
+      console.error('Custom message rendering error:', error);
+      return this.renderErrorScreen('Failed to render custom message');
+    }
   }
 
   /**
