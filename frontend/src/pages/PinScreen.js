@@ -147,7 +147,7 @@ const PinScreen = () => {
     }
 
     try {
-      const response = await fetch('/api/pin-screen/create', {
+      const response = await fetch('/api/pin-screen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
