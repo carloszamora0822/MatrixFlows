@@ -60,11 +60,8 @@ const workflowSchema = new mongoose.Schema({
     default: ORG_CONFIG.ID,
     uppercase: true
   },
-  boardId: {
-    type: String,
-    required: true,
-    ref: 'Vestaboard'
-  },
+  // boardId removed - workflows are now independent and reusable
+  // Boards reference workflows via defaultWorkflowId instead
   name: {
     type: String,
     required: true,
@@ -97,7 +94,7 @@ const workflowSchema = new mongoose.Schema({
 });
 
 // Index for efficient queries
-workflowSchema.index({ orgId: 1, boardId: 1, isActive: 1 });
+workflowSchema.index({ orgId: 1, isActive: 1 });
 workflowSchema.index({ orgId: 1, isDefault: 1 });
 
 module.exports = mongoose.model('Workflow', workflowSchema);
