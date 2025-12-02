@@ -38,23 +38,22 @@ const createWorkflow = async (req, res) => {
     requireEditor(req, res, (err) => err ? reject(err) : resolve());
   });
 
-  const { boardId, name, steps, schedule, isDefault } = req.body;
+  const { name, steps, schedule, isDefault } = req.body;
   
-  console.log('📝 Workflow creation request:', { boardId, name, stepsCount: steps?.length, steps });
+  console.log('📝 Workflow creation request:', { name, stepsCount: steps?.length });
   
-  if (!boardId || !name || !steps || steps.length === 0) {
-    console.error('❌ Validation failed:', { boardId: !!boardId, name: !!name, steps: !!steps, stepsLength: steps?.length });
+  if (!name || !steps || steps.length === 0) {
+    console.error('❌ Validation failed:', { name: !!name, steps: !!steps, stepsLength: steps?.length });
     return res.status(400).json({ 
       error: { 
         code: ERROR_CODES.VALIDATION_ERROR, 
-        message: 'Board ID, name, and steps required',
-        details: { boardId: !!boardId, name: !!name, hasSteps: !!steps, stepsLength: steps?.length }
+        message: 'Name and steps required',
+        details: { name: !!name, hasSteps: !!steps, stepsLength: steps?.length }
       } 
     });
   }
 
   const newWorkflow = new Workflow({
-    boardId,
     name: name.trim(),
     steps,
     schedule: schedule || { type: 'always' },
@@ -75,20 +74,19 @@ const updateWorkflow = async (req, res) => {
   });
 
   const { id } = req.query;
-  const { boardId, name, steps, schedule, isDefault } = req.body;
+  const { name, steps, schedule, isDefault } = req.body;
   
   if (!id) {
     return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Workflow ID required' } });
   }
   
-  if (!boardId || !name || !steps || steps.length === 0) {
-    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Board ID, name, and steps required' } });
+  if (!name || !steps || steps.length === 0) {
+    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Name and steps required' } });
   }
 
   const updated = await Workflow.findOneAndUpdate(
     { workflowId: id, orgId: ORG_CONFIG.ID },
     {
-      boardId,
       name: name.trim(),
       steps,
       schedule: schedule || { type: 'always' },

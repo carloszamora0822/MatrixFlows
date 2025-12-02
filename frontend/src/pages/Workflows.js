@@ -380,7 +380,6 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const [editingId, setEditingId] = useState(null);
   const [expandedWorkflow, setExpandedWorkflow] = useState(null);
   const [form, setForm] = useState({ 
-    boardId: '', 
     name: '', 
     steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
     schedule: {
@@ -417,11 +416,10 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
       
       if (res.ok) {
         const successMessage = editingId 
-          ? '✅ Workflow updated successfully! Your board will use the updated workflow.' 
-          : '✅ Workflow created successfully!';
+          ? '✅ Workflow updated successfully! All boards using this workflow will see the changes.' 
+          : '✅ Workflow created successfully! Assign it to boards in the Boards tab.';
         alert(successMessage);
         setForm({ 
-          boardId: '', 
           name: '', 
           steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
           schedule: {
@@ -448,7 +446,6 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const handleEdit = (workflow) => {
     setEditingId(workflow.workflowId);
     setForm({
-      boardId: workflow.boardId,
       name: workflow.name,
       steps: workflow.steps.sort((a, b) => a.order - b.order).map(s => {
         const converted = convertFromSeconds(s.displaySeconds);
@@ -579,25 +576,13 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
           </h4>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="font-medium text-gray-700 block mb-2">Board</label>
-              <select 
-                value={form.boardId} 
-                onChange={(e) => setForm({ ...form, boardId: e.target.value })} 
-                className="input-field" 
-                required
-                disabled={editingId !== null}
-              >
-                <option value="">Select Board</option>
-                {boards.map(b => <option key={b.boardId} value={b.boardId}>{b.name}</option>)}
-              </select>
-              {editingId && (
-                <p className="text-xs text-gray-600 mt-1">
-                  🔒 Board cannot be changed when editing. Delete and recreate to move to different board.
-                </p>
-              )}
+              <label className="font-medium text-gray-700 block mb-2">Workflow Name</label>
+              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="input-field" placeholder="e.g., Office Hours, Weekend Display" required />
+              <p className="text-xs text-gray-500 mt-1">
+                � This workflow can be assigned to multiple boards!
+              </p>
             </div>
-            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="input-field" placeholder="Workflow Name" required />
             
             <div>
               <div className="flex justify-between items-center mb-3">
