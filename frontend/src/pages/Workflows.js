@@ -471,6 +471,8 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
         const response = await fetch('/api/custom-screens', { credentials: 'include' });
         if (response.ok) {
           const data = await response.json();
+          console.log('📚 Fetched saved screens:', data);
+          console.log('📚 First screen has matrix:', data[0]?.matrix ? 'YES' : 'NO');
           setSavedScreens(data);
         }
       } catch (error) {
@@ -586,6 +588,9 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
 
       console.log('📝 Adding custom screen:', screen);
       console.log('📝 Screen has matrix:', !!screen.matrix);
+      console.log('📝 Matrix is array:', Array.isArray(screen.matrix));
+      console.log('📝 Matrix length:', screen.matrix?.length);
+      console.log('📝 Screen object keys:', Object.keys(screen));
 
       // Add the custom screen as a new step
       const newStep = {
@@ -602,6 +607,8 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
         isEnabled: true,
         order: workflow.steps.length
       };
+
+      console.log('📝 New step being added:', JSON.stringify(newStep.screenConfig, null, 2));
 
       const updatedSteps = [...workflow.steps, newStep];
 
@@ -623,7 +630,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
       });
 
       if (response.ok) {
-        alert(`✅ "${screen.name}" added to workflow!`);
+        console.log(`✅ "${screen.name}" added to workflow!`);
         fetchData();
       } else {
         const error = await response.json();
@@ -1046,7 +1053,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                               onClick={async () => {
                                 const isCustomMessage = step.screenType === 'CUSTOM_MESSAGE';
                                 const confirmMsg = isCustomMessage 
-                                  ? `Delete this custom screen ENTIRELY from the system? (Will be removed from all workflows and the library)`
+                                  ? `Delete this custom screen ENTIRELY from the system?`
                                   : `Delete this ${label} screen from workflow?`;
                                 
                                 if (window.confirm(confirmMsg)) {
