@@ -136,10 +136,10 @@ class WorkflowService {
   }
 
   /**
-   * Get next step in workflow
+   * Get current step in workflow (the one to display now)
    * @param {object} workflow
    * @param {number} currentStepIndex
-   * @returns {object|null} Next step or null if workflow complete
+   * @returns {object|null} Current step or null if workflow empty
    */
   getNextStep(workflow, currentStepIndex) {
     if (!workflow.steps || workflow.steps.length === 0) {
@@ -155,11 +155,11 @@ class WorkflowService {
       return null;
     }
 
-    // Get next step (loop back to start if at end)
-    const nextIndex = (currentStepIndex + 1) % enabledSteps.length;
+    // Return CURRENT step (don't advance yet - scheduler does that after displaying)
+    const currentIndex = currentStepIndex % enabledSteps.length;
     return {
-      step: enabledSteps[nextIndex],
-      index: nextIndex
+      step: enabledSteps[currentIndex],
+      index: currentIndex
     };
   }
 }

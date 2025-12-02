@@ -87,27 +87,31 @@ class SchedulerService {
         throw new Error('No workflow assigned to this board. Please create a workflow first.');
       }
 
-      // Get next step
-      const nextStep = workflowService.getNextStep(workflow, boardState.currentStepIndex);
+      // Get current step to display
+      const currentStep = workflowService.getNextStep(workflow, boardState.currentStepIndex);
       
-      if (!nextStep) {
+      if (!currentStep) {
         console.log('⚠️  No enabled steps in workflow');
         return { boardId: board.boardId, success: true, skipped: true };
       }
 
-      console.log(`📺 Rendering step ${nextStep.index + 1}: ${nextStep.step.screenType}`);
+      console.log(`📺 Rendering step ${currentStep.index + 1}/${workflow.steps.length}: ${currentStep.step.screenType}`);
 
       // Render the screen
-      const matrix = await screenEngine.render(nextStep.step.screenType, nextStep.step.screenConfig);
+      const matrix = await screenEngine.render(currentStep.step.screenType, currentStep.step.screenConfig);
 
       // Post to Vestaboard
       console.log(`📤 Attempting to post to Vestaboard with key: ${board.vestaboardWriteKey.substring(0, 10)}...`);
       const vestaboardResult = await vestaboardClient.postMessage(board.vestaboardWriteKey, matrix);
       console.log(`✅ Vestaboard API responded:`, vestaboardResult);
 
-      // Update board state
+      // Calculate next step index (advance AFTER displaying current step)
+      const enabledSteps = workflow.steps.filter(s => s.isEnabled);
+      const nextStepIndex = (boardState.currentStepIndex + 1) % enabledSteps.length;
+
+      // Update board state with NEXT step index for next update
       boardState.currentWorkflowId = workflow.workflowId;
-      boardState.currentStepIndex = nextStep.index;
+      boardState.currentStepIndex = nextStepIndex;
       boardState.lastMatrix = matrix;
       boardState.lastUpdateAt = new Date();
       boardState.lastUpdateSuccess = true;
@@ -121,8 +125,8 @@ class SchedulerService {
       return {
         boardId: board.boardId,
         success: true,
-        screenType: nextStep.step.screenType,
-        stepIndex: nextStep.index,
+        screenType: currentStep.step.screenType,
+        stepIndex: currentStep.index,
         cycleCount: boardState.cycleCount,
         vestaboardResponse: vestaboardResult
       };
