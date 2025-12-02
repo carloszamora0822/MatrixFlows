@@ -478,7 +478,18 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <h4 className="font-semibold text-lg">{workflow.name}</h4>
-                  <p className="text-sm text-gray-600">{workflow.steps.filter(s => s.isEnabled).length} steps</p>
+                  {(() => {
+                    const enabledSteps = workflow.steps.filter(s => s.isEnabled);
+                    const totalSeconds = enabledSteps.reduce((sum, s) => sum + (s.displaySeconds || 0), 0);
+                    const minutes = Math.floor(totalSeconds / 60);
+                    const seconds = totalSeconds % 60;
+                    const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+                    return (
+                      <p className="text-sm text-gray-600">
+                        {enabledSteps.length} steps • Full cycle: {timeStr}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <button onClick={() => handleDelete(workflow.workflowId)} className="text-red-600 hover:text-red-800 text-sm">Delete</button>
               </div>
