@@ -92,7 +92,7 @@ const Workflows = () => {
               </nav>
             </div>
 
-            {activeTab === 'boards' && <BoardsTab boards={boards} fetchData={fetchData} />}
+            {activeTab === 'boards' && <BoardsTab boards={boards} workflows={workflows} fetchData={fetchData} />}
             {activeTab === 'workflows' && <WorkflowsTab workflows={workflows} boards={boards} fetchData={fetchData} />}
           </div>
         </div>
@@ -101,7 +101,7 @@ const Workflows = () => {
   );
 };
 
-const BoardsTab = ({ boards, fetchData }) => {
+const BoardsTab = ({ boards, workflows, fetchData }) => {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', locationLabel: '', vestaboardWriteKey: '' });
   const [loading, setLoading] = useState(false);
@@ -205,25 +205,40 @@ const BoardsTab = ({ boards, fetchData }) => {
         </div>
       ) : (
         <div className="space-y-4">
-          {boards.map((board) => (
-            <div key={board.boardId} className="p-4 bg-gray-50 rounded-lg">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-semibold text-lg">{board.name}</h4>
-                  {board.locationLabel && <p className="text-sm text-gray-600">{board.locationLabel}</p>}
-                  <p className="text-xs text-gray-500 mt-1">ID: {board.boardId}</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button onClick={() => handleTrigger(board.boardId)} disabled={triggerLoading === board.boardId}
-                    className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
-                    {triggerLoading === board.boardId ? '⏳' : '🔄 Update Now'}
-                  </button>
-                  <button onClick={() => handleDelete(board.boardId)}
-                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">Delete</button>
+          {boards.map((board) => {
+            const boardWorkflows = workflows.filter(w => w.boardId === board.boardId);
+            const hasWorkflow = boardWorkflows.length > 0;
+            
+            return (
+              <div key={board.boardId} className="p-4 bg-gray-50 rounded-lg">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-semibold text-lg">{board.name}</h4>
+                    {board.locationLabel && <p className="text-sm text-gray-600">{board.locationLabel}</p>}
+                    <p className="text-xs text-gray-500 mt-1">ID: {board.boardId}</p>
+                    {hasWorkflow ? (
+                      <p className="text-xs text-green-600 mt-1">✅ {boardWorkflows.length} workflow(s) configured</p>
+                    ) : (
+                      <p className="text-xs text-yellow-600 mt-1">⚠️ No workflow - create one in the Workflows tab</p>
+                    )}
+                  </div>
+                  <div className="flex space-x-2">
+                    <button onClick={() => handleTrigger(board.boardId)} disabled={triggerLoading === board.boardId || !hasWorkflow}
+                      className={`px-3 py-1 rounded text-sm ${
+                        !hasWorkflow 
+                          ? 'bg-gray-400 text-white cursor-not-allowed' 
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                      title={!hasWorkflow ? 'Create a workflow first' : 'Update board now'}>
+                      {triggerLoading === board.boardId ? '⏳' : '🔄 Update Now'}
+                    </button>
+                    <button onClick={() => handleDelete(board.boardId)}
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">Delete</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

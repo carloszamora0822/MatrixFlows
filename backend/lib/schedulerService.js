@@ -84,7 +84,7 @@ class SchedulerService {
       
       if (!workflow) {
         console.log('⚠️  No active workflow, skipping board');
-        return { boardId: board.boardId, success: true, skipped: true };
+        throw new Error('No workflow assigned to this board. Please create a workflow first.');
       }
 
       // Get next step
