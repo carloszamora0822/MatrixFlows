@@ -41,21 +41,21 @@ const Workflows = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4">
-        {/* Animated Header */}
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8 px-4">
+        {/* Header */}
         <div className="max-w-7xl mx-auto mb-8">
           <div className="relative">
-            <h1 className="text-5xl font-bold text-white mb-3 drop-shadow-2xl">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
               {currentBoard?.name || 'Vestaboard'}
             </h1>
             <div className="flex items-center space-x-4">
               {currentBoard?.locationLabel && (
-                <span className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white text-sm font-semibold">
+                <span className="px-4 py-2 bg-white rounded-full text-gray-700 text-sm font-semibold shadow-md">
                   📍 {currentBoard.locationLabel}
                 </span>
               )}
               {assignedWorkflow && (
-                <span className="px-4 py-2 bg-green-500/20 backdrop-blur-sm rounded-full text-green-300 text-sm font-semibold">
+                <span className="px-4 py-2 bg-green-100 rounded-full text-green-700 text-sm font-semibold shadow-md">
                   🔄 {assignedWorkflow.name}
                 </span>
               )}
@@ -63,10 +63,10 @@ const Workflows = () => {
                 <select
                   value={currentBoard?.boardId || ''}
                   onChange={(e) => setSelectedBoard(boards.find(b => b.boardId === e.target.value))}
-                  className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white text-sm font-semibold border-2 border-white/20 hover:border-white/40 transition-all cursor-pointer"
+                  className="px-4 py-2 bg-white rounded-full text-gray-700 text-sm font-semibold border-2 border-gray-200 hover:border-blue-400 transition-all cursor-pointer shadow-md"
                 >
                   {boards.map(board => (
-                    <option key={board.boardId} value={board.boardId} className="bg-slate-800">
+                    <option key={board.boardId} value={board.boardId}>
                       {board.name}
                     </option>
                   ))}
@@ -89,8 +89,8 @@ const Workflows = () => {
         ) : (
           <div className="max-w-7xl mx-auto text-center py-20">
             <div className="text-6xl mb-4">📺</div>
-            <h3 className="text-2xl font-semibold text-white mb-2">No Boards Found</h3>
-            <p className="text-gray-400">Create a board to get started</p>
+            <h3 className="text-2xl font-semibold text-gray-700 mb-2">No Boards Found</h3>
+            <p className="text-gray-500">Create a board to get started</p>
           </div>
         )}
       </div>
