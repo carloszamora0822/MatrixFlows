@@ -849,15 +849,34 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
             
             const schedule = workflow.schedule || { type: 'always' };
             let scheduleStr = '24/7';
+            let isActive = false;
+            
             if (schedule.type === 'dailyWindow') {
               const days = schedule.daysOfWeek?.length === 7 ? 'Daily' : 
                            schedule.daysOfWeek?.length === 5 && schedule.daysOfWeek.includes(1) ? 'Weekdays' :
                            schedule.daysOfWeek?.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(',');
               scheduleStr = `${days} ${schedule.startTimeLocal}-${schedule.endTimeLocal}`;
+              
+              // Check if currently active
+              const now = new Date();
+              const currentDay = now.getDay();
+              const currentTime = now.toTimeString().slice(0, 5);
+              isActive = schedule.daysOfWeek?.includes(currentDay) && 
+                        currentTime >= schedule.startTimeLocal && 
+                        currentTime <= schedule.endTimeLocal;
+            } else {
+              isActive = true; // Always running
             }
             
             return (
-              <div key={workflow.workflowId} className="bg-white rounded-lg border-2 border-gray-200 shadow-lg p-6">
+              <div key={workflow.workflowId} className={`bg-white rounded-lg border-4 shadow-lg p-6 ${isActive ? 'border-green-500 bg-green-50' : 'border-gray-200'} relative`}>
+                {/* Active Badge */}
+                {isActive && (
+                  <div className="absolute -top-3 -right-3 px-3 py-1 bg-green-500 text-white font-bold text-xs rounded-full shadow-lg animate-pulse">
+                    ✓ ACTIVE NOW
+                  </div>
+                )}
+                
                 {/* Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -1583,7 +1602,32 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
               {savedScreens.map((screen) => (
                 <div key={screen.id} className="border-2 border-gray-200 rounded-lg p-4 hover:border-blue-400 transition-all">
                   <h3 className="font-semibold text-gray-900 mb-2">{screen.name}</h3>
-                  <p className="text-sm text-gray-600 mb-3 truncate">{screen.message}</p>
+                  
+                  {/* Mini Preview */}
+                  {screen.matrix && (
+                    <div className="bg-gray-900 p-2 rounded mb-3">
+                      <div className="grid grid-cols-22 gap-0.5">
+                        {screen.matrix.map((row, rowIdx) =>
+                          row.map((cell, colIdx) => {
+                            const isColorCode = cell >= 63 && cell <= 70;
+                            const CHAR_COLORS = {
+                              63: 'bg-red-500', 64: 'bg-orange-500', 65: 'bg-yellow-500',
+                              66: 'bg-green-500', 67: 'bg-blue-500', 68: 'bg-purple-500',
+                              69: 'bg-white', 70: 'bg-gray-900'
+                            };
+                            return (
+                              <div
+                                key={`${rowIdx}-${colIdx}`}
+                                className={`w-[6px] h-[6px] rounded-sm ${isColorCode ? CHAR_COLORS[cell] : 'bg-black'}`}
+                              />
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-gray-600 mb-3 truncate">{screen.message}</p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
