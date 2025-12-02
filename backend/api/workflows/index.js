@@ -38,8 +38,17 @@ const createWorkflow = async (req, res) => {
 
   const { boardId, name, steps, schedule, isDefault } = req.body;
   
+  console.log('📝 Workflow creation request:', { boardId, name, stepsCount: steps?.length, steps });
+  
   if (!boardId || !name || !steps || steps.length === 0) {
-    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Board ID, name, and steps required' } });
+    console.error('❌ Validation failed:', { boardId: !!boardId, name: !!name, steps: !!steps, stepsLength: steps?.length });
+    return res.status(400).json({ 
+      error: { 
+        code: ERROR_CODES.VALIDATION_ERROR, 
+        message: 'Board ID, name, and steps required',
+        details: { boardId: !!boardId, name: !!name, hasSteps: !!steps, stepsLength: steps?.length }
+      } 
+    });
   }
 
   const newWorkflow = new Workflow({

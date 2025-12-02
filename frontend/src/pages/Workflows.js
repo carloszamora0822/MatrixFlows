@@ -264,19 +264,29 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
         ...form,
         steps: form.steps.map((step, idx) => ({ ...step, order: idx, isEnabled: true }))
       };
+      
+      console.log('Creating workflow with data:', workflowData);
+      
       const res = await fetch('/api/workflows', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(workflowData)
       });
+      
+      const data = await res.json();
+      
       if (res.ok) {
+        alert('✅ Workflow created successfully!');
         setForm({ boardId: '', name: '', steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15 }] });
         setShowForm(false);
         fetchData();
+      } else {
+        alert(`❌ Failed to create workflow:\n\n${data.error?.message}\n\nDetails: ${JSON.stringify(data.error?.details || {})}`);
       }
     } catch (error) {
       console.error('Failed to create workflow:', error);
+      alert(`❌ Network error: ${error.message}`);
     } finally {
       setLoading(false);
     }
