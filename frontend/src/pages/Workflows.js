@@ -638,24 +638,16 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold text-gray-800">Workflows</h3>
-        <div className="flex gap-3">
-          <button 
-            onClick={() => setShowCustomScreenBuilder(true)}
-            className="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-lg hover:from-orange-600 hover:to-pink-600 font-semibold shadow-md"
-          >
-            🎨 Create Custom Screen
-          </button>
-          <button onClick={() => {
-            if (showForm) {
-              setShowForm(false);
-              setEditingId(null);
-            } else {
-              setShowForm(true);
-            }
-          }} className="btn-primary" disabled={boards.length === 0}>
-            {showForm ? 'Cancel' : '+ Create Workflow'}
-          </button>
-        </div>
+        <button onClick={() => {
+          if (showForm) {
+            setShowForm(false);
+            setEditingId(null);
+          } else {
+            setShowForm(true);
+          }
+        }} className="btn-primary" disabled={boards.length === 0}>
+          {showForm ? 'Cancel' : '+ Create Workflow'}
+        </button>
       </div>
 
       {boards.length === 0 && (
