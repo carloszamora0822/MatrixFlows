@@ -383,6 +383,8 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const [draggedStep, setDraggedStep] = useState(null);
   const [editingWorkflowId, setEditingWorkflowId] = useState(null);
   const [stepDurations, setStepDurations] = useState({});
+  const [stepUnits, setStepUnits] = useState({}); // Track units for each step
+  
   const [form, setForm] = useState({ 
     name: '', 
     steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
@@ -838,24 +840,53 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                         <div className="mt-2 ml-2 flex items-center space-x-2">
                           <span className="text-sm font-semibold text-gray-700">{label}</span>
                           {isEditing && (
-                            <div className="flex items-center space-x-1">
-                              <input
-                                type="number"
-                                value={stepDurations[`${workflow.workflowId}-${idx}`] || step.displaySeconds}
-                                onChange={(e) => {
-                                  const newDuration = parseInt(e.target.value);
-                                  setStepDurations({
-                                    ...stepDurations,
-                                    [`${workflow.workflowId}-${idx}`]: newDuration
-                                  });
-                                  // Update the step immediately
-                                  step.displaySeconds = newDuration;
-                                }}
-                                className="w-16 px-2 py-1 border-2 border-blue-400 rounded text-center font-bold"
-                                min="1"
-                                max="999"
-                              />
-                              <span className="text-xs text-gray-600">seconds</span>
+                            <div className="flex items-center space-x-1 bg-blue-50 px-2 py-1 rounded border-2 border-blue-300">
+                              {(() => {
+                                const stepKey = `${workflow.workflowId}-${idx}`;
+                                const currentSeconds = stepDurations[stepKey] || step.displaySeconds;
+                                const converted = convertFromSeconds(currentSeconds);
+                                const currentUnit = stepUnits[stepKey] || converted.unit;
+                                const displayValue = stepUnits[stepKey] 
+                                  ? (currentUnit === 'hours' ? currentSeconds / 3600 : currentUnit === 'minutes' ? currentSeconds / 60 : currentSeconds)
+                                  : converted.value;
+                                
+                                return (
+                                  <>
+                                    <input
+                                      type="number"
+                                      value={Math.round(displayValue)}
+                                      onChange={(e) => {
+                                        const newValue = parseInt(e.target.value) || 1;
+                                        const newSeconds = convertToSeconds(newValue, currentUnit);
+                                        setStepDurations({
+                                          ...stepDurations,
+                                          [stepKey]: newSeconds
+                                        });
+                                        step.displaySeconds = newSeconds;
+                                      }}
+                                      className="w-16 px-2 py-1 border-2 border-blue-400 rounded text-center font-bold"
+                                      min="1"
+                                      max="999"
+                                    />
+                                    <select
+                                      value={currentUnit}
+                                      onChange={(e) => {
+                                        const newUnit = e.target.value;
+                                        setStepUnits({
+                                          ...stepUnits,
+                                          [stepKey]: newUnit
+                                        });
+                                        // Keep the same number of seconds, just change display unit
+                                      }}
+                                      className="px-2 py-1 border-2 border-blue-400 rounded text-xs font-semibold"
+                                    >
+                                      <option value="seconds">sec</option>
+                                      <option value="minutes">min</option>
+                                      <option value="hours">hrs</option>
+                                    </select>
+                                  </>
+                                );
+                              })()}
                             </div>
                           )}
                         </div>
