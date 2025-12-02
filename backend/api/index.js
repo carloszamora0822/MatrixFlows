@@ -81,6 +81,7 @@ app.use('/api/boards', require('./boards/index'));
 app.use('/api/workflows/trigger', require('./workflows/trigger')); // Must be before /api/workflows!
 app.use('/api/workflows', require('./workflows/index'));
 app.use('/api/pin-screen', require('./pin-screen/index'));
+app.use('/api/custom-screens', require('./custom-screens/index'));
 
 // Cron routes (for scheduled updates)
 app.use('/api/cron/update', require('./cron/update'));
