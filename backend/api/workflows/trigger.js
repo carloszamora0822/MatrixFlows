@@ -9,6 +9,10 @@ const { ERROR_CODES } = require('../../../shared/constants');
  */
 module.exports = async (req, res) => {
   try {
+    console.log('🔍 Trigger endpoint hit');
+    console.log('Cookies:', req.cookies);
+    console.log('Headers:', req.headers.cookie);
+    
     await connectDB();
     await new Promise((resolve, reject) => {
       requireEditor(req, res, (err) => err ? reject(err) : resolve());
