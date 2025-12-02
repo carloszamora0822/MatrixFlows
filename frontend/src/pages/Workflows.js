@@ -835,7 +835,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
           <p className="text-sm text-gray-500 mt-2">Create a workflow to automate your board updates</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-4xl mx-auto">
           {workflows.map((workflow) => {
             const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
             const totalSeconds = enabledSteps.reduce((sum, s) => sum + (s.displaySeconds || 0), 0);
@@ -971,14 +971,14 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                   </div>
                 )}
 
-                <div className="space-y-4 pl-12">
+                <div className="space-y-4 flex flex-col items-center">
                   {enabledSteps.map((step, idx) => {
                     const screenType = screenTypes.find(t => t.value === step.screenType);
                     const label = screenType?.label || step.screenType;
                     const isEditing = editingWorkflowId === workflow.workflowId;
                     
                     return (
-                      <div key={idx} className="relative">
+                      <div key={idx} className="relative flex flex-col items-center w-full">
                         <MiniVestaboard
                           screenType={step.screenType}
                           displaySeconds={stepDurations[`${workflow.workflowId}-${idx}`] || step.displaySeconds}
@@ -1012,12 +1012,26 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                             }
                           }}
                         />
-                        <div className="mt-2 ml-2 text-sm font-semibold text-gray-700">
-                          {label}
+                        <div className="mt-2 flex items-center justify-center gap-4 w-full">
+                          <div className="text-sm font-semibold text-gray-700">{label}</div>
+                          {isEditing && enabledSteps.length > 1 && (
+                            <button
+                              onClick={async () => {
+                                if (window.confirm(`Delete this ${label} screen from workflow?`)) {
+                                  const newSteps = enabledSteps.filter((_, i) => i !== idx).map((s, i) => ({ ...s, order: i }));
+                                  workflow.steps = newSteps;
+                                  await fetchData();
+                                }
+                              }}
+                              className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 font-semibold"
+                            >
+                              🗑️ Delete
+                            </button>
+                          )}
                         </div>
                         
                         {/* Time Display/Editor - Always show, between screens */}
-                        <div className="flex justify-center my-3">
+                        <div className="flex justify-center my-3 w-full">
                           {(() => {
                             const stepKey = `${workflow.workflowId}-${idx}`;
                             const currentSeconds = stepDurations[stepKey] || step.displaySeconds;
