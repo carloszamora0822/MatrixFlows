@@ -155,8 +155,6 @@ const Workflows = () => {
               <CustomScreensTab 
                 boards={boards}
                 selectedBoard={selectedBoard}
-                workflows={workflows}
-                fetchData={fetchData}
               />
             )}
           </div>
@@ -1102,7 +1100,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
 };
 
 // Custom Screens Tab Component
-const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
+const CustomScreensTab = ({ boards, selectedBoard }) => {
   const [formData, setFormData] = useState({
     boardId: selectedBoard?.boardId || '',
     screenName: '',
@@ -1118,26 +1116,6 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
   });
 
   const [previewMatrix, setPreviewMatrix] = useState(null);
-  const [savedScreens, setSavedScreens] = useState([]);
-  const [showWorkflowSelector, setShowWorkflowSelector] = useState(false);
-  const [selectedScreen, setSelectedScreen] = useState(null);
-
-  // Fetch saved screens on mount
-  useEffect(() => {
-    fetchSavedScreens();
-  }, []);
-
-  const fetchSavedScreens = async () => {
-    try {
-      const response = await fetch('/api/custom-screens', { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setSavedScreens(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch saved screens:', error);
-    }
-  };
 
   const colorCodeMap = {
     red: 63,
@@ -1243,10 +1221,8 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        await response.json();
         alert(`✅ Screen "${formData.screenName}" saved!`);
-        // Refresh the list
-        fetchSavedScreens();
         // Reset form
         setFormData({
           ...formData,
@@ -1267,74 +1243,7 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
     }
   };
 
-  const handleDeleteScreen = async (screenId, screenName) => {
-    try {
-      const response = await fetch(`/api/custom-screens?id=${screenId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
 
-      if (response.ok) {
-        alert(`✅ Screen "${screenName}" deleted!`);
-        // Refresh the list
-        fetchSavedScreens();
-      } else {
-        alert('❌ Failed to delete screen');
-      }
-    } catch (error) {
-      alert('❌ Network error occurred');
-    }
-  };
-
-  const handleAddToWorkflow = async (workflowId) => {
-    if (!selectedScreen) return;
-
-    try {
-      // Get the workflow
-      const workflow = workflows.find(w => w.workflowId === workflowId);
-      if (!workflow) {
-        alert('❌ Workflow not found');
-        return;
-      }
-
-      // Add the custom screen as a new step
-      const newStep = {
-        screenType: 'CUSTOM_MESSAGE',
-        screenConfig: {
-          message: selectedScreen.message,
-          matrix: selectedScreen.matrix
-        },
-        displaySeconds: 20,
-        isEnabled: true,
-        order: workflow.steps.length
-      };
-
-      const updatedSteps = [...workflow.steps, newStep];
-
-      // Update the workflow
-      const response = await fetch(`/api/workflows/${workflowId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...workflow,
-          steps: updatedSteps
-        })
-      });
-
-      if (response.ok) {
-        alert(`✅ "${selectedScreen.name}" added to workflow!`);
-        setShowWorkflowSelector(false);
-        setSelectedScreen(null);
-        // Refresh workflows
-        fetchData();
-      } else {
-        alert('❌ Failed to add screen to workflow');
-      }
-    } catch (error) {
-      alert('❌ Network error occurred');
-    }
-  };
 
   const handlePinToday = async () => {
     if (!previewMatrix) {
@@ -1553,105 +1462,6 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
         )}
       </div>
 
-      {/* Saved Screens Library */}
-      {savedScreens.length > 0 && (
-        <div className="lg:col-span-2 mt-8">
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">📚 Saved Screens Library</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {savedScreens.map((screen) => (
-                <div key={screen.id} className="border-2 border-gray-200 rounded-lg p-4 hover:border-blue-400 transition-all">
-                  <h3 className="font-semibold text-gray-900 mb-2">{screen.name}</h3>
-                  
-                  {/* Mini Preview */}
-                  {screen.matrix && (
-                    <div className="bg-gray-900 p-2 rounded mb-3">
-                      <div className="grid grid-cols-22 gap-0.5">
-                        {screen.matrix.map((row, rowIdx) =>
-                          row.map((cell, colIdx) => {
-                            const isColorCode = cell >= 63 && cell <= 70;
-                            const CHAR_COLORS = {
-                              63: 'bg-red-500', 64: 'bg-orange-500', 65: 'bg-yellow-500',
-                              66: 'bg-green-500', 67: 'bg-blue-500', 68: 'bg-purple-500',
-                              69: 'bg-white', 70: 'bg-gray-900'
-                            };
-                            return (
-                              <div
-                                key={`${rowIdx}-${colIdx}`}
-                                className={`w-[6px] h-[6px] rounded-sm ${isColorCode ? CHAR_COLORS[cell] : 'bg-black'}`}
-                              />
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  <p className="text-xs text-gray-600 mb-3 truncate">{screen.message}</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setSelectedScreen(screen);
-                        setShowWorkflowSelector(true);
-                      }}
-                      className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                    >
-                      ➕ Add to Workflow
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (window.confirm(`Delete "${screen.name}"?`)) {
-                          handleDeleteScreen(screen.screenId, screen.name);
-                        }
-                      }}
-                      className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Workflow Selector Modal */}
-      {showWorkflowSelector && selectedScreen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowWorkflowSelector(false)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Add "{selectedScreen.name}" to Workflow</h3>
-            <p className="text-sm text-gray-600 mb-4">Select which workflow to add this screen to:</p>
-            <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
-              {workflows.filter(w => w.boardId === selectedBoard?.boardId).length === 0 ? (
-                <p className="text-center text-gray-500 py-4">No workflows found. Create a workflow first!</p>
-              ) : (
-                workflows
-                  .filter(w => w.boardId === selectedBoard?.boardId)
-                  .map((workflow) => (
-                    <button
-                      key={workflow.workflowId}
-                      onClick={() => handleAddToWorkflow(workflow.workflowId)}
-                      className="w-full text-left px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
-                    >
-                      <div className="font-semibold text-gray-900">{workflow.name}</div>
-                      <div className="text-xs text-gray-500">{workflow.steps.length} steps</div>
-                    </button>
-                  ))
-              )}
-            </div>
-            <button
-              onClick={() => {
-                setShowWorkflowSelector(false);
-                setSelectedScreen(null);
-              }}
-              className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
