@@ -12,7 +12,17 @@ class WorkflowService {
     try {
       const now = new Date();
       
-      // SAFEGUARD: Check if there's an active pinned screen first
+      // 🚫 CRITICAL SAFEGUARD: PINNED SCREEN BLOCKING LOGIC
+      // ========================================================
+      // When a custom screen is "Pinned for Today", it BLOCKS ALL other workflows
+      // from running. This ensures ONLY the pinned screen displays on the board.
+      // 
+      // Workflows remain BLOCKED until:
+      // 1. The pin expires (date/time range ends)
+      // 2. The pin is manually removed/deactivated
+      // 
+      // This check runs FIRST before any other workflow logic.
+      // ========================================================
       const pinnedWorkflow = await Workflow.findOne({
         orgId: ORG_CONFIG.ID,
         isActive: true,
@@ -21,7 +31,8 @@ class WorkflowService {
       });
 
       if (pinnedWorkflow && this.isWorkflowActiveNow(pinnedWorkflow, now)) {
-        console.log(`📌 Pinned screen active: ${pinnedWorkflow.name} - blocking default workflow`);
+        console.log(`📌 PINNED SCREEN ACTIVE: ${pinnedWorkflow.name}`);
+        console.log(`🚫 BLOCKING all other workflows until pin expires or is removed`);
         return pinnedWorkflow;
       }
 

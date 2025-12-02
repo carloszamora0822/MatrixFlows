@@ -14,7 +14,8 @@ class SchedulerService {
     console.log('🔄 Scheduler: Processing all boards...');
     
     try {
-      // Clean up expired pinned workflows first
+      // 🧹 CLEANUP: Remove expired pinned screens FIRST
+      // This unblocks workflows once pin time period ends
       await pinScreenService.cleanupExpiredPinnedWorkflows();
       
       const boards = await workflowService.getAllBoards();
