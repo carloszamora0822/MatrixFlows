@@ -161,9 +161,8 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
       if (res.ok) {
         const screenType = data.result?.screenType || 'Unknown';
         const stepIndex = (data.result?.stepIndex || 0) + 1;
-        const alreadyDisplaying = data.result?.vestaboardResponse?.status === 304;
         
-        return { success: true, screenType, stepIndex, alreadyDisplaying };
+        return { success: true, screenType, stepIndex };
       } else {
         const errorMsg = data.error?.message || 'Failed to update board';
         alert(`❌ Error: ${errorMsg}`);
@@ -215,13 +214,11 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
         const currentStep = boardWorkflow.steps[currentStepIndex];
         currentStepIndex = (currentStepIndex + 1) % boardWorkflow.steps.length;
         
-        // If board already showing this content (304), skip ahead immediately
-        // Otherwise wait for the configured display time
-        const delayMs = result.alreadyDisplaying ? 100 : (currentStep?.displaySeconds || 15) * 1000;
+        // Always wait the full display time - even if content unchanged (304)
+        // People need time to read the screen!
+        const delayMs = (currentStep?.displaySeconds || 15) * 1000;
         
-        console.log(result.alreadyDisplaying 
-          ? `⏭️ Content already displayed, advancing immediately` 
-          : `⏰ Next update in ${delayMs/1000} seconds`);
+        console.log(`⏰ Next update in ${delayMs/1000} seconds`);
         
         schedulerRefs.current[boardId] = setTimeout(runNextStep, delayMs);
       } else {
