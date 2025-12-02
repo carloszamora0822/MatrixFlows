@@ -110,8 +110,8 @@ const PinScreen = () => {
     }
     if (currentLine) lines.push(currentLine);
     
-    // Limit to 3 lines (rows 1-3 inside border)
-    const displayLines = lines.slice(0, 3);
+    // Use all 4 available rows (rows 1-4, inside top/bottom border)
+    const displayLines = lines.slice(0, 4);
     
     // Center vertically
     const availableRows = 4; // rows 1-4 (inside top/bottom border)
@@ -261,11 +261,11 @@ const PinScreen = () => {
                   onChange={(e) => setFormData({ ...formData, customMessage: e.target.value })}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
                   placeholder="Event today at 10/16"
-                  rows="3"
-                  maxLength="60"
+                  rows="4"
+                  maxLength="80"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">{formData.customMessage.length}/60 characters • Auto-wraps to 3 lines</p>
+                <p className="text-xs text-gray-500 mt-1">{formData.customMessage.length}/80 characters • Auto-wraps to 4 lines</p>
               </div>
 
               {/* Border Colors */}
