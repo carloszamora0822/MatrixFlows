@@ -1021,6 +1021,23 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
   const [previewMatrix, setPreviewMatrix] = useState(null);
   const [savedScreens, setSavedScreens] = useState([]);
 
+  // Fetch saved screens on mount
+  useEffect(() => {
+    fetchSavedScreens();
+  }, []);
+
+  const fetchSavedScreens = async () => {
+    try {
+      const response = await fetch('/api/custom-screens', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setSavedScreens(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch saved screens:', error);
+    }
+  };
+
   const colorCodeMap = {
     red: 63,
     orange: 64,
@@ -1372,6 +1389,45 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
           </div>
         )}
       </div>
+
+      {/* Saved Screens Library */}
+      {savedScreens.length > 0 && (
+        <div className="lg:col-span-2 mt-8">
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">📚 Saved Screens Library</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {savedScreens.map((screen) => (
+                <div key={screen.id} className="border-2 border-gray-200 rounded-lg p-4 hover:border-blue-400 transition-all">
+                  <h3 className="font-semibold text-gray-900 mb-2">{screen.name}</h3>
+                  <p className="text-sm text-gray-600 mb-3 truncate">{screen.message}</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        // Add to workflow functionality (to be implemented)
+                        alert('Add to workflow feature coming soon!');
+                      }}
+                      className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                    >
+                      ➕ Add to Workflow
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (confirm(`Delete "${screen.name}"?`)) {
+                          // Delete functionality (to be implemented)
+                          alert('Delete feature coming soon!');
+                        }
+                      }}
+                      className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
