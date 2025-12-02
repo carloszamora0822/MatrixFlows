@@ -1,5 +1,28 @@
 import React, { useState, useEffect } from 'react';
 
+// Character mapping - same as MatrixPreview
+const CHAR_MAP_REVERSE = {
+  0: '',   // Blank
+  1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G', 8: 'H', 9: 'I', 10: 'J',
+  11: 'K', 12: 'L', 13: 'M', 14: 'N', 15: 'O', 16: 'P', 17: 'Q', 18: 'R', 19: 'S', 20: 'T',
+  21: 'U', 22: 'V', 23: 'W', 24: 'X', 25: 'Y', 26: 'Z',
+  27: '1', 28: '2', 29: '3', 30: '4', 31: '5', 32: '6', 33: '7', 34: '8', 35: '9', 36: '0',
+  37: '!', 38: '@', 39: '#', 40: '$', 41: '(', 42: ')', 44: '-', 46: '+', 47: '&', 48: '=',
+  49: ';', 50: ':', 52: "'", 53: '"', 54: '%', 55: ',', 56: '.', 59: '/', 60: '?', 62: '°'
+};
+
+const CHAR_COLORS = {
+  0: 'bg-black',
+  63: 'bg-red-500',
+  64: 'bg-orange-500',
+  65: 'bg-yellow-500',
+  66: 'bg-green-500',
+  67: 'bg-blue-500',
+  68: 'bg-purple-500',
+  69: 'bg-white',
+  70: 'bg-gray-900'
+};
+
 const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLast }) => {
   const [matrix, setMatrix] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -7,8 +30,11 @@ const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLas
   useEffect(() => {
     const fetchPreview = async () => {
       try {
-        const res = await fetch(`/api/preview?type=${screenType}`, {
-          credentials: 'include'
+        const res = await fetch(`/api/screens/render`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ screenType, config: {} })
         });
         const data = await res.json();
         if (data.matrix) {
@@ -23,29 +49,6 @@ const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLas
 
     fetchPreview();
   }, [screenType]);
-
-  const getCharacterColor = (code) => {
-    if (code === 0) return 'bg-gray-900'; // Blank
-    if (code >= 1 && code <= 26) return 'bg-red-600'; // Red letters
-    if (code >= 27 && code <= 52) return 'bg-orange-500'; // Orange letters
-    if (code >= 53 && code <= 62) return 'bg-white'; // White numbers
-    if (code === 63) return 'bg-red-600'; // Red
-    if (code === 64) return 'bg-orange-500'; // Orange
-    if (code === 65) return 'bg-yellow-400'; // Yellow
-    if (code === 66) return 'bg-green-500'; // Green
-    if (code === 67) return 'bg-blue-500'; // Blue
-    if (code === 68) return 'bg-purple-600'; // Violet
-    if (code === 69) return 'bg-white'; // White
-    return 'bg-gray-900';
-  };
-
-  const getCharacter = (code) => {
-    if (code === 0) return '';
-    if (code >= 1 && code <= 26) return String.fromCharCode(64 + code); // A-Z
-    if (code >= 27 && code <= 52) return String.fromCharCode(70 + code); // a-z
-    if (code >= 53 && code <= 62) return String.fromCharCode(code - 5); // 0-9
-    return '';
-  };
 
   if (loading) {
     return (
@@ -63,18 +66,33 @@ const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLas
       </div>
       
       {/* Mini Vestaboard */}
-      <div className="bg-black p-2 rounded-lg shadow-xl border-2 border-gray-700" style={{ width: '330px' }}>
-        <div className="grid gap-[2px]" style={{ gridTemplateColumns: 'repeat(22, 1fr)' }}>
+      <div className="bg-gray-900 p-2 rounded-lg shadow-xl border-2 border-gray-700" style={{ width: '330px' }}>
+        <div className="grid grid-cols-22 gap-0.5">
           {matrix && matrix.map((row, rowIdx) =>
-            row.map((code, colIdx) => (
-              <div
-                key={`${rowIdx}-${colIdx}`}
-                className={`${getCharacterColor(code)} flex items-center justify-center text-white font-bold rounded-sm`}
-                style={{ width: '13px', height: '13px', fontSize: '8px' }}
-              >
-                {getCharacter(code)}
-              </div>
-            ))
+            row.map((cell, colIdx) => {
+              const isColorCode = cell >= 63 && cell <= 70;
+              const isTextCode = cell >= 1 && cell <= 62;
+              
+              let cellClass = 'w-3 h-3 flex items-center justify-center text-xs font-mono rounded-sm';
+              let displayChar = '';
+              
+              if (isColorCode) {
+                cellClass += ` ${CHAR_COLORS[cell]}`;
+              } else if (isTextCode) {
+                cellClass += ' bg-gray-800 text-white';
+                displayChar = CHAR_MAP_REVERSE[cell] || '?';
+              } else {
+                cellClass += ' bg-black';
+              }
+              
+              return (
+                <div key={`${rowIdx}-${colIdx}`} className={cellClass}>
+                  <span className="font-bold text-white" style={{ fontSize: '6px' }}>
+                    {displayChar}
+                  </span>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
