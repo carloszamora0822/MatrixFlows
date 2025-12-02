@@ -350,7 +350,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const [form, setForm] = useState({ 
     boardId: '', 
     name: '', 
-    steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15 }],
+    steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
     schedule: {
       type: 'always',
       startTimeLocal: '08:00',
@@ -388,7 +388,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
         setForm({ 
           boardId: '', 
           name: '', 
-          steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15 }],
+          steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
           schedule: {
             type: 'always',
             startTimeLocal: '08:00',
@@ -415,10 +415,15 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
     setForm({
       boardId: workflow.boardId,
       name: workflow.name,
-      steps: workflow.steps.sort((a, b) => a.order - b.order).map(s => ({
-        screenType: s.screenType,
-        displaySeconds: s.displaySeconds
-      })),
+      steps: workflow.steps.sort((a, b) => a.order - b.order).map(s => {
+        const converted = convertFromSeconds(s.displaySeconds);
+        return {
+          screenType: s.screenType,
+          displaySeconds: s.displaySeconds,
+          displayValue: converted.value,
+          displayUnit: converted.unit
+        };
+      }),
       schedule: workflow.schedule || {
         type: 'always',
         startTimeLocal: '08:00',
@@ -439,8 +444,24 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
     }
   };
 
+  const convertToSeconds = (value, unit) => {
+    if (unit === 'minutes') return value * 60;
+    if (unit === 'hours') return value * 3600;
+    return value; // seconds
+  };
+
+  const convertFromSeconds = (seconds) => {
+    if (seconds >= 3600 && seconds % 3600 === 0) {
+      return { value: seconds / 3600, unit: 'hours' };
+    }
+    if (seconds >= 60 && seconds % 60 === 0) {
+      return { value: seconds / 60, unit: 'minutes' };
+    }
+    return { value: seconds, unit: 'seconds' };
+  };
+
   const addStep = () => {
-    setForm({ ...form, steps: [...form.steps, { screenType: 'BIRTHDAY', displaySeconds: 15 }] });
+    setForm({ ...form, steps: [...form.steps, { screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }] });
   };
 
   const removeStep = (idx) => {
@@ -450,6 +471,14 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const updateStep = (idx, field, value) => {
     const newSteps = [...form.steps];
     newSteps[idx][field] = value;
+    
+    // Recalculate displaySeconds when value or unit changes
+    if (field === 'displayValue' || field === 'displayUnit') {
+      const displayValue = field === 'displayValue' ? value : newSteps[idx].displayValue;
+      const displayUnit = field === 'displayUnit' ? value : newSteps[idx].displayUnit;
+      newSteps[idx].displaySeconds = convertToSeconds(displayValue, displayUnit);
+    }
+    
     setForm({ ...form, steps: newSteps });
   };
 
@@ -544,8 +573,26 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                   <select value={step.screenType} onChange={(e) => updateStep(idx, 'screenType', e.target.value)} className="input-field flex-1">
                     {screenTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
-                  <input type="number" value={step.displaySeconds} onChange={(e) => updateStep(idx, 'displaySeconds', parseInt(e.target.value))}
-                    className="input-field w-24" min="5" max="300" placeholder="Seconds" />
+                  <div className="flex items-center space-x-1">
+                    <input 
+                      type="number" 
+                      value={step.displayValue || step.displaySeconds} 
+                      onChange={(e) => updateStep(idx, 'displayValue', parseInt(e.target.value))}
+                      className="input-field w-16 text-center font-semibold" 
+                      min="1" 
+                      max="999" 
+                      placeholder="15" 
+                    />
+                    <select 
+                      value={step.displayUnit || 'seconds'} 
+                      onChange={(e) => updateStep(idx, 'displayUnit', e.target.value)}
+                      className="input-field w-24 text-sm"
+                    >
+                      <option value="seconds">sec</option>
+                      <option value="minutes">min</option>
+                      <option value="hours">hrs</option>
+                    </select>
+                  </div>
                   <button type="button" onClick={() => removeStep(idx)} className="px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded">✕</button>
                 </div>
               ))}
