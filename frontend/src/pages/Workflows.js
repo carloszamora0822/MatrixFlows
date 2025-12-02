@@ -601,14 +601,12 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
       const updatedSteps = [...workflow.steps, newStep];
 
       // Update the workflow with all required fields
-      const response = await fetch(`/api/workflows/${workflowId}`, {
+      const response = await fetch(`/api/workflows?id=${workflowId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          workflowId: workflow.workflowId,
           name: workflow.name,
-          boardId: workflow.boardId,
           steps: updatedSteps,
           schedule: workflow.schedule || {
             type: 'always',
