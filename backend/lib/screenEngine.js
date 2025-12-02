@@ -310,7 +310,7 @@ class ScreenEngine {
 
       // Analyze METAR for safety
       const safety = metarAnalyzer.analyzeSafety(metar.rawText);
-      const safetyColor = safety.color; // 62=Green, 66=Yellow, 63=Red
+      const safetyColor = safety.color; // 66=Green, 65=Yellow, 63=Red
 
       // Row 0: "METAR KVBT" centered with safety color border
       const headerText = `METAR ${metar.stationId}`;

@@ -13,7 +13,7 @@ class MetarAnalyzer {
   analyzeSafety(metarText) {
     const analysis = {
       safety: 'SAFE',      // SAFE, RISKY, UNSAFE
-      color: 62,           // Green (62), Yellow (66), Red (63)
+      color: 66,           // Green (66), Yellow (65), Red (63)
       visibility: null,
       ceiling: null,
       windSpeed: null,
@@ -106,11 +106,11 @@ class MetarAnalyzer {
 
       // Set color based on safety
       if (analysis.safety === 'SAFE') {
-        analysis.color = 62; // Green
+        analysis.color = 66; // Green (66)
       } else if (analysis.safety === 'RISKY') {
-        analysis.color = 66; // Yellow
+        analysis.color = 65; // Yellow (65)
       } else {
-        analysis.color = 63; // Red
+        analysis.color = 63; // Red (63)
       }
 
       console.log(`🛩️  METAR Safety Analysis: ${analysis.safety} (Color: ${analysis.color})`);
@@ -126,7 +126,7 @@ class MetarAnalyzer {
       // Default to RISKY if we can't analyze
       return {
         safety: 'RISKY',
-        color: 66,
+        color: 65, // Yellow (65)
         visibility: null,
         ceiling: null,
         windSpeed: null,
