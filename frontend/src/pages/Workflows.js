@@ -717,51 +717,27 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                         <p className="text-sm text-gray-600 mb-2">
                           {enabledSteps.length} steps • Full cycle: {timeStr} • 📅 {scheduleStr}
                         </p>
-                        {/* Visual Flow Preview - Vertical Stack with Mini Boards */}
-                        <div className="space-y-3 mt-3">
+                        {/* Simple Flow Preview */}
+                        <div className="flex items-center space-x-2 overflow-x-auto pb-2 mt-2">
                           {enabledSteps.map((step, idx) => {
                             const screenType = screenTypes.find(t => t.value === step.screenType);
-                            const label = screenType?.label || step.screenType;
+                            const emoji = screenType?.label.split(' ')[0] || '📺';
+                            const label = screenType?.label.split(' ').slice(1).join(' ') || step.screenType;
                             return (
-                              <div key={idx} className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg hover:border-blue-400 transition-all">
-                                <div className="flex items-center space-x-3 mb-2">
-                                  <div className="flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded-full font-bold text-xs">
-                                    {idx + 1}
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="font-semibold text-gray-800 text-sm">{label}</div>
-                                    <div className="text-xs text-gray-500">{step.screenType}</div>
-                                  </div>
-                                  <div className="px-2 py-1 bg-blue-600 text-white rounded-full text-xs font-bold">
-                                    {step.displaySeconds}s
-                                  </div>
-                                  {idx === 0 && <div className="text-xs text-green-600 font-semibold">FIRST</div>}
-                                  {idx === enabledSteps.length - 1 && <div className="text-xs text-blue-600 font-semibold">LAST</div>}
-                                </div>
-                                {/* Mini Vestaboard Preview */}
-                                <div className="bg-black p-2 rounded" style={{ width: '264px', height: '72px' }}>
-                                  <div className="grid grid-cols-22 gap-[1px]" style={{ fontSize: '4px', lineHeight: '4px' }}>
-                                    {Array(6).fill(0).map((_, row) => 
-                                      Array(22).fill(0).map((_, col) => (
-                                        <div key={`${row}-${col}`} className="w-[11px] h-[11px] bg-gray-800 flex items-center justify-center text-white" style={{ fontSize: '6px' }}>
-                                          {row === 2 && col >= 5 && col <= 16 ? label.charAt(col - 5) : ''}
-                                        </div>
-                                      ))
-                                    )}
-                                  </div>
+                              <React.Fragment key={idx}>
+                                <div className="flex flex-col items-center min-w-[80px]">
+                                  <div className="text-3xl mb-1">{emoji}</div>
+                                  <div className="text-xs font-semibold text-gray-700 text-center">{label}</div>
+                                  <div className="text-xs text-blue-600 font-bold">{step.displaySeconds}s</div>
                                 </div>
                                 {idx < enabledSteps.length - 1 && (
-                                  <div className="flex justify-center mt-2">
-                                    <div className="text-blue-400 text-xl">↓</div>
-                                  </div>
+                                  <div className="text-blue-400 text-xl">→</div>
                                 )}
-                              </div>
+                              </React.Fragment>
                             );
                           })}
                           {enabledSteps.length > 1 && (
-                            <div className="flex items-center justify-center p-2 bg-green-50 border-2 border-green-300 rounded-lg">
-                              <span className="text-green-600 font-semibold text-sm">🔄 Loops back to step 1</span>
-                            </div>
+                            <div className="text-green-500 text-xl">🔄</div>
                           )}
                         </div>
                       </>
