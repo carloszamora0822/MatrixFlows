@@ -10,7 +10,7 @@ const JWT_CONFIG = {
 
 // Cookie Configuration
 const COOKIE_CONFIG = {
-  httpOnly: true,
+  httpOnly: process.env.NODE_ENV === 'production', // Allow JS access in dev for debugging
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax',
   maxAge: 24 * 60 * 60 * 1000, // 24 hours
