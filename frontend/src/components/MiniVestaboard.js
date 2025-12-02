@@ -23,9 +23,10 @@ const CHAR_COLORS = {
   70: 'bg-gray-900'
 };
 
-const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLast }) => {
+const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLast, onDragStart, onDragOver, onDrop, draggable = false }) => {
   const [matrix, setMatrix] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     const fetchPreview = async () => {
@@ -59,14 +60,37 @@ const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLas
   }
 
   return (
-    <div className="relative">
+    <div 
+      className={`relative ${draggable ? 'cursor-move' : ''} ${isDragging ? 'opacity-50' : ''}`}
+      draggable={draggable}
+      onDragStart={(e) => {
+        setIsDragging(true);
+        if (onDragStart) onDragStart(e);
+      }}
+      onDragEnd={() => setIsDragging(false)}
+      onDragOver={(e) => {
+        e.preventDefault();
+        if (onDragOver) onDragOver(e);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        if (onDrop) onDrop(e);
+      }}
+    >
       {/* Step indicator */}
       <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded-full font-bold text-sm shadow-lg">
         {stepNumber}
       </div>
       
+      {/* Drag handle */}
+      {draggable && (
+        <div className="absolute -left-10 top-4 flex items-center justify-center w-8 h-8 text-gray-400 hover:text-blue-500">
+          <span className="text-2xl">⋮⋮</span>
+        </div>
+      )}
+      
       {/* Mini Vestaboard */}
-      <div className="bg-gray-900 p-2 rounded-lg shadow-xl border-2 border-gray-700" style={{ width: '330px' }}>
+      <div className={`bg-gray-900 p-2 rounded-lg shadow-xl border-2 ${isDragging ? 'border-blue-500' : 'border-gray-700'} ${draggable ? 'hover:border-blue-400' : ''}`} style={{ width: '330px' }}>
         <div className="grid grid-cols-22 gap-0.5">
           {matrix && matrix.map((row, rowIdx) =>
             row.map((cell, colIdx) => {

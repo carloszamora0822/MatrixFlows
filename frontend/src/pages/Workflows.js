@@ -380,6 +380,8 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
 const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [draggedStep, setDraggedStep] = useState(null);
+  const [editingWorkflowId, setEditingWorkflowId] = useState(null);
   const [form, setForm] = useState({ 
     name: '', 
     steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
@@ -713,20 +715,79 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                     </p>
                   </div>
                   <div className="flex space-x-2">
-                    <button onClick={() => handleEdit(workflow)} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
-                      ✏️ Edit
-                    </button>
-                    <button onClick={() => handleDelete(workflow.workflowId)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
-                      🗑️ Delete
-                    </button>
+                    {editingWorkflowId === workflow.workflowId ? (
+                      <>
+                        <button 
+                          onClick={async () => {
+                            // Save reordered workflow
+                            const reorderedSteps = enabledSteps.map((step, idx) => ({
+                              ...step,
+                              order: idx
+                            }));
+                            
+                            try {
+                              const res = await fetch(`/api/workflows?id=${workflow.workflowId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({
+                                  name: workflow.name,
+                                  steps: reorderedSteps,
+                                  schedule: workflow.schedule
+                                })
+                              });
+                              
+                              if (res.ok) {
+                                alert('✅ Workflow order saved!');
+                                setEditingWorkflowId(null);
+                                fetchData();
+                              }
+                            } catch (error) {
+                              alert('❌ Failed to save');
+                            }
+                          }}
+                          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-semibold"
+                        >
+                          💾 Save Order
+                        </button>
+                        <button 
+                          onClick={() => setEditingWorkflowId(null)} 
+                          className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={() => setEditingWorkflowId(workflow.workflowId)} 
+                          className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm font-semibold"
+                        >
+                          🎯 Reorder Steps
+                        </button>
+                        <button onClick={() => handleEdit(workflow)} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                          ✏️ Edit
+                        </button>
+                        <button onClick={() => handleDelete(workflow.workflowId)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+                          🗑️ Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* Mini Vestaboard Previews */}
+                {editingWorkflowId === workflow.workflowId && (
+                  <div className="mb-4 p-3 bg-purple-50 border-2 border-purple-400 rounded-lg">
+                    <p className="text-purple-800 font-semibold">🎯 Drag and drop mode active! Grab the screens to reorder them.</p>
+                  </div>
+                )}
                 <div className="space-y-4 pl-12">
                   {enabledSteps.map((step, idx) => {
                     const screenType = screenTypes.find(t => t.value === step.screenType);
                     const label = screenType?.label || step.screenType;
+                    const isEditing = editingWorkflowId === workflow.workflowId;
+                    
                     return (
                       <div key={idx} className="relative">
                         <MiniVestaboard
@@ -735,6 +796,34 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                           stepNumber={idx + 1}
                           isFirst={idx === 0}
                           isLast={idx === enabledSteps.length - 1}
+                          draggable={isEditing}
+                          onDragStart={(e) => {
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', idx);
+                            setDraggedStep(idx);
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                            const toIndex = idx;
+                            
+                            if (fromIndex !== toIndex) {
+                              // Reorder steps
+                              const newSteps = [...enabledSteps];
+                              const [movedStep] = newSteps.splice(fromIndex, 1);
+                              newSteps.splice(toIndex, 0, movedStep);
+                              
+                              // Update workflow in place
+                              workflow.steps = newSteps.map((s, i) => ({ ...s, order: i }));
+                              setDraggedStep(null);
+                              // Force re-render
+                              fetchData();
+                            }
+                          }}
                         />
                         <div className="mt-2 ml-2 text-sm font-semibold text-gray-700">
                           {label}
