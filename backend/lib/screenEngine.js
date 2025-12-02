@@ -470,19 +470,66 @@ class ScreenEngine {
         return config.matrix;
       }
 
-      // Fallback: generate simple centered message
-      const message = config.message || 'CUSTOM MESSAGE';
+      // Generate matrix with alternating border colors
+      const message = (config.message || 'CUSTOM MESSAGE').toUpperCase();
       const matrix = new Array(6).fill(null).map(() => new Array(22).fill(0));
       
-      // Simple centered text on row 2
-      const messageCodes = this.textToCodes(message);
-      const startCol = Math.floor((22 - messageCodes.length) / 2);
+      // Color code mapping
+      const colorMap = {
+        red: 63, orange: 64, yellow: 65, green: 66,
+        blue: 67, purple: 68, white: 69
+      };
       
-      for (let i = 0; i < messageCodes.length && (startCol + i) < 22; i++) {
-        matrix[2][startCol + i] = messageCodes[i];
+      const color1 = colorMap[config.borderColor1] || 63;
+      const color2 = colorMap[config.borderColor2] || 64;
+      
+      // Add alternating colored border
+      for (let col = 0; col < 22; col++) {
+        matrix[0][col] = col % 2 === 0 ? color1 : color2;
+        matrix[5][col] = col % 2 === 0 ? color1 : color2;
       }
       
-      console.log(`✅ Generated custom message: "${message}"`);
+      for (let row = 1; row < 5; row++) {
+        matrix[row][0] = row % 2 === 0 ? color1 : color2;
+        matrix[row][21] = row % 2 === 0 ? color1 : color2;
+      }
+      
+      // Word wrap text into available space (18 chars wide, 4 rows)
+      const availableWidth = 18;
+      const words = message.split(' ');
+      const lines = [];
+      let currentLine = '';
+      
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        if (testLine.length <= availableWidth) {
+          currentLine = testLine;
+        } else {
+          if (currentLine) lines.push(currentLine);
+          // If word is too long, don't break it, just use what fits
+          currentLine = word;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+      
+      // Center vertically and horizontally
+      const displayLines = lines.slice(0, 4);
+      const startRow = Math.floor((4 - displayLines.length) / 2) + 1;
+      
+      displayLines.forEach((line, lineIdx) => {
+        const charCodes = this.textToCodes(line);
+        const row = startRow + lineIdx;
+        const startCol = Math.floor((availableWidth - charCodes.length) / 2) + 2;
+        
+        for (let i = 0; i < charCodes.length; i++) {
+          const col = startCol + i;
+          if (col >= 2 && col <= 19) {
+            matrix[row][col] = charCodes[i];
+          }
+        }
+      });
+      
+      console.log(`✅ Generated custom message with ${config.borderColor1}/${config.borderColor2} border`);
       return matrix;
 
     } catch (error) {

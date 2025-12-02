@@ -1159,6 +1159,7 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
     { value: 'white', label: '⚪ White', class: 'bg-white' }
   ];
 
+  // Color mapping for preview display
   const CHAR_COLORS = {
     0: 'bg-black',
     63: 'bg-red-500',
@@ -1171,87 +1172,46 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
   };
 
   const CHAR_MAP = {
-    0: '', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G', 8: 'H', 9: 'I', 10: 'J',
+    1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G', 8: 'H', 9: 'I', 10: 'J',
     11: 'K', 12: 'L', 13: 'M', 14: 'N', 15: 'O', 16: 'P', 17: 'Q', 18: 'R', 19: 'S', 20: 'T',
     21: 'U', 22: 'V', 23: 'W', 24: 'X', 25: 'Y', 26: 'Z',
     27: '1', 28: '2', 29: '3', 30: '4', 31: '5', 32: '6', 33: '7', 34: '8', 35: '9', 36: '0',
     37: '!', 59: '/', 44: '-', 56: '.', 55: ',', 50: ':'
   };
 
-  const generatePreview = () => {
-    const matrix = Array(6).fill(null).map(() => Array(22).fill(0));
-    
-    const color1 = colorCodeMap[formData.borderColor1];
-    const color2 = colorCodeMap[formData.borderColor2];
-    
-    // Add alternating colored border
-    for (let col = 0; col < 22; col++) {
-      matrix[0][col] = col % 2 === 0 ? color1 : color2;
-      matrix[5][col] = col % 2 === 0 ? color1 : color2;
-    }
-    
-    for (let row = 1; row < 5; row++) {
-      matrix[row][0] = row % 2 === 0 ? color1 : color2;
-      matrix[row][21] = row % 2 === 0 ? color1 : color2;
-    }
-    
-    const message = formData.customMessage.toUpperCase();
-    const charToCode = (char) => {
-      if (char === ' ') return 0;
-      if (char >= 'A' && char <= 'Z') return char.charCodeAt(0) - 64;
-      if (char >= '0' && char <= '9') return 27 + (char.charCodeAt(0) - 48);
-      if (char === '!') return 37;
-      if (char === '/') return 59;
-      if (char === '-') return 44;
-      if (char === '.') return 56;
-      if (char === ',') return 55;
-      if (char === ':') return 50;
-      return 0;
-    };
-    
-    const availableWidth = 18;
-    const words = message.split(' ');
-    const lines = [];
-    let currentLine = '';
-    
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      if (testLine.length <= availableWidth) {
-        currentLine = testLine;
-      } else {
-        if (currentLine) lines.push(currentLine);
-        currentLine = word.length <= availableWidth ? word : word.substring(0, availableWidth);
-      }
-    }
-    if (currentLine) lines.push(currentLine);
-    
-    const displayLines = lines.slice(0, 4);
-    const availableRows = 4;
-    const startRow = Math.floor((availableRows - displayLines.length) / 2) + 1;
-    
-    displayLines.forEach((line, lineIdx) => {
-      const charCodes = line.split('').map(charToCode);
-      const row = startRow + lineIdx;
-      const startCol = Math.floor((availableWidth - charCodes.length) / 2) + 2;
-      
-      for (let i = 0; i < charCodes.length; i++) {
-        const col = startCol + i;
-        if (col >= 2 && col <= 19) {
-          matrix[row][col] = charCodes[i];
-        }
-      }
-    });
-    
-    setPreviewMatrix(matrix);
-  };
-
+  // Use backend renderer - ONE ENGINE for all previews!
   useEffect(() => {
-    if (formData.customMessage) {
-      generatePreview();
-    } else {
-      setPreviewMatrix(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const generatePreview = async () => {
+      if (!formData.customMessage) {
+        setPreviewMatrix(null);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/screens/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            screenType: 'CUSTOM_MESSAGE',
+            screenConfig: {
+              message: formData.customMessage,
+              borderColor1: formData.borderColor1,
+              borderColor2: formData.borderColor2
+            }
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setPreviewMatrix(data.matrix);
+        }
+      } catch (error) {
+        console.error('Preview error:', error);
+      }
+    };
+
+    generatePreview();
   }, [formData.customMessage, formData.borderColor1, formData.borderColor2]);
 
   const handleSaveScreen = async (e) => {
