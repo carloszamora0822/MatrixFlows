@@ -860,6 +860,16 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
             let scheduleStr = '24/7';
             let isActive = false;
             
+            // Check if this is a pinned workflow
+            const isPinnedWorkflow = workflow.name?.startsWith('Pinned -');
+            
+            // Check if there's ANY active pinned workflow (blocks all others)
+            const hasActivePinnedWorkflow = workflows.some(w => 
+              w.name?.startsWith('Pinned -') && 
+              w.schedule?.type === 'specificDateRange' &&
+              w.isActive
+            );
+            
             if (schedule.type === 'dailyWindow') {
               const days = schedule.daysOfWeek?.length === 7 ? 'Daily' : 
                            schedule.daysOfWeek?.length === 5 && schedule.daysOfWeek.includes(1) ? 'Weekdays' :
@@ -870,11 +880,28 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
               const now = new Date();
               const currentDay = now.getDay();
               const currentTime = now.toTimeString().slice(0, 5);
-              isActive = schedule.daysOfWeek?.includes(currentDay) && 
+              const inSchedule = schedule.daysOfWeek?.includes(currentDay) && 
                         currentTime >= schedule.startTimeLocal && 
                         currentTime <= schedule.endTimeLocal;
+              
+              // Only active if in schedule AND no pinned workflow is blocking
+              isActive = inSchedule && !hasActivePinnedWorkflow;
+            } else if (schedule.type === 'specificDateRange') {
+              // For pinned workflows, check if in date range
+              const now = new Date();
+              const currentDate = now.toISOString().split('T')[0];
+              const currentTime = now.toTimeString().slice(0, 5);
+              
+              isActive = isPinnedWorkflow &&
+                        schedule.startDate <= currentDate &&
+                        schedule.endDate >= currentDate &&
+                        (!schedule.startTimeLocal || currentTime >= schedule.startTimeLocal) &&
+                        (!schedule.endTimeLocal || currentTime <= schedule.endTimeLocal);
+              
+              scheduleStr = `${schedule.startDate} - ${schedule.endDate}`;
             } else {
-              isActive = true; // Always running
+              // Always running, but blocked if pinned workflow exists
+              isActive = !hasActivePinnedWorkflow;
             }
             
             return (
