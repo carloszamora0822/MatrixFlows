@@ -89,15 +89,15 @@ const PinScreen = () => {
       return 0;
     });
     
-    // Center the message in the available space (rows 2-3, cols 2-20)
+    // Center the message in the middle (rows 2-3, cols 2-20)
     const availableWidth = 19; // 22 - 3 (borders)
     const startCol = Math.floor((availableWidth - charCodes.length) / 2) + 2;
-    const row = 2; // Middle rows
+    const row = 2; // Middle row
     
+    // Only put text on one row, don't duplicate
     for (let i = 0; i < charCodes.length && (startCol + i) < 21; i++) {
-      matrix[row][startCol + i] = charCodes[i];
-      if (row + 1 < 5) {
-        matrix[row + 1][startCol + i] = charCodes[i]; // Duplicate on next row for bigger text
+      if (startCol + i >= 1 && startCol + i <= 20) { // Keep away from borders
+        matrix[row][startCol + i] = charCodes[i];
       }
     }
     

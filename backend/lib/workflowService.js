@@ -10,6 +10,21 @@ class WorkflowService {
    */
   async getActiveWorkflow(board) {
     try {
+      const now = new Date();
+      
+      // SAFEGUARD: Check if there's an active pinned screen first
+      const pinnedWorkflow = await Workflow.findOne({
+        orgId: ORG_CONFIG.ID,
+        isActive: true,
+        name: { $regex: /^Pinned -/ },
+        'schedule.type': 'specificDateRange'
+      });
+
+      if (pinnedWorkflow && this.isWorkflowActiveNow(pinnedWorkflow, now)) {
+        console.log(`📌 Pinned screen active: ${pinnedWorkflow.name} - blocking default workflow`);
+        return pinnedWorkflow;
+      }
+
       // Get the board's assigned workflow
       if (!board.defaultWorkflowId) {
         console.log(`⚠️  No workflow assigned to board ${board.boardId}`);
@@ -26,8 +41,6 @@ class WorkflowService {
         console.log(`⚠️  Workflow ${board.defaultWorkflowId} not found or inactive`);
         return null;
       }
-
-      const now = new Date();
       
       // Check if workflow should be active at this time
       if (this.isWorkflowActiveNow(workflow, now)) {
