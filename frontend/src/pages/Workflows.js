@@ -380,7 +380,7 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
 const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [expandedWorkflow, setExpandedWorkflow] = useState(null);
+  const [expandedWorkflow, setExpandedWorkflow] = useState('all'); // Start with all expanded
   const [form, setForm] = useState({ 
     name: '', 
     steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
@@ -688,7 +688,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
       ) : (
         <div className="space-y-4">
           {workflows.map((workflow) => {
-            const isExpanded = expandedWorkflow === workflow.workflowId;
+            const isExpanded = expandedWorkflow === 'all' || expandedWorkflow === workflow.workflowId;
             return (
             <div key={workflow.workflowId} 
               className="p-4 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer">
