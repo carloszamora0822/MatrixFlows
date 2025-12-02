@@ -207,20 +207,24 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
         return;
       }
       
+      const startTime = Date.now();
       const result = await handleTrigger(boardId);
-      console.log('📊 Trigger result:', result);
+      const apiDuration = Date.now() - startTime;
+      
+      console.log('📊 Trigger result:', result, `(took ${apiDuration}ms)`);
       
       if (result.success) {
         const currentStep = boardWorkflow.steps[currentStepIndex];
         currentStepIndex = (currentStepIndex + 1) % boardWorkflow.steps.length;
         
-        // Always wait the full display time - even if content unchanged (304)
-        // People need time to read the screen!
-        const delayMs = (currentStep?.displaySeconds || 15) * 1000;
+        // Wait for display time MINUS the API call duration
+        // So total time = exactly displaySeconds
+        const displayMs = (currentStep?.displaySeconds || 15) * 1000;
+        const remainingMs = Math.max(100, displayMs - apiDuration);
         
-        console.log(`⏰ Next update in ${delayMs/1000} seconds`);
+        console.log(`⏰ Display time: ${displayMs}ms, API took: ${apiDuration}ms, waiting: ${remainingMs}ms`);
         
-        schedulerRefs.current[boardId] = setTimeout(runNextStep, delayMs);
+        schedulerRefs.current[boardId] = setTimeout(runNextStep, remainingMs);
       } else {
         console.error('❌ Trigger failed, stopping scheduler');
         stopAutoScheduler(boardId);
