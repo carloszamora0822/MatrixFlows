@@ -46,6 +46,16 @@ class VestaboardClient {
       console.error(`❌ Vestaboard update failed:`, error.message);
       
       if (error.response) {
+        // 304 = Not Modified (board already displaying this content) - treat as success!
+        if (error.response.status === 304) {
+          console.log(`✅ Vestaboard already displaying this content (304 Not Modified)`);
+          return {
+            success: true,
+            status: 304,
+            data: { message: 'Not modified - board already displaying this content' }
+          };
+        }
+        
         // API returned an error
         throw new Error(`Vestaboard API error: ${error.response.status} - ${error.response.data?.message || error.message}`);
       } else if (error.request) {
