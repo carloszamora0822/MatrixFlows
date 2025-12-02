@@ -59,6 +59,7 @@ const createWorkflow = async (req, res) => {
     steps,
     schedule: schedule || { type: 'always' },
     isDefault: isDefault || false,
+    isActive: true,
     orgId: ORG_CONFIG.ID,
     createdBy: req.user.userId
   });
@@ -91,7 +92,8 @@ const updateWorkflow = async (req, res) => {
       name: name.trim(),
       steps,
       schedule: schedule || { type: 'always' },
-      isDefault: isDefault || false
+      isDefault: isDefault || false,
+      isActive: true
     },
     { new: true }
   );
