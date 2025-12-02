@@ -970,16 +970,30 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                   <div className="mb-6 p-4 bg-green-50 border-2 border-green-400 rounded-lg">
                     <h4 className="font-semibold text-green-900 mb-3">➕ Add Saved Custom Screen</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {savedScreens.map((screen) => (
-                        <button
-                          key={screen.screenId}
-                          onClick={() => addCustomScreenToWorkflow(screen, workflow.workflowId)}
-                          className="text-left p-3 bg-white border-2 border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all"
-                        >
-                          <div className="font-semibold text-gray-900">{screen.name}</div>
-                          <div className="text-xs text-gray-600 truncate">{screen.message}</div>
-                        </button>
-                      ))}
+                      {savedScreens.map((screen) => {
+                        const expiresDate = new Date(screen.expiresAt);
+                        const now = new Date();
+                        const daysUntilExpire = Math.ceil((expiresDate - now) / (1000 * 60 * 60 * 24));
+                        const expiresText = daysUntilExpire > 365 
+                          ? 'Never expires' 
+                          : daysUntilExpire > 1 
+                            ? `Expires in ${daysUntilExpire} days`
+                            : daysUntilExpire === 1 
+                              ? 'Expires tomorrow'
+                              : 'Expires today';
+                        
+                        return (
+                          <button
+                            key={screen.screenId}
+                            onClick={() => addCustomScreenToWorkflow(screen, workflow.workflowId)}
+                            className="text-left p-3 bg-white border-2 border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all"
+                          >
+                            <div className="font-semibold text-gray-900">{screen.name}</div>
+                            <div className="text-xs text-gray-600 truncate mb-1">{screen.message}</div>
+                            <div className="text-xs text-gray-500 italic">⏱️ {expiresText}</div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
