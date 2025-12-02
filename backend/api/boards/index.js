@@ -1,0 +1,70 @@
+const { connectDB } = require('../../lib/db');
+const { requireAuth, requireEditor } = require('../../lib/auth');
+const Vestaboard = require('../../models/Vestaboard');
+const { ERROR_CODES, ORG_CONFIG } = require('../../../shared/constants');
+
+module.exports = async (req, res) => {
+  try {
+    await connectDB();
+    await new Promise((resolve, reject) => {
+      requireAuth(req, res, (err) => err ? reject(err) : resolve());
+    });
+
+    switch (req.method) {
+      case 'GET':
+        return await getBoards(req, res);
+      case 'POST':
+        return await createBoard(req, res);
+      case 'DELETE':
+        return await deleteBoard(req, res);
+      default:
+        return res.status(405).json({ error: { code: ERROR_CODES.METHOD_NOT_ALLOWED, message: 'Method not allowed' } });
+    }
+  } catch (error) {
+    console.error('❌ Boards API error:', error);
+    return res.status(500).json({ error: { code: ERROR_CODES.INTERNAL_ERROR, message: 'Internal server error' } });
+  }
+};
+
+const getBoards = async (req, res) => {
+  const boards = await Vestaboard.find({ orgId: ORG_CONFIG.ID }).sort({ createdAt: -1 });
+  res.status(200).json(boards);
+};
+
+const createBoard = async (req, res) => {
+  await new Promise((resolve, reject) => {
+    requireEditor(req, res, (err) => err ? reject(err) : resolve());
+  });
+
+  const { name, locationLabel, vestaboardWriteKey } = req.body;
+  
+  if (!name || !vestaboardWriteKey) {
+    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Name and API key required' } });
+  }
+
+  const newBoard = new Vestaboard({
+    name: name.trim(),
+    locationLabel: locationLabel?.trim(),
+    vestaboardWriteKey: vestaboardWriteKey.trim(),
+    orgId: ORG_CONFIG.ID
+  });
+
+  await newBoard.save();
+  console.log(`✅ Board created: ${newBoard.name} by ${req.user.email}`);
+  res.status(201).json(newBoard);
+};
+
+const deleteBoard = async (req, res) => {
+  await new Promise((resolve, reject) => {
+    requireEditor(req, res, (err) => err ? reject(err) : resolve());
+  });
+
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Board ID required' } });
+  }
+
+  await Vestaboard.deleteOne({ boardId: id, orgId: ORG_CONFIG.ID });
+  console.log(`✅ Board deleted: ${id} by ${req.user.email}`);
+  res.status(200).json({ message: 'Board deleted', id });
+};

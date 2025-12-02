@@ -76,6 +76,11 @@ app.use('/api/events', require('./events/index'));
 app.use('/api/pilots', require('./pilots/index'));
 app.use('/api/recognitions', require('./recognitions/index'));
 
+// Workflow and Board management routes
+app.use('/api/boards', require('./boards/index'));
+app.use('/api/workflows', require('./workflows/index'));
+app.use('/api/workflows/trigger', require('./workflows/trigger'));
+
 // Cron routes (for scheduled updates)
 app.use('/api/cron/update', require('./cron/update'));
 
