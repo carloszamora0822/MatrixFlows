@@ -108,25 +108,29 @@ module.exports = async (req, res) => {
 
       if (!board) {
         console.log('⚠️  Board not found, skipping immediate update');
-      } else if (!board.writeKey) {
+      } else if (!board.vestaboardWriteKey) {
         console.log('⚠️  Board has no write key, skipping immediate update');
       } else {
         // Render the first screen in the pinned workflow
         const firstStep = workflow.steps[0];
         console.log(`📺 Rendering pinned screen: ${firstStep.screenType}`);
+        console.log(`📺 Screen config:`, JSON.stringify(firstStep.screenConfig, null, 2));
         
         const matrix = await screenEngine.renderScreen(
           firstStep.screenType,
           firstStep.screenConfig || {}
         );
 
+        console.log(`📺 Matrix generated:`, matrix ? 'YES' : 'NO');
+        
         // Push to Vestaboard immediately
         console.log(`🚀 Pushing pinned screen to Vestaboard ${board.name}...`);
-        await vestaboardClient.postMessage(board.writeKey, matrix);
+        await vestaboardClient.postMessage(board.vestaboardWriteKey, matrix);
         console.log(`✅ Pinned screen is now LIVE on the board!`);
       }
     } catch (updateError) {
       console.error('⚠️  Failed to immediately update board:', updateError.message);
+      console.error('⚠️  Error stack:', updateError.stack);
       // Don't fail the whole request if immediate update fails
     }
 
