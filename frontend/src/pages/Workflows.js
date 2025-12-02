@@ -1040,9 +1040,32 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                             <button
                               onClick={async () => {
                                 if (window.confirm(`Delete this ${label} screen from workflow?`)) {
+                                  // Remove step and reorder
                                   const newSteps = enabledSteps.filter((_, i) => i !== idx).map((s, i) => ({ ...s, order: i }));
-                                  workflow.steps = newSteps;
-                                  await fetchData();
+                                  
+                                  // Save to backend
+                                  try {
+                                    const response = await fetch(`/api/workflows?id=${workflow.workflowId}`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      credentials: 'include',
+                                      body: JSON.stringify({
+                                        name: workflow.name,
+                                        steps: newSteps,
+                                        schedule: workflow.schedule
+                                      })
+                                    });
+                                    
+                                    if (response.ok) {
+                                      console.log('✅ Screen deleted and saved');
+                                      fetchData();
+                                    } else {
+                                      alert('❌ Failed to delete screen');
+                                    }
+                                  } catch (error) {
+                                    console.error('Failed to delete:', error);
+                                    alert('❌ Network error');
+                                  }
                                 }
                               }}
                               className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 font-semibold"
