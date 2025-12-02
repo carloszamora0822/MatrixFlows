@@ -29,80 +29,68 @@ const Workflows = () => {
     }
   };
 
+  // Auto-select first board if only one exists
+  useEffect(() => {
+    if (boards.length === 1 && !selectedBoard) {
+      setSelectedBoard(boards[0]);
+    }
+  }, [boards, selectedBoard]);
+
+  const currentBoard = selectedBoard || boards[0];
+  const assignedWorkflow = currentBoard ? workflows.find(w => w.workflowId === currentBoard.defaultWorkflowId) : null;
+
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8 px-4">
-        {/* Header */}
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4">
+        {/* Animated Header */}
         <div className="max-w-7xl mx-auto mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            Vestaboard Control Center
-          </h1>
-          <p className="text-gray-600">Manage your boards and workflows in one beautiful interface</p>
-        </div>
-
-        {/* Board Selection Cards */}
-        <div className="max-w-7xl mx-auto mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Select a Board</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {boards.map(board => {
-              const assignedWorkflow = workflows.find(w => w.workflowId === board.defaultWorkflowId);
-              const isSelected = selectedBoard?.boardId === board.boardId;
-              
-              return (
-                <div
-                  key={board.boardId}
-                  onClick={() => setSelectedBoard(board)}
-                  className={`p-6 rounded-xl cursor-pointer transition-all duration-300 ${
-                    isSelected
-                      ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-2xl scale-105'
-                      : 'bg-white hover:shadow-xl hover:scale-102'
-                  }`}
+          <div className="relative">
+            <h1 className="text-5xl font-bold text-white mb-3 drop-shadow-2xl">
+              {currentBoard?.name || 'Vestaboard'}
+            </h1>
+            <div className="flex items-center space-x-4">
+              {currentBoard?.locationLabel && (
+                <span className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white text-sm font-semibold">
+                  📍 {currentBoard.locationLabel}
+                </span>
+              )}
+              {assignedWorkflow && (
+                <span className="px-4 py-2 bg-green-500/20 backdrop-blur-sm rounded-full text-green-300 text-sm font-semibold">
+                  🔄 {assignedWorkflow.name}
+                </span>
+              )}
+              {boards.length > 1 && (
+                <select
+                  value={currentBoard?.boardId || ''}
+                  onChange={(e) => setSelectedBoard(boards.find(b => b.boardId === e.target.value))}
+                  className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white text-sm font-semibold border-2 border-white/20 hover:border-white/40 transition-all cursor-pointer"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className={`text-xl font-bold ${
-                      isSelected ? 'text-white' : 'text-gray-900'
-                    }`}>{board.name}</h3>
-                    {isSelected && <span className="text-2xl">✓</span>}
-                  </div>
-                  {board.locationLabel && (
-                    <p className={`text-sm mb-2 ${
-                      isSelected ? 'text-blue-100' : 'text-gray-600'
-                    }`}>{board.locationLabel}</p>
-                  )}
-                  {assignedWorkflow ? (
-                    <div className={`text-sm font-semibold ${
-                      isSelected ? 'text-green-200' : 'text-green-600'
-                    }`}>
-                      🔄 {assignedWorkflow.name}
-                    </div>
-                  ) : (
-                    <div className={`text-sm ${
-                      isSelected ? 'text-yellow-200' : 'text-yellow-600'
-                    }`}>
-                      ⚠️ No workflow assigned
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                  {boards.map(board => (
+                    <option key={board.boardId} value={board.boardId} className="bg-slate-800">
+                      {board.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Workflow Management for Selected Board */}
-        {selectedBoard ? (
+        {/* Workflow Management */}
+        {currentBoard ? (
           <div className="max-w-7xl mx-auto">
             <WorkflowsTab 
               workflows={workflows} 
               boards={boards} 
               fetchData={fetchData}
-              selectedBoard={selectedBoard}
+              selectedBoard={currentBoard}
             />
           </div>
         ) : (
           <div className="max-w-7xl mx-auto text-center py-20">
-            <div className="text-6xl mb-4">👆</div>
-            <h3 className="text-2xl font-semibold text-gray-700 mb-2">Select a Board to Get Started</h3>
-            <p className="text-gray-500">Choose a board above to manage its workflows</p>
+            <div className="text-6xl mb-4">📺</div>
+            <h3 className="text-2xl font-semibold text-white mb-2">No Boards Found</h3>
+            <p className="text-gray-400">Create a board to get started</p>
           </div>
         )}
       </div>
