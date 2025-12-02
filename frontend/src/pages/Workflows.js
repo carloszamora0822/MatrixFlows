@@ -345,6 +345,8 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
 
 const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [expandedWorkflow, setExpandedWorkflow] = useState(null);
   const [form, setForm] = useState({ 
     boardId: '', 
     name: '', 
@@ -404,6 +406,25 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
     }
   };
 
+  const handleEdit = (workflow) => {
+    setEditingId(workflow.workflowId);
+    setForm({
+      boardId: workflow.boardId,
+      name: workflow.name,
+      steps: workflow.steps.sort((a, b) => a.order - b.order).map(s => ({
+        screenType: s.screenType,
+        displaySeconds: s.displaySeconds
+      })),
+      schedule: workflow.schedule || {
+        type: 'always',
+        startTimeLocal: '08:00',
+        endTimeLocal: '18:00',
+        daysOfWeek: [1, 2, 3, 4, 5]
+      }
+    });
+    setShowForm(true);
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this workflow?')) return;
     try {
@@ -442,7 +463,14 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold">Workflows</h3>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary" disabled={boards.length === 0}>
+        <button onClick={() => {
+          if (showForm) {
+            setShowForm(false);
+            setEditingId(null);
+          } else {
+            setShowForm(true);
+          }
+        }} className="btn-primary" disabled={boards.length === 0}>
           {showForm ? 'Cancel' : '+ Create Workflow'}
         </button>
       </div>
@@ -454,8 +482,10 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
       )}
 
       {showForm && (
-        <div className="bg-gray-50 p-6 rounded-lg mb-6">
-          <h4 className="font-semibold mb-4">Create New Workflow</h4>
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-lg mb-6 border-2 border-blue-200">
+          <h4 className="font-semibold mb-4 text-lg text-blue-900">
+            {editingId ? '✏️ Edit Workflow' : '➕ Create New Workflow'}
+          </h4>
           <form onSubmit={handleSubmit} className="space-y-4">
             <select value={form.boardId} onChange={(e) => setForm({ ...form, boardId: e.target.value })} className="input-field" required>
               <option value="">Select Board</option>
@@ -519,7 +549,9 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
               )}
             </div>
 
-            <button type="submit" disabled={loading} className="btn-primary">{loading ? 'Creating...' : 'Create Workflow'}</button>
+            <button type="submit" disabled={loading} className="btn-primary">
+              {loading ? (editingId ? 'Updating...' : 'Creating...') : (editingId ? '💾 Update Workflow' : '✨ Create Workflow')}
+            </button>
           </form>
         </div>
       )}
@@ -532,11 +564,17 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
         </div>
       ) : (
         <div className="space-y-4">
-          {workflows.map((workflow) => (
-            <div key={workflow.workflowId} className="p-4 bg-gray-50 rounded-lg">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="font-semibold text-lg">{workflow.name}</h4>
+          {workflows.map((workflow) => {
+            const isExpanded = expandedWorkflow === workflow.workflowId;
+            return (
+            <div key={workflow.workflowId} 
+              className="p-4 bg-gradient-to-br from-white to-gray-50 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+              <div className="flex justify-between items-start mb-2" onClick={() => setExpandedWorkflow(isExpanded ? null : workflow.workflowId)}>
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl">{isExpanded ? '🔽' : '▶️'}</span>
+                    <h4 className="font-semibold text-lg">{workflow.name}</h4>
+                  </div>
                   {(() => {
                     const enabledSteps = workflow.steps.filter(s => s.isEnabled);
                     const totalSeconds = enabledSteps.reduce((sum, s) => sum + (s.displaySeconds || 0), 0);
@@ -565,20 +603,34 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                     );
                   })()}
                 </div>
-                <button onClick={() => handleDelete(workflow.workflowId)} className="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => handleEdit(workflow)} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                    ✏️ Edit
+                  </button>
+                  <button onClick={() => handleDelete(workflow.workflowId)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+                    🗑️ Delete
+                  </button>
+                </div>
               </div>
-              <div className="space-y-1">
-                {workflow.steps
-                  .filter(s => s.isEnabled)
-                  .sort((a, b) => a.order - b.order)
-                  .map((step, idx) => (
-                  <div key={idx} className="text-sm text-gray-700">
-                    {idx + 1}. {screenTypes.find(t => t.value === step.screenType)?.label || step.screenType} ({step.displaySeconds}s)
-                  </div>
-                ))}
-              </div>
+              {isExpanded && (
+                <div className="mt-4 space-y-2 border-t-2 border-gray-200 pt-4">
+                  <h5 className="font-semibold text-sm text-gray-700 mb-2">📋 Workflow Steps:</h5>
+                  {workflow.steps
+                    .filter(s => s.isEnabled)
+                    .sort((a, b) => a.order - b.order)
+                    .map((step, idx) => (
+                    <div key={idx} className="flex items-center space-x-3 p-2 bg-white rounded border border-gray-200">
+                      <span className="font-bold text-blue-600">{idx + 1}.</span>
+                      <span className="text-2xl">{screenTypes.find(t => t.value === step.screenType)?.label.split(' ')[0]}</span>
+                      <span className="flex-1 font-medium">{screenTypes.find(t => t.value === step.screenType)?.label.split(' ').slice(1).join(' ')}</span>
+                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">{step.displaySeconds}s</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
