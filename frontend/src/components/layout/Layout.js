@@ -3,9 +3,9 @@ import Navigation from './Navigation';
 
 const Layout = ({ children }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100">
       <Navigation />
-      <main className="flex-1 text-gray-100">
+      <main className="flex-1">
         {children}
       </main>
     </div>

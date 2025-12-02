@@ -257,23 +257,23 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
 
   return (
     <div>
-      <div className="bg-gray-800 border border-blue-500 rounded-lg p-4 mb-6 shadow-lg">
-        <h4 className="font-semibold text-blue-400 mb-2">🔄 Automatic Scheduler</h4>
-        <p className="text-sm text-gray-300">
+      <div className="bg-white border-2 border-blue-400 rounded-lg p-4 mb-6 shadow-lg">
+        <h4 className="font-semibold text-blue-600 mb-2">🔄 Automatic Scheduler</h4>
+        <p className="text-sm text-gray-700">
           Click "▶️ Start Auto" to automatically cycle through your workflow steps. Each screen displays for its configured duration (e.g., 15 seconds), then automatically advances to the next screen. Click "⏹️ Stop" to pause.
         </p>
       </div>
 
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-semibold text-gray-300">Registered Boards</h3>
+        <h3 className="text-lg font-semibold text-gray-800">Registered Boards</h3>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary">
           {showForm ? 'Cancel' : '+ Add Board'}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-gray-900 p-6 rounded-lg mb-6">
-          <h4 className="font-semibold mb-4 text-blue-400">Add New Board</h4>
+        <div className="bg-white p-6 rounded-lg mb-6 shadow-lg border border-gray-200">
+          <h4 className="font-semibold mb-4 text-blue-600">Add New Board</h4>
           <form onSubmit={handleSubmit} className="space-y-4">
             <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="input-field" placeholder="Board Name (e.g., Office Lobby)" required />
@@ -289,10 +289,10 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
       )}
 
       {boards.length === 0 ? (
-        <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
+        <div className="text-center py-12 bg-white rounded-lg border-2 border-gray-200 shadow">
           <div className="text-6xl mb-4">📺</div>
-          <p className="text-gray-300">No boards registered yet</p>
-          <p className="text-sm text-gray-400 mt-2">Click "Add Board" to get started</p>
+          <p className="text-gray-700">No boards registered yet</p>
+          <p className="text-sm text-gray-500 mt-2">Click "Add Board" to get started</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -301,11 +301,11 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
             const hasWorkflow = boardWorkflows.length > 0;
             
             return (
-              <div key={board.boardId} className="p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-blue-500 transition-all shadow-lg">
+              <div key={board.boardId} className="p-4 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-400 hover:shadow-xl transition-all">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="font-semibold text-lg text-gray-300">{board.name}</h4>
-                    {board.locationLabel && <p className="text-sm text-gray-400">{board.locationLabel}</p>}
+                    <h4 className="font-semibold text-lg text-gray-900">{board.name}</h4>
+                    {board.locationLabel && <p className="text-sm text-gray-600">{board.locationLabel}</p>}
                     <p className="text-xs text-gray-500 mt-1">ID: {board.boardId}</p>
                     {hasWorkflow ? (
                       <p className="text-xs text-green-600 mt-1">✅ {boardWorkflows.length} workflow(s) configured</p>
@@ -521,7 +521,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-semibold text-gray-300">Workflows</h3>
+        <h3 className="text-lg font-semibold text-gray-800">Workflows</h3>
         <button onClick={() => {
           if (showForm) {
             setShowForm(false);
@@ -535,19 +535,19 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
       </div>
 
       {boards.length === 0 && (
-        <div className="bg-gray-800 border border-yellow-500 rounded-lg p-4 mb-6">
-          <p className="text-yellow-400">⚠️ You need to add a board first before creating workflows</p>
+        <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mb-6">
+          <p className="text-yellow-800">⚠️ You need to add a board first before creating workflows</p>
         </div>
       )}
 
       {showForm && (
-        <div className="bg-gray-900 p-6 rounded-lg mb-6 border-2 border-blue-500 shadow-xl">
-          <h4 className="font-semibold mb-4 text-lg text-blue-400">
+        <div className="bg-white p-6 rounded-lg mb-6 border-2 border-blue-400 shadow-xl">
+          <h4 className="font-semibold mb-4 text-lg text-blue-600">
             {editingId ? '✏️ Edit Workflow' : '➕ Create New Workflow'}
           </h4>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="font-medium text-gray-300 block mb-2">Board</label>
+              <label className="font-medium text-gray-700 block mb-2">Board</label>
               <select 
                 value={form.boardId} 
                 onChange={(e) => setForm({ ...form, boardId: e.target.value })} 
@@ -559,7 +559,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                 {boards.map(b => <option key={b.boardId} value={b.boardId}>{b.name}</option>)}
               </select>
               {editingId && (
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-600 mt-1">
                   🔒 Board cannot be changed when editing. Delete and recreate to move to different board.
                 </p>
               )}
@@ -569,7 +569,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
             
             <div>
               <div className="flex justify-between items-center mb-3">
-                <label className="font-medium text-gray-300">Screen Steps (drag to reorder)</label>
+                <label className="font-medium text-gray-700">Screen Steps (drag to reorder)</label>
                 <button type="button" onClick={addStep} className="text-sm text-blue-600 hover:text-blue-800 font-semibold">+ Add Step</button>
               </div>
               {form.steps.map((step, idx) => (
@@ -579,9 +579,9 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                   onDragStart={(e) => handleDragStart(e, idx)}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, idx)}
-                  className="flex items-center space-x-2 mb-2 p-2 bg-gray-900 rounded-lg border-2 border-gray-700 hover:border-blue-500 cursor-move transition-all group"
+                  className="flex items-center space-x-2 mb-2 p-2 bg-gray-50 rounded-lg border-2 border-gray-300 hover:border-blue-400 cursor-move transition-all group"
                 >
-                  <div className="flex flex-col items-center justify-center w-12 text-gray-500 group-hover:text-blue-400">
+                  <div className="flex flex-col items-center justify-center w-12 text-gray-400 group-hover:text-blue-600">
                     <span className="text-xs font-bold">#{idx + 1}</span>
                     <span className="text-lg leading-none">⋮⋮</span>
                   </div>
@@ -616,7 +616,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
             </div>
 
             <div>
-              <label className="font-medium block mb-2 text-gray-300">Schedule</label>
+              <label className="font-medium block mb-2 text-gray-700">Schedule</label>
               <select value={form.schedule.type} onChange={(e) => setForm({...form, schedule: {...form.schedule, type: e.target.value}})} className="input-field mb-2">
                 <option value="always">Always Running (24/7)</option>
                 <option value="dailyWindow">Daily Time Window</option>
@@ -661,10 +661,10 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
       )}
 
       {workflows.length === 0 ? (
-        <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
+        <div className="text-center py-12 bg-white rounded-lg border-2 border-gray-200 shadow">
           <div className="text-6xl mb-4">🔄</div>
-          <p className="text-gray-300">No workflows created yet</p>
-          <p className="text-sm text-gray-400 mt-2">Create a workflow to automate your board updates</p>
+          <p className="text-gray-700">No workflows created yet</p>
+          <p className="text-sm text-gray-500 mt-2">Create a workflow to automate your board updates</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -672,12 +672,12 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
             const isExpanded = expandedWorkflow === workflow.workflowId;
             return (
             <div key={workflow.workflowId} 
-              className="p-4 bg-gray-900 rounded-lg border-2 border-gray-700 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-200 cursor-pointer">
+              className="p-4 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer">
               <div className="flex justify-between items-start mb-2" onClick={() => setExpandedWorkflow(isExpanded ? null : workflow.workflowId)}>
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
                     <span className="text-2xl">{isExpanded ? '🔽' : '▶️'}</span>
-                    <h4 className="font-semibold text-lg text-gray-300">{workflow.name}</h4>
+                    <h4 className="font-semibold text-lg text-gray-900">{workflow.name}</h4>
                   </div>
                   {(() => {
                     const enabledSteps = workflow.steps.filter(s => s.isEnabled);
@@ -697,7 +697,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                     
                     return (
                       <>
-                        <p className="text-sm text-gray-400">
+                        <p className="text-sm text-gray-600">
                           {enabledSteps.length} steps • Full cycle: {timeStr}
                         </p>
                         <p className="text-xs text-gray-500">
@@ -717,14 +717,14 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                 </div>
               </div>
               {isExpanded && (
-                <div className="mt-4 space-y-2 border-t-2 border-gray-700 pt-4">
-                  <h5 className="font-semibold text-sm text-blue-400 mb-2">📋 Workflow Steps:</h5>
+                <div className="mt-4 space-y-2 border-t-2 border-gray-200 pt-4">
+                  <h5 className="font-semibold text-sm text-blue-600 mb-2">📋 Workflow Steps:</h5>
                   {workflow.steps
                     .filter(s => s.isEnabled)
                     .sort((a, b) => a.order - b.order)
                     .map((step, idx) => (
-                    <div key={idx} className="flex items-center space-x-3 p-2 bg-gray-900 rounded border border-gray-700">
-                      <span className="font-bold text-blue-400">{idx + 1}.</span>
+                    <div key={idx} className="flex items-center space-x-3 p-2 bg-gray-50 rounded border border-gray-200">
+                      <span className="font-bold text-blue-600">{idx + 1}.</span>
                       <span className="text-2xl">{screenTypes.find(t => t.value === step.screenType)?.label.split(' ')[0]}</span>
                       <span className="flex-1 font-medium">{screenTypes.find(t => t.value === step.screenType)?.label.split(' ').slice(1).join(' ')}</span>
                       <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">{step.displaySeconds}s</span>
