@@ -1014,14 +1014,360 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
 
 // Custom Screens Tab Component
 const CustomScreensTab = ({ boards, selectedBoard }) => {
+  const [formData, setFormData] = useState({
+    boardId: selectedBoard?.boardId || '',
+    customMessage: '',
+    borderColor1: 'red',
+    borderColor2: 'orange',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+    startTimeLocal: '09:00',
+    endTimeLocal: '17:00'
+  });
+
+  const [previewMatrix, setPreviewMatrix] = useState(null);
+
+  const colorCodeMap = {
+    red: 63,
+    orange: 64,
+    yellow: 65,
+    green: 66,
+    blue: 67,
+    purple: 68,
+    white: 69
+  };
+
+  const colorOptions = [
+    { value: 'red', label: '🔴 Red', class: 'bg-red-500' },
+    { value: 'orange', label: '🟠 Orange', class: 'bg-orange-500' },
+    { value: 'yellow', label: '🟡 Yellow', class: 'bg-yellow-500' },
+    { value: 'green', label: '🟢 Green', class: 'bg-green-500' },
+    { value: 'blue', label: '🔵 Blue', class: 'bg-blue-500' },
+    { value: 'purple', label: '🟣 Purple', class: 'bg-purple-500' },
+    { value: 'white', label: '⚪ White', class: 'bg-white' }
+  ];
+
+  const CHAR_COLORS = {
+    0: 'bg-black',
+    63: 'bg-red-500',
+    64: 'bg-orange-500',
+    65: 'bg-yellow-500',
+    66: 'bg-green-500',
+    67: 'bg-blue-500',
+    68: 'bg-purple-500',
+    69: 'bg-white'
+  };
+
+  const CHAR_MAP = {
+    0: '', 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F', 7: 'G', 8: 'H', 9: 'I', 10: 'J',
+    11: 'K', 12: 'L', 13: 'M', 14: 'N', 15: 'O', 16: 'P', 17: 'Q', 18: 'R', 19: 'S', 20: 'T',
+    21: 'U', 22: 'V', 23: 'W', 24: 'X', 25: 'Y', 26: 'Z',
+    27: '1', 28: '2', 29: '3', 30: '4', 31: '5', 32: '6', 33: '7', 34: '8', 35: '9', 36: '0',
+    37: '!', 59: '/', 44: '-', 56: '.', 55: ',', 50: ':'
+  };
+
+  const generatePreview = () => {
+    const matrix = Array(6).fill(null).map(() => Array(22).fill(0));
+    
+    const color1 = colorCodeMap[formData.borderColor1];
+    const color2 = colorCodeMap[formData.borderColor2];
+    
+    // Add alternating colored border
+    for (let col = 0; col < 22; col++) {
+      matrix[0][col] = col % 2 === 0 ? color1 : color2;
+      matrix[5][col] = col % 2 === 0 ? color1 : color2;
+    }
+    
+    for (let row = 1; row < 5; row++) {
+      matrix[row][0] = row % 2 === 0 ? color1 : color2;
+      matrix[row][21] = row % 2 === 0 ? color1 : color2;
+    }
+    
+    const message = formData.customMessage.toUpperCase();
+    const charToCode = (char) => {
+      if (char === ' ') return 0;
+      if (char >= 'A' && char <= 'Z') return char.charCodeAt(0) - 64;
+      if (char >= '0' && char <= '9') return 27 + (char.charCodeAt(0) - 48);
+      if (char === '!') return 37;
+      if (char === '/') return 59;
+      if (char === '-') return 44;
+      if (char === '.') return 56;
+      if (char === ',') return 55;
+      if (char === ':') return 50;
+      return 0;
+    };
+    
+    const availableWidth = 18;
+    const words = message.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (testLine.length <= availableWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word.length <= availableWidth ? word : word.substring(0, availableWidth);
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    
+    const displayLines = lines.slice(0, 4);
+    const availableRows = 4;
+    const startRow = Math.floor((availableRows - displayLines.length) / 2) + 1;
+    
+    displayLines.forEach((line, lineIdx) => {
+      const charCodes = line.split('').map(charToCode);
+      const row = startRow + lineIdx;
+      const startCol = Math.floor((availableWidth - charCodes.length) / 2) + 2;
+      
+      for (let i = 0; i < charCodes.length; i++) {
+        const col = startCol + i;
+        if (col >= 2 && col <= 19) {
+          matrix[row][col] = charCodes[i];
+        }
+      }
+    });
+    
+    setPreviewMatrix(matrix);
+  };
+
+  useEffect(() => {
+    if (formData.customMessage) {
+      generatePreview();
+    } else {
+      setPreviewMatrix(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.customMessage, formData.borderColor1, formData.borderColor2]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!previewMatrix) {
+      alert('Please enter a message first');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/pin-screen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          boardId: formData.boardId,
+          screenConfigs: [{
+            screenType: 'CUSTOM_MESSAGE',
+            screenConfig: { 
+              message: formData.customMessage,
+              matrix: previewMatrix 
+            },
+            displaySeconds: 20
+          }],
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          startTimeLocal: formData.startTimeLocal,
+          endTimeLocal: formData.endTimeLocal
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`✅ ${data.message}\n\nYour custom screen is now pinned!`);
+        setFormData({
+          ...formData,
+          customMessage: '',
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0]
+        });
+      } else {
+        const error = await response.json();
+        alert(`❌ Error: ${error.error?.message || 'Failed to pin screen'}`);
+      }
+    } catch (error) {
+      alert('❌ Network error occurred');
+    }
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8">
-      <h3 className="text-2xl font-bold text-gray-900 mb-4">🎨 Custom Screens</h3>
-      <p className="text-gray-600 mb-6">Create custom text messages with colored borders for your Vestaboard</p>
-      <div className="text-center py-12 bg-gray-50 rounded-lg">
-        <div className="text-6xl mb-4">🚧</div>
-        <p className="text-gray-700 font-semibold">Coming Soon!</p>
-        <p className="text-sm text-gray-500 mt-2">Custom screen builder will be here</p>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Left: Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
+          <h2 className="text-xl font-bold text-gray-900">Message Settings</h2>
+          
+          {/* Custom Message */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Your Message
+            </label>
+            <textarea
+              value={formData.customMessage}
+              onChange={(e) => setFormData({ ...formData, customMessage: e.target.value })}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+              placeholder="Event today at 10/16"
+              rows="4"
+              maxLength="80"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">{formData.customMessage.length}/80 characters • Auto-wraps to 4 lines</p>
+          </div>
+
+          {/* Border Colors */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Border Colors
+            </label>
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Color 1</p>
+                <div className="flex gap-2 flex-wrap">
+                  {colorOptions.map(color => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, borderColor1: color.value })}
+                      className={`w-10 h-10 rounded-lg ${color.class} border-2 transition-all ${
+                        formData.borderColor1 === color.value 
+                          ? 'border-gray-900 scale-110 shadow-lg' 
+                          : 'border-gray-300 hover:scale-105'
+                      }`}
+                      title={color.label}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Color 2</p>
+                <div className="flex gap-2 flex-wrap">
+                  {colorOptions.map(color => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, borderColor2: color.value })}
+                      className={`w-10 h-10 rounded-lg ${color.class} border-2 transition-all ${
+                        formData.borderColor2 === color.value 
+                          ? 'border-gray-900 scale-110 shadow-lg' 
+                          : 'border-gray-300 hover:scale-105'
+                      }`}
+                      title={color.label}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Date Range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                min={formData.startDate}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Time Range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Start Time
+              </label>
+              <input
+                type="time"
+                value={formData.startTimeLocal}
+                onChange={(e) => setFormData({ ...formData, startTimeLocal: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                End Time
+              </label>
+              <input
+                type="time"
+                value={formData.endTimeLocal}
+                onChange={(e) => setFormData({ ...formData, endTimeLocal: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl"
+          >
+            📌 Pin Screen
+          </button>
+        </div>
+      </form>
+
+      {/* Right: Live Preview */}
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Live Preview</h2>
+        {previewMatrix ? (
+          <div className="bg-gray-900 p-4 rounded-lg inline-block">
+            <div className="grid grid-cols-22 gap-0.5">
+              {previewMatrix.map((row, rowIdx) =>
+                row.map((cell, colIdx) => {
+                  const isColorCode = cell >= 63 && cell <= 70;
+                  const isTextCode = cell >= 1 && cell <= 62;
+                  
+                  let cellClass = 'w-[14px] h-[14px] flex items-center justify-center text-xs font-mono rounded-sm';
+                  let displayChar = '';
+                  
+                  if (isColorCode) {
+                    cellClass += ` ${CHAR_COLORS[cell]}`;
+                  } else if (isTextCode) {
+                    cellClass += ' bg-gray-800 text-white';
+                    displayChar = CHAR_MAP[cell] || '?';
+                  } else {
+                    cellClass += ' bg-black';
+                  }
+                  
+                  return (
+                    <div key={`${rowIdx}-${colIdx}`} className={cellClass}>
+                      {!isColorCode && (
+                        <span className="font-bold text-white" style={{ fontSize: '6px' }}>
+                          {displayChar}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-gray-400">
+            <div className="text-4xl mb-2">✍️</div>
+            <p>Type a message to see preview</p>
+          </div>
+        )}
       </div>
     </div>
   );
