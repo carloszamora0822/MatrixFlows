@@ -2,6 +2,7 @@ const BoardState = require('../models/BoardState');
 const workflowService = require('./workflowService');
 const screenEngine = require('./screenEngine');
 const vestaboardClient = require('./clients/vestaboardClient');
+const pinScreenService = require('./pinScreenService');
 const { ORG_CONFIG } = require('../../shared/constants');
 
 class SchedulerService {
@@ -13,6 +14,9 @@ class SchedulerService {
     console.log('🔄 Scheduler: Processing all boards...');
     
     try {
+      // Clean up expired pinned workflows first
+      await pinScreenService.cleanupExpiredPinnedWorkflows();
+      
       const boards = await workflowService.getAllBoards();
       
       if (boards.length === 0) {
