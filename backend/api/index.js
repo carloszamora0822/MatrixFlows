@@ -76,6 +76,9 @@ app.use('/api/events', require('./events/index'));
 app.use('/api/pilots', require('./pilots/index'));
 app.use('/api/recognitions', require('./recognitions/index'));
 
+// Cron routes (for scheduled updates)
+app.use('/api/cron/update', require('./cron/update'));
+
 // Root endpoint
 app.get('/api', (req, res) => {
   res.json({

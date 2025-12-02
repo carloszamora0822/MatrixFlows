@@ -1,0 +1,101 @@
+const axios = require('axios');
+
+class VestaboardClient {
+  constructor() {
+    this.baseURL = 'https://rw.vestaboard.com';
+  }
+
+  /**
+   * Post a message to a Vestaboard
+   * @param {string} writeKey - Vestaboard Read/Write API key
+   * @param {Array<Array<number>>} matrix - 6x22 character code matrix
+   * @returns {Promise<object>} Response from Vestaboard API
+   */
+  async postMessage(writeKey, matrix) {
+    if (!writeKey) {
+      throw new Error('Vestaboard write key is required');
+    }
+
+    if (!this.validateMatrix(matrix)) {
+      throw new Error('Invalid matrix format');
+    }
+
+    try {
+      console.log(`📤 Posting to Vestaboard...`);
+      
+      const response = await axios.post(
+        `${this.baseURL}/`,
+        matrix,
+        {
+          headers: {
+            'X-Vestaboard-Read-Write-Key': writeKey,
+            'Content-Type': 'application/json'
+          },
+          timeout: 15000
+        }
+      );
+
+      console.log(`✅ Vestaboard update successful`);
+      return {
+        success: true,
+        status: response.status,
+        data: response.data
+      };
+
+    } catch (error) {
+      console.error(`❌ Vestaboard update failed:`, error.message);
+      
+      if (error.response) {
+        // API returned an error
+        throw new Error(`Vestaboard API error: ${error.response.status} - ${error.response.data?.message || error.message}`);
+      } else if (error.request) {
+        // Request made but no response
+        throw new Error('Vestaboard API timeout or network error');
+      } else {
+        // Something else went wrong
+        throw new Error(`Vestaboard client error: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Validate matrix format
+   * @param {Array<Array<number>>} matrix
+   * @returns {boolean}
+   */
+  validateMatrix(matrix) {
+    if (!Array.isArray(matrix)) return false;
+    if (matrix.length !== 6) return false;
+
+    for (const row of matrix) {
+      if (!Array.isArray(row)) return false;
+      if (row.length !== 22) return false;
+      
+      for (const code of row) {
+        if (typeof code !== 'number') return false;
+        if (code < 0 || code > 70) return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Test connection to Vestaboard
+   * @param {string} writeKey
+   * @returns {Promise<boolean>}
+   */
+  async testConnection(writeKey) {
+    try {
+      // Create a simple test matrix (blank screen)
+      const testMatrix = new Array(6).fill(null).map(() => new Array(22).fill(0));
+      await this.postMessage(writeKey, testMatrix);
+      return true;
+    } catch (error) {
+      console.error('Vestaboard connection test failed:', error.message);
+      return false;
+    }
+  }
+}
+
+module.exports = new VestaboardClient();
