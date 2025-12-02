@@ -4,6 +4,12 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import LoginForm from './components/auth/LoginForm';
 import Dashboard from './pages/Dashboard';
 import ScreenPreview from './pages/ScreenPreview';
+import DataManagement from './pages/data/DataManagement';
+import Birthdays from './pages/data/Birthdays';
+import Checkrides from './pages/data/Checkrides';
+import Events from './pages/data/Events';
+import Pilots from './pages/data/Pilots';
+import Recognition from './pages/data/Recognition';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -96,15 +102,52 @@ const AppRoutes = () => {
         path="/data" 
         element={
           <ProtectedRoute>
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-              <div className="text-center">
-                <h1 className="text-2xl font-bold text-gray-900">Data Management</h1>
-                <p className="mt-2 text-gray-600">Coming in Sprint 3</p>
-                <a href="/" className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                  Back to Dashboard
-                </a>
-              </div>
-            </div>
+            <DataManagement />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/data/birthdays" 
+        element={
+          <ProtectedRoute>
+            <Birthdays />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/data/checkrides" 
+        element={
+          <ProtectedRoute>
+            <Checkrides />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/data/events" 
+        element={
+          <ProtectedRoute>
+            <Events />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/data/pilots" 
+        element={
+          <ProtectedRoute>
+            <Pilots />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/data/recognition" 
+        element={
+          <ProtectedRoute>
+            <Recognition />
           </ProtectedRoute>
         } 
       />

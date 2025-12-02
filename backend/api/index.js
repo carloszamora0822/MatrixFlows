@@ -69,6 +69,13 @@ app.use('/api/users', require('./users/index'));
 // Screen routes
 app.use('/api/screens/preview', require('./screens/preview'));
 
+// Data management routes
+app.use('/api/birthdays', require('./birthdays/index'));
+app.use('/api/checkrides', require('./checkrides/index'));
+app.use('/api/events', require('./events/index'));
+app.use('/api/pilots', require('./pilots/index'));
+app.use('/api/recognitions', require('./recognitions/index'));
+
 // Root endpoint
 app.get('/api', (req, res) => {
   res.json({

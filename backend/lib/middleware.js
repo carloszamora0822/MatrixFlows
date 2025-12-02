@@ -32,9 +32,14 @@ const corsOptions = {
  * Rate limiting configuration
  */
 const createRateLimit = (windowMs = 15 * 60 * 1000, max = 100) => {
+  // In development, use much higher limits
+  const isDev = process.env.NODE_ENV === 'development';
+  const actualMax = isDev ? 1000 : max;
+  const actualWindow = isDev ? 60 * 1000 : windowMs; // 1 minute in dev
+  
   return rateLimit({
-    windowMs,
-    max,
+    windowMs: actualWindow,
+    max: actualMax,
     message: {
       error: {
         code: ERROR_CODES.RATE_LIMITED,

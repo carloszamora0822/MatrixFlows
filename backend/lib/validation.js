@@ -176,11 +176,168 @@ const validateLength = (value, min = 0, max = Infinity, fieldName = 'Field') => 
   return { isValid: true };
 };
 
+/**
+ * Validate birthday input
+ */
+const validateBirthdayInput = ({ firstName, date }) => {
+  const errors = {};
+
+  // First name validation
+  if (!firstName || !firstName.trim()) {
+    errors.firstName = 'First name is required';
+  } else if (firstName.trim().length > 50) {
+    errors.firstName = 'First name must be 50 characters or less';
+  }
+
+  // Date validation (MM/DD format)
+  if (!date || !date.trim()) {
+    errors.date = 'Date is required';
+  } else if (!/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])$/.test(date.trim())) {
+    errors.date = 'Date must be in MM/DD format';
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors
+  };
+};
+
+/**
+ * Validate checkride input
+ */
+const validateCheckrideInput = ({ time, callsign, type, destination, date }) => {
+  const errors = {};
+
+  // Time validation (HH:MM format)
+  if (!time || !time.trim()) {
+    errors.time = 'Time is required';
+  } else if (!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(time.trim())) {
+    errors.time = 'Time must be in HH:MM format (24-hour)';
+  }
+
+  // Callsign validation
+  if (!callsign || !callsign.trim()) {
+    errors.callsign = 'Callsign is required';
+  } else if (callsign.trim().length > 10) {
+    errors.callsign = 'Callsign must be 10 characters or less';
+  }
+
+  // Type validation
+  const validTypes = ['PPL', 'IFR', 'COMMERCIAL', 'CFI', 'CFII', 'MEI'];
+  if (!type || !type.trim()) {
+    errors.type = 'Type is required';
+  } else if (!validTypes.includes(type.trim().toUpperCase())) {
+    errors.type = `Type must be one of: ${validTypes.join(', ')}`;
+  }
+
+  // Destination validation
+  if (!destination || !destination.trim()) {
+    errors.destination = 'Destination is required';
+  } else if (destination.trim().length > 10) {
+    errors.destination = 'Destination must be 10 characters or less';
+  }
+
+  // Date validation (MM/DD format)
+  if (!date || !date.trim()) {
+    errors.date = 'Date is required';
+  } else if (!/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])$/.test(date.trim())) {
+    errors.date = 'Date must be in MM/DD format';
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors
+  };
+};
+
+/**
+ * Validate event input
+ */
+const validateEventInput = ({ date, time, description }) => {
+  const errors = {};
+
+  // Date validation (MM/DD format)
+  if (!date || !date.trim()) {
+    errors.date = 'Date is required';
+  } else if (!/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])$/.test(date.trim())) {
+    errors.date = 'Date must be in MM/DD format';
+  }
+
+  // Time validation (HH:MM format)
+  if (!time || !time.trim()) {
+    errors.time = 'Time is required';
+  } else if (!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(time.trim())) {
+    errors.time = 'Time must be in HH:MM format (24-hour)';
+  }
+
+  // Description validation
+  if (!description || !description.trim()) {
+    errors.description = 'Description is required';
+  } else if (description.trim().length > 100) {
+    errors.description = 'Description must be 100 characters or less';
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors
+  };
+};
+
+/**
+ * Validate pilot input
+ */
+const validatePilotInput = ({ name }) => {
+  const errors = {};
+
+  // Name validation
+  if (!name || !name.trim()) {
+    errors.name = 'Name is required';
+  } else if (name.trim().length > 100) {
+    errors.name = 'Name must be 100 characters or less';
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors
+  };
+};
+
+/**
+ * Validate recognition input
+ */
+const validateRecognitionInput = ({ firstName, lastName }) => {
+  const errors = {};
+
+  // First name validation
+  if (!firstName || !firstName.trim()) {
+    errors.firstName = 'First name is required';
+  } else if (firstName.trim().length > 50) {
+    errors.firstName = 'First name must be 50 characters or less';
+  }
+
+  // Last name validation
+  if (!lastName || !lastName.trim()) {
+    errors.lastName = 'Last name is required';
+  } else if (lastName.trim().length > 50) {
+    errors.lastName = 'Last name must be 50 characters or less';
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors
+  };
+};
+
 module.exports = {
   validateEmail,
   validatePassword,
   validateLoginInput,
   validateUserInput,
+  validateBirthdayInput,
+  validateCheckrideInput,
+  validateEventInput,
+  validatePilotInput,
+  validateRecognitionInput,
   sanitizeInput,
   createValidationError,
   validateRequired,

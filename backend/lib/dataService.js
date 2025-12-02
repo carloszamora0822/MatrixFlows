@@ -1,69 +1,94 @@
 // VBT Vestaboard System - Data Service Layer
 // Provides data for screen rendering
 
+const Birthday = require('../models/Birthday');
+const Checkride = require('../models/Checkride');
+const Event = require('../models/Event');
+const Pilot = require('../models/Pilot');
+const Recognition = require('../models/Recognition');
+const { ORG_CONFIG } = require('../../shared/constants');
+
 class DataService {
   /**
    * Get latest birthday for display
    */
   async getLatestBirthday() {
-    // For Sprint 2, return mock data
-    // This will be replaced with real database queries in Sprint 3
-    return {
-      firstName: 'John',
-      date: 'Dec 15'
-    };
+    try {
+      const birthday = await Birthday.findOne({ 
+        orgId: ORG_CONFIG.ID 
+      }).sort({ createdAt: -1 });
+      
+      return birthday || null;
+    } catch (error) {
+      console.error('Error fetching birthday:', error);
+      return null;
+    }
   }
 
   /**
    * Get upcoming checkrides
    */
   async getUpcomingCheckrides() {
-    // For Sprint 2, return mock data
-    return [
-      {
-        time: '10:00 AM',
-        callsign: 'N123AB',
-        type: 'PPL Checkride',
-        destination: 'KVBT'
-      }
-    ];
+    try {
+      const checkrides = await Checkride.find({ 
+        orgId: ORG_CONFIG.ID 
+      }).sort({ date: 1, time: 1 }).limit(5);
+      
+      return checkrides;
+    } catch (error) {
+      console.error('Error fetching checkrides:', error);
+      return [];
+    }
   }
 
   /**
    * Get upcoming events
    */
   async getUpcomingEvents() {
-    // For Sprint 2, return mock data
-    return [
-      {
-        date: 'Dec 20',
-        time: '6:00 PM',
-        description: 'Holiday Party'
-      }
-    ];
+    try {
+      const events = await Event.find({ 
+        orgId: ORG_CONFIG.ID 
+      }).sort({ date: 1, time: 1 }).limit(5);
+      
+      return events;
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      return [];
+    }
   }
 
   /**
    * Get newest pilot information
    */
   async getNewestPilot() {
-    // For Sprint 2, return mock data
-    return {
-      name: 'Sarah Johnson',
-      isCurrent: true
-    };
+    try {
+      const pilot = await Pilot.findOne({ 
+        orgId: ORG_CONFIG.ID,
+        isCurrent: true 
+      });
+      
+      return pilot || null;
+    } catch (error) {
+      console.error('Error fetching newest pilot:', error);
+      return null;
+    }
   }
 
   /**
    * Get current employee recognition
    */
   async getCurrentRecognition() {
-    // For Sprint 2, return mock data
-    return {
-      firstName: 'Mike',
-      lastName: 'Davis',
-      isCurrent: true
-    };
+    try {
+      const recognition = await Recognition.findOne({ 
+        orgId: ORG_CONFIG.ID,
+        isCurrent: true 
+      });
+      
+      return recognition || null;
+    } catch (error) {
+      console.error('Error fetching recognition:', error);
+      return null;
+    }
   }
 
   /**
