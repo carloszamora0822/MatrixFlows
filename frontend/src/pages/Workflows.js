@@ -1448,24 +1448,78 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
         ? formData.expiresAt 
         : new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-      const response = await fetch('/api/custom-screens', {
-        method: 'POST',
+      const screenData = {
+        name: formData.screenName,
+        message: formData.customMessage,
+        borderColor1: formData.borderColor1,
+        borderColor2: formData.borderColor2,
+        matrix: previewMatrix,
+        expiresAt: expirationDate
+      };
+
+      // Check if we're updating an existing screen
+      const isUpdating = !!editingScreenId;
+      const url = isUpdating ? `/api/custom-screens?id=${editingScreenId}` : '/api/custom-screens';
+      const method = isUpdating ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          name: formData.screenName,
-          message: formData.customMessage,
-          borderColor1: formData.borderColor1,
-          borderColor2: formData.borderColor2,
-          matrix: previewMatrix,
-          expiresAt: expirationDate
-        })
+        body: JSON.stringify(screenData)
       });
 
       if (response.ok) {
         const savedData = await response.json();
-        console.log('✅ Screen saved:', savedData);
-        alert(`✅ Screen "${formData.screenName}" saved!`);
+        console.log(`✅ Screen ${isUpdating ? 'updated' : 'saved'}:`, savedData);
+        
+        // If updating, also update in all workflows
+        if (isUpdating) {
+          const oldScreen = savedScreens.find(s => s.screenId === editingScreenId);
+          if (oldScreen) {
+            const workflowsRes = await fetch('/api/workflows', { credentials: 'include' });
+            if (workflowsRes.ok) {
+              const allWorkflows = await workflowsRes.json();
+              
+              for (const workflow of allWorkflows) {
+                let updated = false;
+                const newSteps = workflow.steps.map(step => {
+                  if (step.screenType === 'CUSTOM_MESSAGE' && 
+                      step.screenConfig?.message === oldScreen.message) {
+                    updated = true;
+                    return {
+                      ...step,
+                      screenConfig: {
+                        name: formData.screenName,
+                        message: formData.customMessage,
+                        matrix: previewMatrix,
+                        borderColor1: formData.borderColor1,
+                        borderColor2: formData.borderColor2
+                      }
+                    };
+                  }
+                  return step;
+                });
+
+                if (updated) {
+                  await fetch(`/api/workflows?id=${workflow.workflowId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      name: workflow.name,
+                      steps: newSteps,
+                      schedule: workflow.schedule
+                    })
+                  });
+                  console.log(`✅ Updated screen in workflow "${workflow.name}"`);
+                }
+              }
+            }
+          }
+        }
+        
+        alert(`✅ Screen "${formData.screenName}" ${isUpdating ? 'updated' : 'saved'}!`);
         // Refresh saved screens list
         await fetchSavedScreens();
         console.log('📚 Saved screens after save:', savedScreens.length);
