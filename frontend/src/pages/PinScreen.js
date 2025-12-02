@@ -19,6 +19,13 @@ const PinScreen = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Check for workflow parameter in URL
+    const params = new URLSearchParams(window.location.search);
+    const workflowId = params.get('workflow');
+    if (workflowId) {
+      setFormData(prev => ({ ...prev, workflowId }));
+    }
   }, []);
 
   const fetchData = async () => {

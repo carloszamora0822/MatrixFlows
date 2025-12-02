@@ -801,13 +801,21 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                     ) : (
                       <>
                         <button 
+                          onClick={() => {
+                            window.location.href = `/pin-screen?workflow=${workflow.workflowId}`;
+                          }}
+                          className="px-3 py-1 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded hover:from-orange-600 hover:to-pink-600 text-sm font-semibold shadow-md"
+                        >
+                          📌 Pin This
+                        </button>
+                        <button 
                           onClick={() => setEditingWorkflowId(workflow.workflowId)} 
                           className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm font-semibold"
                         >
-                          🎯 Reorder Steps
+                          ⚡ Edit Flow
                         </button>
                         <button onClick={() => handleEdit(workflow)} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
-                          ✏️ Edit
+                          ⚙️ Settings
                         </button>
                         <button onClick={() => handleDelete(workflow.workflowId)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
                           🗑️ Delete
