@@ -100,17 +100,18 @@ module.exports = async (req, res) => {
 
     // 🚀 IMMEDIATE UPDATE: Push pinned screen to Vestaboard NOW!
     try {
-      // Get the board details
-      const board = await Vestaboard.findOne({ 
-        boardId, 
-        orgId: ORG_CONFIG.ID 
-      });
-
-      if (!board) {
-        console.log('⚠️  Board not found, skipping immediate update');
-      } else if (!board.vestaboardWriteKey) {
-        console.log('⚠️  Board has no write key, skipping immediate update');
+      // Get the API key from environment (shared across all boards)
+      const vestaboardApiKey = process.env.VESTABOARD_API_KEY;
+      
+      if (!vestaboardApiKey) {
+        console.log('⚠️  VESTABOARD_API_KEY not configured in environment, skipping immediate update');
       } else {
+        // Get the board details (for logging)
+        const board = await Vestaboard.findOne({ 
+          boardId, 
+          orgId: ORG_CONFIG.ID 
+        });
+
         // Render the first screen in the pinned workflow
         const firstStep = workflow.steps[0];
         console.log(`📺 Rendering pinned screen: ${firstStep.screenType}`);
@@ -122,10 +123,14 @@ module.exports = async (req, res) => {
         );
 
         console.log(`📺 Matrix generated:`, matrix ? 'YES' : 'NO');
+        if (matrix) {
+          console.log(`📺 Matrix dimensions: ${matrix.length}x${matrix[0]?.length}`);
+        }
         
-        // Push to Vestaboard immediately
-        console.log(`🚀 Pushing pinned screen to Vestaboard ${board.name}...`);
-        await vestaboardClient.postMessage(board.vestaboardWriteKey, matrix);
+        // Push to Vestaboard immediately using environment API key
+        const boardName = board?.name || 'Unknown Board';
+        console.log(`🚀 Pushing pinned screen to Vestaboard ${boardName}...`);
+        await vestaboardClient.postMessage(vestaboardApiKey, matrix);
         console.log(`✅ Pinned screen is now LIVE on the board!`);
       }
     } catch (updateError) {
