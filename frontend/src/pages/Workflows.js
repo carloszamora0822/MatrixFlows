@@ -697,7 +697,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                     <h4 className="font-semibold text-lg text-gray-900">{workflow.name}</h4>
                   </div>
                   {(() => {
-                    const enabledSteps = workflow.steps.filter(s => s.isEnabled);
+                    const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
                     const totalSeconds = enabledSteps.reduce((sum, s) => sum + (s.displaySeconds || 0), 0);
                     const minutes = Math.floor(totalSeconds / 60);
                     const seconds = totalSeconds % 60;
@@ -714,12 +714,34 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                     
                     return (
                       <>
-                        <p className="text-sm text-gray-600">
-                          {enabledSteps.length} steps • Full cycle: {timeStr}
+                        <p className="text-sm text-gray-600 mb-2">
+                          {enabledSteps.length} steps • Full cycle: {timeStr} • 📅 {scheduleStr}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          📅 {scheduleStr}
-                        </p>
+                        {/* Visual Flow Preview */}
+                        <div className="flex items-center space-x-2 overflow-x-auto pb-2">
+                          {enabledSteps.map((step, idx) => {
+                            const screenType = screenTypes.find(t => t.value === step.screenType);
+                            const emoji = screenType?.label.split(' ')[0] || '📺';
+                            const label = screenType?.label.split(' ').slice(1).join(' ') || step.screenType;
+                            return (
+                              <div key={idx} className="flex items-center">
+                                <div className="flex flex-col items-center">
+                                  <div className="px-3 py-2 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300 rounded-lg text-center min-w-[100px]">
+                                    <div className="text-2xl mb-1">{emoji}</div>
+                                    <div className="text-xs font-semibold text-gray-700">{label}</div>
+                                    <div className="text-xs text-blue-600 font-bold">{step.displaySeconds}s</div>
+                                  </div>
+                                </div>
+                                {idx < enabledSteps.length - 1 && (
+                                  <div className="text-blue-400 text-xl mx-1">→</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {enabledSteps.length > 1 && (
+                            <div className="text-blue-400 text-xl mx-1">🔄</div>
+                          )}
+                        </div>
                       </>
                     );
                   })()}
