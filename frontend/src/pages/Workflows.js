@@ -345,7 +345,17 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
 
 const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ boardId: '', name: '', steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15 }] });
+  const [form, setForm] = useState({ 
+    boardId: '', 
+    name: '', 
+    steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15 }],
+    schedule: {
+      type: 'always',
+      startTimeLocal: '08:00',
+      endTimeLocal: '18:00',
+      daysOfWeek: [1, 2, 3, 4, 5] // Mon-Fri
+    }
+  });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -370,7 +380,17 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
       
       if (res.ok) {
         alert('✅ Workflow created successfully!');
-        setForm({ boardId: '', name: '', steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15 }] });
+        setForm({ 
+          boardId: '', 
+          name: '', 
+          steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15 }],
+          schedule: {
+            type: 'always',
+            startTimeLocal: '08:00',
+            endTimeLocal: '18:00',
+            daysOfWeek: [1, 2, 3, 4, 5]
+          }
+        });
         setShowForm(false);
         fetchData();
       } else {
@@ -455,11 +475,50 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                     {screenTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                   <input type="number" value={step.displaySeconds} onChange={(e) => updateStep(idx, 'displaySeconds', parseInt(e.target.value))}
-                    className="input-field w-24" min="5" max="300" />
+                    className="input-field w-24" min="5" max="300" placeholder="Seconds" />
                   <button type="button" onClick={() => removeStep(idx)} className="text-red-600 hover:text-red-800">✕</button>
                 </div>
               ))}
             </div>
+
+            <div>
+              <label className="font-medium block mb-2">Schedule</label>
+              <select value={form.schedule.type} onChange={(e) => setForm({...form, schedule: {...form.schedule, type: e.target.value}})} className="input-field mb-2">
+                <option value="always">Always Running (24/7)</option>
+                <option value="dailyWindow">Daily Time Window</option>
+              </select>
+
+              {form.schedule.type === 'dailyWindow' && (
+                <>
+                  <div className="flex space-x-2 mb-2">
+                    <input type="time" value={form.schedule.startTimeLocal} 
+                      onChange={(e) => setForm({...form, schedule: {...form.schedule, startTimeLocal: e.target.value}})}
+                      className="input-field" />
+                    <span className="py-2">to</span>
+                    <input type="time" value={form.schedule.endTimeLocal}
+                      onChange={(e) => setForm({...form, schedule: {...form.schedule, endTimeLocal: e.target.value}})}
+                      className="input-field" />
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
+                      <label key={idx} className="flex items-center space-x-1">
+                        <input type="checkbox" 
+                          checked={form.schedule.daysOfWeek.includes(idx)}
+                          onChange={(e) => {
+                            const newDays = e.target.checked 
+                              ? [...form.schedule.daysOfWeek, idx]
+                              : form.schedule.daysOfWeek.filter(d => d !== idx);
+                            setForm({...form, schedule: {...form.schedule, daysOfWeek: newDays}});
+                          }}
+                          className="rounded" />
+                        <span className="text-sm">{day}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
             <button type="submit" disabled={loading} className="btn-primary">{loading ? 'Creating...' : 'Create Workflow'}</button>
           </form>
         </div>
@@ -484,10 +543,25 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                     const minutes = Math.floor(totalSeconds / 60);
                     const seconds = totalSeconds % 60;
                     const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+                    
+                    const schedule = workflow.schedule || { type: 'always' };
+                    let scheduleStr = '24/7';
+                    if (schedule.type === 'dailyWindow') {
+                      const days = schedule.daysOfWeek?.length === 7 ? 'Daily' : 
+                                   schedule.daysOfWeek?.length === 5 && schedule.daysOfWeek.includes(1) ? 'Weekdays' :
+                                   schedule.daysOfWeek?.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(',');
+                      scheduleStr = `${days} ${schedule.startTimeLocal}-${schedule.endTimeLocal}`;
+                    }
+                    
                     return (
-                      <p className="text-sm text-gray-600">
-                        {enabledSteps.length} steps • Full cycle: {timeStr}
-                      </p>
+                      <>
+                        <p className="text-sm text-gray-600">
+                          {enabledSteps.length} steps • Full cycle: {timeStr}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          📅 {scheduleStr}
+                        </p>
+                      </>
                     );
                   })()}
                 </div>
