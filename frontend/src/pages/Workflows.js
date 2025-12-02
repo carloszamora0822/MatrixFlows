@@ -994,7 +994,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                             e.preventDefault();
                             e.dataTransfer.dropEffect = 'move';
                           }}
-                          onDrop={(e) => {
+                          onDrop={async (e) => {
                             e.preventDefault();
                             const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
                             const toIndex = idx;
@@ -1005,10 +1005,32 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                               const [movedStep] = newSteps.splice(fromIndex, 1);
                               newSteps.splice(toIndex, 0, movedStep);
                               
-                              // Update workflow in place
-                              workflow.steps = newSteps.map((s, i) => ({ ...s, order: i }));
-                              // Force re-render
-                              fetchData();
+                              // Update order property
+                              const reorderedSteps = newSteps.map((s, i) => ({ ...s, order: i }));
+                              
+                              // Save to backend
+                              try {
+                                const response = await fetch(`/api/workflows?id=${workflow.workflowId}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  credentials: 'include',
+                                  body: JSON.stringify({
+                                    name: workflow.name,
+                                    steps: reorderedSteps,
+                                    schedule: workflow.schedule
+                                  })
+                                });
+                                
+                                if (response.ok) {
+                                  console.log('✅ Workflow order saved');
+                                  fetchData();
+                                } else {
+                                  alert('❌ Failed to save new order');
+                                }
+                              } catch (error) {
+                                console.error('Failed to save order:', error);
+                                alert('❌ Network error');
+                              }
                             }
                           }}
                         />
