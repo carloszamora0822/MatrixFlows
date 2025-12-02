@@ -1008,6 +1008,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
 const CustomScreensTab = ({ boards, selectedBoard }) => {
   const [formData, setFormData] = useState({
     boardId: selectedBoard?.boardId || '',
+    screenName: '',
     customMessage: '',
     borderColor1: 'red',
     borderColor2: 'orange',
@@ -1018,6 +1019,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
   });
 
   const [previewMatrix, setPreviewMatrix] = useState(null);
+  const [savedScreens, setSavedScreens] = useState([]);
 
   const colorCodeMap = {
     red: 63,
@@ -1134,7 +1136,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.customMessage, formData.borderColor1, formData.borderColor2]);
 
-  const handleSubmit = async (e) => {
+  const handleSaveScreen = async (e) => {
     e.preventDefault();
     
     if (!previewMatrix) {
@@ -1143,39 +1145,36 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
     }
 
     try {
-      const response = await fetch('/api/pin-screen', {
+      const response = await fetch('/api/custom-screens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          boardId: formData.boardId,
-          screenConfigs: [{
-            screenType: 'CUSTOM_MESSAGE',
-            screenConfig: { 
-              message: formData.customMessage,
-              matrix: previewMatrix 
-            },
-            displaySeconds: 20
-          }],
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          startTimeLocal: formData.startTimeLocal,
-          endTimeLocal: formData.endTimeLocal
+          name: formData.screenName,
+          message: formData.customMessage,
+          borderColor1: formData.borderColor1,
+          borderColor2: formData.borderColor2,
+          matrix: previewMatrix
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        alert(`✅ ${data.message}\n\nYour custom screen is now pinned!`);
+        alert(`✅ Screen "${formData.screenName}" saved to library!`);
+        // Add to saved screens list
+        setSavedScreens([...savedScreens, data]);
+        // Reset form
         setFormData({
           ...formData,
+          screenName: '',
           customMessage: '',
-          startDate: new Date().toISOString().split('T')[0],
-          endDate: new Date().toISOString().split('T')[0]
+          borderColor1: 'red',
+          borderColor2: 'orange'
         });
+        setPreviewMatrix(null);
       } else {
         const error = await response.json();
-        alert(`❌ Error: ${error.error?.message || 'Failed to pin screen'}`);
+        alert(`❌ Error: ${error.error?.message || 'Failed to save screen'}`);
       }
     } catch (error) {
       alert('❌ Network error occurred');
@@ -1185,10 +1184,25 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Left: Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSaveScreen} className="space-y-6">
         <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
-          <h2 className="text-xl font-bold text-gray-900">Message Settings</h2>
+          <h2 className="text-xl font-bold text-gray-900">Create Custom Screen</h2>
           
+          {/* Screen Name */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Screen Name
+            </label>
+            <input
+              type="text"
+              value={formData.screenName}
+              onChange={(e) => setFormData({ ...formData, screenName: e.target.value })}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+              placeholder="Event Announcement"
+              required
+            />
+          </div>
+
           {/* Custom Message */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1251,69 +1265,12 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
             </div>
           </div>
 
-          {/* Date Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                min={formData.startDate}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Time Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Start Time
-              </label>
-              <input
-                type="time"
-                value={formData.startTimeLocal}
-                onChange={(e) => setFormData({ ...formData, startTimeLocal: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                End Time
-              </label>
-              <input
-                type="time"
-                value={formData.endTimeLocal}
-                onChange={(e) => setFormData({ ...formData, endTimeLocal: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
-                required
-              />
-            </div>
-          </div>
-
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl"
+            className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg hover:shadow-xl"
           >
-            📌 Pin Screen
+            � Save to Library
           </button>
         </div>
       </form>
