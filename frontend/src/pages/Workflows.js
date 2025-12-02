@@ -8,6 +8,7 @@ const Workflows = () => {
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBoard, setSelectedBoard] = useState(null);
+  const [activeTab, setActiveTab] = useState('workflows'); // 'workflows' or 'custom-screens'
 
   useEffect(() => {
     fetchData();
@@ -110,15 +111,52 @@ const Workflows = () => {
           </div>
         )}
 
-        {/* Workflow Management */}
+        {/* Tabs */}
+        {currentBoard && (
+          <div className="max-w-7xl mx-auto mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8">
+                <button
+                  onClick={() => setActiveTab('workflows')}
+                  className={`${
+                    activeTab === 'workflows'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                >
+                  🔄 Workflows
+                </button>
+                <button
+                  onClick={() => setActiveTab('custom-screens')}
+                  className={`${
+                    activeTab === 'custom-screens'
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                >
+                  🎨 Custom Screens
+                </button>
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Content */}
         {currentBoard ? (
           <div className="max-w-7xl mx-auto">
-            <WorkflowsTab 
-              workflows={workflows} 
-              boards={boards} 
-              fetchData={fetchData}
-              selectedBoard={currentBoard}
-            />
+            {activeTab === 'workflows' ? (
+              <WorkflowsTab 
+                workflows={workflows} 
+                boards={boards} 
+                fetchData={fetchData}
+                selectedBoard={currentBoard}
+              />
+            ) : (
+              <CustomScreensTab 
+                boards={boards}
+                selectedBoard={currentBoard}
+              />
+            )}
           </div>
         ) : (
           <div className="max-w-7xl mx-auto text-center py-20">
@@ -970,6 +1008,21 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
           })}
         </div>
       )}
+    </div>
+  );
+};
+
+// Custom Screens Tab Component
+const CustomScreensTab = ({ boards, selectedBoard }) => {
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-8">
+      <h3 className="text-2xl font-bold text-gray-900 mb-4">🎨 Custom Screens</h3>
+      <p className="text-gray-600 mb-6">Create custom text messages with colored borders for your Vestaboard</p>
+      <div className="text-center py-12 bg-gray-50 rounded-lg">
+        <div className="text-6xl mb-4">🚧</div>
+        <p className="text-gray-700 font-semibold">Coming Soon!</p>
+        <p className="text-sm text-gray-500 mt-2">Custom screen builder will be here</p>
+      </div>
     </div>
   );
 };

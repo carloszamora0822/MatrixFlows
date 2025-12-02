@@ -11,7 +11,6 @@ import Events from './pages/data/Events';
 import Pilots from './pages/data/Pilots';
 import Recognition from './pages/data/Recognition';
 import Workflows from './pages/Workflows';
-import PinScreen from './pages/PinScreen';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -146,14 +145,6 @@ const AppRoutes = () => {
         } 
       />
 
-      <Route 
-        path="/pin-screen" 
-        element={
-          <ProtectedRoute>
-            <PinScreen />
-          </ProtectedRoute>
-        } 
-      />
 
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
