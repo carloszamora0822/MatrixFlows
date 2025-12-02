@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import Layout from '../components/layout/Layout';
+import MiniVestaboard from '../components/MiniVestaboard';
 
 const Workflows = () => {
   const [activeTab, setActiveTab] = useState('boards');
@@ -717,27 +719,35 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                         <p className="text-sm text-gray-600 mb-2">
                           {enabledSteps.length} steps • Full cycle: {timeStr} • 📅 {scheduleStr}
                         </p>
-                        {/* Simple Flow Preview */}
-                        <div className="flex items-center space-x-2 overflow-x-auto pb-2 mt-2">
+                        {/* Real Vestaboard Preview */}
+                        <div className="space-y-4 mt-4 pl-12">
                           {enabledSteps.map((step, idx) => {
                             const screenType = screenTypes.find(t => t.value === step.screenType);
-                            const emoji = screenType?.label.split(' ')[0] || '📺';
-                            const label = screenType?.label.split(' ').slice(1).join(' ') || step.screenType;
+                            const label = screenType?.label || step.screenType;
                             return (
-                              <React.Fragment key={idx}>
-                                <div className="flex flex-col items-center min-w-[80px]">
-                                  <div className="text-3xl mb-1">{emoji}</div>
-                                  <div className="text-xs font-semibold text-gray-700 text-center">{label}</div>
-                                  <div className="text-xs text-blue-600 font-bold">{step.displaySeconds}s</div>
+                              <div key={idx} className="relative">
+                                <MiniVestaboard
+                                  screenType={step.screenType}
+                                  displaySeconds={step.displaySeconds}
+                                  stepNumber={idx + 1}
+                                  isFirst={idx === 0}
+                                  isLast={idx === enabledSteps.length - 1}
+                                />
+                                <div className="mt-2 ml-2 text-sm font-semibold text-gray-700">
+                                  {label}
                                 </div>
                                 {idx < enabledSteps.length - 1 && (
-                                  <div className="text-blue-400 text-xl">→</div>
+                                  <div className="flex justify-center my-2">
+                                    <div className="text-blue-400 text-2xl">↓</div>
+                                  </div>
                                 )}
-                              </React.Fragment>
+                              </div>
                             );
                           })}
                           {enabledSteps.length > 1 && (
-                            <div className="text-green-500 text-xl">🔄</div>
+                            <div className="flex items-center justify-center p-3 bg-green-50 border-2 border-green-400 rounded-lg">
+                              <span className="text-green-600 font-semibold">🔄 Loops back to step 1</span>
+                            </div>
                           )}
                         </div>
                       </>
