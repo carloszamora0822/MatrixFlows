@@ -1,7 +1,10 @@
 const { connectDB } = require('../../lib/db');
 const { requireAuth } = require('../../lib/auth');
 const pinScreenService = require('../../lib/pinScreenService');
-const { ERROR_CODES } = require('../../../shared/constants');
+const screenEngine = require('../../lib/screenEngine');
+const vestaboardClient = require('../../lib/clients/vestaboardClient');
+const Vestaboard = require('../../models/Vestaboard');
+const { ERROR_CODES, ORG_CONFIG } = require('../../../shared/constants');
 
 /**
  * Create Pin Screen API
@@ -95,12 +98,44 @@ module.exports = async (req, res) => {
 
     console.log(`✅ Pin screen created by ${req.user?.email || 'unknown'}`);
 
+    // 🚀 IMMEDIATE UPDATE: Push pinned screen to Vestaboard NOW!
+    try {
+      // Get the board details
+      const board = await Vestaboard.findOne({ 
+        boardId, 
+        orgId: ORG_CONFIG.ID 
+      });
+
+      if (!board) {
+        console.log('⚠️  Board not found, skipping immediate update');
+      } else if (!board.writeKey) {
+        console.log('⚠️  Board has no write key, skipping immediate update');
+      } else {
+        // Render the first screen in the pinned workflow
+        const firstStep = workflow.steps[0];
+        console.log(`📺 Rendering pinned screen: ${firstStep.screenType}`);
+        
+        const matrix = await screenEngine.renderScreen(
+          firstStep.screenType,
+          firstStep.screenConfig || {}
+        );
+
+        // Push to Vestaboard immediately
+        console.log(`🚀 Pushing pinned screen to Vestaboard ${board.name}...`);
+        await vestaboardClient.postMessage(board.writeKey, matrix);
+        console.log(`✅ Pinned screen is now LIVE on the board!`);
+      }
+    } catch (updateError) {
+      console.error('⚠️  Failed to immediately update board:', updateError.message);
+      // Don't fail the whole request if immediate update fails
+    }
+
     res.status(201).json({
       workflowId: workflow.workflowId,
       name: workflow.name,
       schedule: workflow.schedule,
       stepsCount: workflow.steps.length,
-      message: 'Pinned screen created successfully'
+      message: 'Pinned screen created and pushed to board successfully!'
     });
 
   } catch (error) {
