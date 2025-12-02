@@ -596,6 +596,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
       const newStep = {
         screenType: 'CUSTOM_MESSAGE',
         screenConfig: {
+          name: screen.name, // Store the name for display
           message: screen.message,
           matrix: screen.matrix,
           borderColor1: screen.borderColor1,
@@ -986,7 +987,22 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                 <div className="space-y-4 flex flex-col items-center">
                   {enabledSteps.map((step, idx) => {
                     const screenType = screenTypes.find(t => t.value === step.screenType);
-                    const label = screenType?.label || step.screenType;
+                    
+                    // For custom screens, show the custom name
+                    let label = screenType?.label || step.screenType;
+                    if (step.screenType === 'CUSTOM_MESSAGE') {
+                      // First try to get name from screenConfig (newly added screens)
+                      if (step.screenConfig?.name) {
+                        label = `🎨 ${step.screenConfig.name}`;
+                      } else {
+                        // Fall back to searching in saved screens (old screens)
+                        const matchingScreen = savedScreens.find(s => 
+                          s.message === step.screenConfig?.message
+                        );
+                        label = matchingScreen?.name ? `🎨 ${matchingScreen.name}` : '🎨 Custom Screen';
+                      }
+                    }
+                    
                     const isEditing = editingWorkflowId === workflow.workflowId;
                     
                     return (
