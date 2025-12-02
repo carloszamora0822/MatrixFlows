@@ -1160,7 +1160,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
 
       if (response.ok) {
         const data = await response.json();
-        alert(`✅ Screen "${formData.screenName}" saved to library!`);
+        alert(`✅ Screen "${formData.screenName}" saved!`);
         // Add to saved screens list
         setSavedScreens([...savedScreens, data]);
         // Reset form
@@ -1175,6 +1175,56 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
       } else {
         const error = await response.json();
         alert(`❌ Error: ${error.error?.message || 'Failed to save screen'}`);
+      }
+    } catch (error) {
+      alert('❌ Network error occurred');
+    }
+  };
+
+  const handlePinToday = async () => {
+    if (!previewMatrix) {
+      alert('Please enter a message first');
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    try {
+      const response = await fetch('/api/pin-screen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          boardId: formData.boardId || selectedBoard?.boardId,
+          screenConfigs: [{
+            screenType: 'CUSTOM_MESSAGE',
+            screenConfig: { 
+              message: formData.customMessage,
+              matrix: previewMatrix 
+            },
+            displaySeconds: 20
+          }],
+          startDate: today,
+          endDate: today,
+          startTimeLocal: '00:00',
+          endTimeLocal: '23:59'
+        })
+      });
+
+      if (response.ok) {
+        alert(`✅ Screen pinned for today!`);
+        // Reset form
+        setFormData({
+          ...formData,
+          screenName: '',
+          customMessage: '',
+          borderColor1: 'red',
+          borderColor2: 'orange'
+        });
+        setPreviewMatrix(null);
+      } else {
+        const error = await response.json();
+        alert(`❌ Error: ${error.error?.message || 'Failed to pin screen'}`);
       }
     } catch (error) {
       alert('❌ Network error occurred');
@@ -1265,13 +1315,22 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
             </div>
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg hover:shadow-xl"
-          >
-            � Save to Library
-          </button>
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="submit"
+              className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg hover:shadow-xl"
+            >
+              Save Screen
+            </button>
+            <button
+              type="button"
+              onClick={handlePinToday}
+              className="px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl"
+            >
+              Pin for Today
+            </button>
+          </div>
         </div>
       </form>
 
