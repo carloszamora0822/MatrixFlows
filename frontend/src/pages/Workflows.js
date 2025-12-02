@@ -144,9 +144,16 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
   const handleTrigger = async (boardId) => {
     setTriggerLoading(boardId);
     try {
+      // Get auth token from cookie
+      const authToken = document.cookie.split('; ').find(row => row.startsWith('authToken='))?.split('=')[1];
+      
       const res = await fetch(`/api/workflows/trigger?boardId=${boardId}`, {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
       });
       
       const data = await res.json();
