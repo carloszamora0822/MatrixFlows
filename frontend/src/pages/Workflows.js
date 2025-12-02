@@ -854,7 +854,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                             
                             return (
                               <div className={`flex flex-col items-center space-y-2 ${isEditing ? 'bg-purple-50 border-2 border-purple-400' : 'bg-gray-50 border-2 border-gray-300'} px-4 py-2 rounded-lg`}>
-                                <div className="text-xs text-gray-500 font-semibold uppercase">Display Time</div>
+                                <div className="text-xs text-gray-500 font-semibold uppercase">Delay Time</div>
                                 {isEditing ? (
                                   <div className="flex items-center space-x-2">
                                     <input

@@ -111,9 +111,11 @@ const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLas
               
               return (
                 <div key={`${rowIdx}-${colIdx}`} className={cellClass}>
-                  <span className="font-bold text-white" style={{ fontSize: '6px' }}>
-                    {displayChar}
-                  </span>
+                  {!isColorCode && (
+                    <span className="font-bold text-white" style={{ fontSize: '6px' }}>
+                      {displayChar}
+                    </span>
+                  )}
                 </div>
               );
             })
