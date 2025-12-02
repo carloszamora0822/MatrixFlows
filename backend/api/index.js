@@ -66,6 +66,9 @@ app.use('/api/auth/logout', require('./auth/logout'));
 app.use('/api/users/me', require('./users/me'));
 app.use('/api/users', require('./users/index'));
 
+// Screen routes
+app.use('/api/screens/preview', require('./screens/preview'));
+
 // Root endpoint
 app.get('/api', (req, res) => {
   res.json({

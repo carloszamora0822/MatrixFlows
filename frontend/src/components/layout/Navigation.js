@@ -12,6 +12,7 @@ const Navigation = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/', current: true },
+    { name: 'Screen Preview', href: '/preview', current: false },
     { name: 'Boards', href: '/boards', current: false },
     { name: 'Data Management', href: '/data', current: false },
     { name: 'Workflows', href: '/workflows', current: false },

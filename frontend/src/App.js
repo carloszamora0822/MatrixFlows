@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import LoginForm from './components/auth/LoginForm';
 import Dashboard from './pages/Dashboard';
+import ScreenPreview from './pages/ScreenPreview';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -60,6 +61,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/preview" 
+        element={
+          <ProtectedRoute>
+            <ScreenPreview />
           </ProtectedRoute>
         } 
       />
