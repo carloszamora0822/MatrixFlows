@@ -78,28 +78,58 @@ const PinScreen = () => {
       matrix[row][21] = row % 2 === 0 ? color1 : color2;
     }
     
-    // Convert message to character codes and center it
+    // Convert message to character codes
     const message = formData.customMessage.toUpperCase();
-    const charCodes = message.split('').map(char => {
+    const charToCode = (char) => {
       if (char === ' ') return 0;
       if (char >= 'A' && char <= 'Z') return char.charCodeAt(0) - 64; // A=1, B=2, etc.
       if (char >= '0' && char <= '9') return 27 + (char.charCodeAt(0) - 48); // 0-9 = 27-36
       if (char === '!') return 37;
       if (char === '/') return 59;
+      if (char === '-') return 44;
+      if (char === '.') return 56;
+      if (char === ',') return 55;
+      if (char === ':') return 50;
       return 0;
-    });
+    };
     
-    // Center the message in the middle (rows 2-3, cols 2-20)
-    const availableWidth = 19; // 22 - 3 (borders)
-    const startCol = Math.floor((availableWidth - charCodes.length) / 2) + 2;
-    const row = 2; // Middle row
+    // Word wrap the message to fit within available width
+    const availableWidth = 18; // 22 - 4 (borders + padding)
+    const words = message.split(' ');
+    const lines = [];
+    let currentLine = '';
     
-    // Only put text on one row, don't duplicate
-    for (let i = 0; i < charCodes.length && (startCol + i) < 21; i++) {
-      if (startCol + i >= 1 && startCol + i <= 20) { // Keep away from borders
-        matrix[row][startCol + i] = charCodes[i];
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (testLine.length <= availableWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word.length <= availableWidth ? word : word.substring(0, availableWidth);
       }
     }
+    if (currentLine) lines.push(currentLine);
+    
+    // Limit to 3 lines (rows 1-3 inside border)
+    const displayLines = lines.slice(0, 3);
+    
+    // Center vertically
+    const availableRows = 4; // rows 1-4 (inside top/bottom border)
+    const startRow = Math.floor((availableRows - displayLines.length) / 2) + 1;
+    
+    // Render each line centered horizontally
+    displayLines.forEach((line, lineIdx) => {
+      const charCodes = line.split('').map(charToCode);
+      const row = startRow + lineIdx;
+      const startCol = Math.floor((availableWidth - charCodes.length) / 2) + 2;
+      
+      for (let i = 0; i < charCodes.length; i++) {
+        const col = startCol + i;
+        if (col >= 2 && col <= 19) { // Keep within inner area
+          matrix[row][col] = charCodes[i];
+        }
+      }
+    });
     
     setPreviewMatrix(matrix);
   };
@@ -232,10 +262,10 @@ const PinScreen = () => {
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
                   placeholder="Event today at 10/16"
                   rows="3"
-                  maxLength="40"
+                  maxLength="60"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">{formData.customMessage.length}/40 characters</p>
+                <p className="text-xs text-gray-500 mt-1">{formData.customMessage.length}/60 characters • Auto-wraps to 3 lines</p>
               </div>
 
               {/* Border Colors */}
