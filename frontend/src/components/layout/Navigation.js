@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 const Navigation = () => {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -11,11 +13,11 @@ const Navigation = () => {
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/', current: true },
-    { name: 'Screen Preview', href: '/preview', current: false },
-    { name: 'Boards', href: '/boards', current: false },
-    { name: 'Data Management', href: '/data', current: false },
-    { name: 'Workflows', href: '/workflows', current: false },
+    { name: 'Dashboard', href: '/', current: location.pathname === '/' },
+    { name: 'Screen Preview', href: '/preview', current: location.pathname === '/preview' },
+    { name: 'Boards', href: '/boards', current: location.pathname === '/boards' },
+    { name: 'Data Management', href: '/data', current: location.pathname === '/data' },
+    { name: 'Workflows', href: '/workflows', current: location.pathname === '/workflows' },
   ];
 
   return (
