@@ -369,10 +369,13 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
         steps: form.steps.map((step, idx) => ({ ...step, order: idx, isEnabled: true }))
       };
       
-      console.log('Creating workflow with data:', workflowData);
+      console.log(editingId ? 'Updating' : 'Creating', 'workflow with data:', workflowData);
       
-      const res = await fetch('/api/workflows', {
-        method: 'POST',
+      const url = editingId ? `/api/workflows?id=${editingId}` : '/api/workflows';
+      const method = editingId ? 'PUT' : 'POST';
+      
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(workflowData)
@@ -381,7 +384,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
       const data = await res.json();
       
       if (res.ok) {
-        alert('✅ Workflow created successfully!');
+        alert(editingId ? '✅ Workflow updated successfully!' : '✅ Workflow created successfully!');
         setForm({ 
           boardId: '', 
           name: '', 
@@ -393,6 +396,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
             daysOfWeek: [1, 2, 3, 4, 5]
           }
         });
+        setEditingId(null);
         setShowForm(false);
         fetchData();
       } else {

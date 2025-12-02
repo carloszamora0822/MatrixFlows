@@ -15,6 +15,8 @@ module.exports = async (req, res) => {
         return await getWorkflows(req, res);
       case 'POST':
         return await createWorkflow(req, res);
+      case 'PUT':
+        return await updateWorkflow(req, res);
       case 'DELETE':
         return await deleteWorkflow(req, res);
       default:
@@ -64,6 +66,42 @@ const createWorkflow = async (req, res) => {
   await newWorkflow.save();
   console.log(`✅ Workflow created: ${newWorkflow.name} by ${req.user.email}`);
   res.status(201).json(newWorkflow);
+};
+
+const updateWorkflow = async (req, res) => {
+  await new Promise((resolve, reject) => {
+    requireEditor(req, res, (err) => err ? reject(err) : resolve());
+  });
+
+  const { id } = req.query;
+  const { boardId, name, steps, schedule, isDefault } = req.body;
+  
+  if (!id) {
+    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Workflow ID required' } });
+  }
+  
+  if (!boardId || !name || !steps || steps.length === 0) {
+    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Board ID, name, and steps required' } });
+  }
+
+  const updated = await Workflow.findOneAndUpdate(
+    { workflowId: id, orgId: ORG_CONFIG.ID },
+    {
+      boardId,
+      name: name.trim(),
+      steps,
+      schedule: schedule || { type: 'always' },
+      isDefault: isDefault || false
+    },
+    { new: true }
+  );
+
+  if (!updated) {
+    return res.status(404).json({ error: { code: ERROR_CODES.NOT_FOUND, message: 'Workflow not found' } });
+  }
+
+  console.log(`✅ Workflow updated: ${updated.name} by ${req.user.email}`);
+  res.status(200).json(updated);
 };
 
 const deleteWorkflow = async (req, res) => {
