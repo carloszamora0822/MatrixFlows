@@ -103,29 +103,35 @@ const Workflows = () => {
 
 const BoardsTab = ({ boards, workflows, fetchData }) => {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', locationLabel: '', vestaboardWriteKey: '' });
+  const [form, setForm] = useState({ name: '', locationLabel: '', vestaboardWriteKey: '', defaultWorkflowId: '' });
   const [loading, setLoading] = useState(false);
   const [triggerLoading, setTriggerLoading] = useState(null);
   const [runningSchedulers, setRunningSchedulers] = useState({});
+  const [editingBoard, setEditingBoard] = useState(null);
   const schedulerRefs = React.useRef({});
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('/api/boards', {
-        method: 'POST',
+      const url = editingBoard ? `/api/boards?id=${editingBoard}` : '/api/boards';
+      const method = editingBoard ? 'PUT' : 'POST';
+      
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(form)
       });
       if (res.ok) {
-        setForm({ name: '', locationLabel: '', vestaboardWriteKey: '' });
+        alert(editingBoard ? '✅ Board updated successfully!' : '✅ Board added successfully!');
+        setForm({ name: '', locationLabel: '', vestaboardWriteKey: '', defaultWorkflowId: '' });
+        setEditingBoard(null);
         setShowForm(false);
         fetchData();
       }
     } catch (error) {
-      console.error('Failed to create board:', error);
+      console.error('Failed to save board:', error);
     } finally {
       setLoading(false);
     }
@@ -273,7 +279,7 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
 
       {showForm && (
         <div className="bg-white p-6 rounded-lg mb-6 shadow-lg border border-gray-200">
-          <h4 className="font-semibold mb-4 text-blue-600">Add New Board</h4>
+          <h4 className="font-semibold mb-4 text-blue-600">{editingBoard ? '✏️ Edit Board' : 'Add New Board'}</h4>
           <form onSubmit={handleSubmit} className="space-y-4">
             <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="input-field" placeholder="Board Name (e.g., Office Lobby)" required />
@@ -281,8 +287,17 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
               className="input-field" placeholder="Location (optional)" />
             <input type="text" value={form.vestaboardWriteKey} onChange={(e) => setForm({ ...form, vestaboardWriteKey: e.target.value })}
               className="input-field" placeholder="Vestaboard Read/Write API Key" required />
+            <div>
+              <label className="font-medium text-gray-700 block mb-2">Assigned Workflow</label>
+              <select value={form.defaultWorkflowId} onChange={(e) => setForm({ ...form, defaultWorkflowId: e.target.value })}
+                className="input-field">
+                <option value="">No workflow (assign later)</option>
+                {workflows.map(w => <option key={w.workflowId} value={w.workflowId}>{w.name}</option>)}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">💡 You can assign the same workflow to multiple boards!</p>
+            </div>
             <button type="submit" disabled={loading} className="btn-primary">
-              {loading ? 'Adding...' : 'Add Board'}
+              {loading ? (editingBoard ? 'Updating...' : 'Adding...') : (editingBoard ? '💾 Update Board' : 'Add Board')}
             </button>
           </form>
         </div>
@@ -297,8 +312,7 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
       ) : (
         <div className="space-y-4">
           {boards.map((board) => {
-            const boardWorkflows = workflows.filter(w => w.boardId === board.boardId);
-            const hasWorkflow = boardWorkflows.length > 0;
+            const assignedWorkflow = workflows.find(w => w.workflowId === board.defaultWorkflowId);
             
             return (
               <div key={board.boardId} className="p-4 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-400 hover:shadow-xl transition-all">
@@ -307,10 +321,10 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
                     <h4 className="font-semibold text-lg text-gray-900">{board.name}</h4>
                     {board.locationLabel && <p className="text-sm text-gray-600">{board.locationLabel}</p>}
                     <p className="text-xs text-gray-500 mt-1">ID: {board.boardId}</p>
-                    {hasWorkflow ? (
-                      <p className="text-xs text-green-600 mt-1">✅ {boardWorkflows.length} workflow(s) configured</p>
+                    {assignedWorkflow ? (
+                      <p className="text-xs text-green-600 mt-1">✅ Workflow: {assignedWorkflow.name}</p>
                     ) : (
-                      <p className="text-xs text-yellow-600 mt-1">⚠️ No workflow - create one in the Workflows tab</p>
+                      <p className="text-xs text-yellow-600 mt-1">⚠️ No workflow assigned - edit board to assign one</p>
                     )}
                   </div>
                   <div className="flex space-x-2">
@@ -320,18 +334,30 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
                         ⏹️ Stop Auto
                       </button>
                     ) : (
-                      <button onClick={() => startAutoScheduler(board.boardId)} disabled={!hasWorkflow}
+                      <button onClick={() => startAutoScheduler(board.boardId)} disabled={!assignedWorkflow}
                         className={`px-3 py-1 rounded text-sm ${
-                          !hasWorkflow 
+                          !assignedWorkflow 
                             ? 'bg-gray-400 text-white cursor-not-allowed' 
                             : 'bg-green-600 text-white hover:bg-green-700'
                         }`}
-                        title={!hasWorkflow ? 'Create a workflow first' : 'Start automatic cycling'}>
+                        title={!assignedWorkflow ? 'Assign a workflow first' : 'Start automatic cycling'}>
                         ▶️ Start Auto
                       </button>
                     )}
+                    <button onClick={() => {
+                      setEditingBoard(board.boardId);
+                      setForm({
+                        name: board.name,
+                        locationLabel: board.locationLabel || '',
+                        vestaboardWriteKey: board.vestaboardWriteKey,
+                        defaultWorkflowId: board.defaultWorkflowId || ''
+                      });
+                      setShowForm(true);
+                    }} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                      ✏️ Edit
+                    </button>
                     <button onClick={() => handleDelete(board.boardId)}
-                      className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm">Delete</button>
+                      className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm">🗑️ Delete</button>
                   </div>
                 </div>
               </div>

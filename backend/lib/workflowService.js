@@ -5,41 +5,37 @@ const { ORG_CONFIG } = require('../../shared/constants');
 class WorkflowService {
   /**
    * Get the active workflow for a board at the current time
-   * @param {string} boardId
+   * @param {object} board - The board object with defaultWorkflowId
    * @returns {Promise<object|null>} Active workflow or null
    */
-  async getActiveWorkflow(boardId) {
+  async getActiveWorkflow(board) {
     try {
-      // Get all active workflows for this board
-      const workflows = await Workflow.find({
-        orgId: ORG_CONFIG.ID,
-        boardId,
-        isActive: true
-      }).sort({ isDefault: -1, createdAt: -1 });
+      // Get the board's assigned workflow
+      if (!board.defaultWorkflowId) {
+        console.log(`⚠️  No workflow assigned to board ${board.boardId}`);
+        return null;
+      }
 
-      if (workflows.length === 0) {
-        console.log(`⚠️  No workflows found for board ${boardId}`);
+      const workflow = await Workflow.findOne({
+        workflowId: board.defaultWorkflowId,
+        orgId: ORG_CONFIG.ID,
+        isActive: true
+      });
+
+      if (!workflow) {
+        console.log(`⚠️  Workflow ${board.defaultWorkflowId} not found or inactive`);
         return null;
       }
 
       const now = new Date();
       
-      // Check each workflow's schedule
-      for (const workflow of workflows) {
-        if (this.isWorkflowActiveNow(workflow, now)) {
-          console.log(`✅ Active workflow: ${workflow.name} (${workflow.workflowId})`);
-          return workflow;
-        }
+      // Check if workflow should be active at this time
+      if (this.isWorkflowActiveNow(workflow, now)) {
+        console.log(`✅ Active workflow: ${workflow.name} (${workflow.workflowId})`);
+        return workflow;
       }
 
-      // If no scheduled workflow is active, use the default
-      const defaultWorkflow = workflows.find(w => w.isDefault);
-      if (defaultWorkflow) {
-        console.log(`✅ Using default workflow: ${defaultWorkflow.name}`);
-        return defaultWorkflow;
-      }
-
-      console.log(`⚠️  No active workflow for board ${boardId} at this time`);
+      console.log(`⚠️  Workflow ${workflow.name} not scheduled to run at this time`);
       return null;
 
     } catch (error) {
