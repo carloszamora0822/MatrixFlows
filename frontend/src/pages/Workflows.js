@@ -1271,46 +1271,41 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
           </div>
 
           {/* Border Colors */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
-              Border Colors
-            </label>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-xs text-gray-500 mb-2">Color 1</p>
-                <div className="flex gap-2 flex-wrap">
-                  {colorOptions.map(color => (
-                    <button
-                      key={color.value}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, borderColor1: color.value })}
-                      className={`w-10 h-10 rounded-lg ${color.class} border-2 transition-all ${
-                        formData.borderColor1 === color.value 
-                          ? 'border-gray-900 scale-110 shadow-lg' 
-                          : 'border-gray-300 hover:scale-105'
-                      }`}
-                      title={color.label}
-                    />
-                  ))}
-                </div>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-semibold text-gray-700 w-20">Color 1:</label>
+              <div className="flex gap-2">
+                {colorOptions.map(color => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, borderColor1: color.value })}
+                    className={`w-8 h-8 rounded ${color.class} border-2 transition-all ${
+                      formData.borderColor1 === color.value 
+                        ? 'border-gray-900 ring-2 ring-gray-400' 
+                        : 'border-gray-300 hover:border-gray-500'
+                    }`}
+                    title={color.label}
+                  />
+                ))}
               </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-2">Color 2</p>
-                <div className="flex gap-2 flex-wrap">
-                  {colorOptions.map(color => (
-                    <button
-                      key={color.value}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, borderColor2: color.value })}
-                      className={`w-10 h-10 rounded-lg ${color.class} border-2 transition-all ${
-                        formData.borderColor2 === color.value 
-                          ? 'border-gray-900 scale-110 shadow-lg' 
-                          : 'border-gray-300 hover:scale-105'
-                      }`}
-                      title={color.label}
-                    />
-                  ))}
-                </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-semibold text-gray-700 w-20">Color 2:</label>
+              <div className="flex gap-2">
+                {colorOptions.map(color => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, borderColor2: color.value })}
+                    className={`w-8 h-8 rounded ${color.class} border-2 transition-all ${
+                      formData.borderColor2 === color.value 
+                        ? 'border-gray-900 ring-2 ring-gray-400' 
+                        : 'border-gray-300 hover:border-gray-500'
+                    }`}
+                    title={color.label}
+                  />
+                ))}
               </div>
             </div>
           </div>
