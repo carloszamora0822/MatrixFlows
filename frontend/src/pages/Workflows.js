@@ -146,15 +146,17 @@ const Workflows = () => {
           <div className="max-w-7xl mx-auto">
             {activeTab === 'workflows' ? (
               <WorkflowsTab 
-                workflows={workflows} 
-                boards={boards} 
+                workflows={workflows}
+                boards={boards}
                 fetchData={fetchData}
-                selectedBoard={currentBoard}
+                selectedBoard={selectedBoard}
               />
             ) : (
               <CustomScreensTab 
                 boards={boards}
-                selectedBoard={currentBoard}
+                selectedBoard={selectedBoard}
+                workflows={workflows}
+                fetchData={fetchData}
               />
             )}
           </div>
@@ -1005,7 +1007,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
 };
 
 // Custom Screens Tab Component
-const CustomScreensTab = ({ boards, selectedBoard }) => {
+const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
   const [formData, setFormData] = useState({
     boardId: selectedBoard?.boardId || '',
     screenName: '',
@@ -1021,6 +1023,8 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
 
   const [previewMatrix, setPreviewMatrix] = useState(null);
   const [savedScreens, setSavedScreens] = useState([]);
+  const [showWorkflowSelector, setShowWorkflowSelector] = useState(false);
+  const [selectedScreen, setSelectedScreen] = useState(null);
 
   // Fetch saved screens on mount
   useEffect(() => {
@@ -1214,6 +1218,56 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
         fetchSavedScreens();
       } else {
         alert('❌ Failed to delete screen');
+      }
+    } catch (error) {
+      alert('❌ Network error occurred');
+    }
+  };
+
+  const handleAddToWorkflow = async (workflowId) => {
+    if (!selectedScreen) return;
+
+    try {
+      // Get the workflow
+      const workflow = workflows.find(w => w.workflowId === workflowId);
+      if (!workflow) {
+        alert('❌ Workflow not found');
+        return;
+      }
+
+      // Add the custom screen as a new step
+      const newStep = {
+        screenType: 'CUSTOM_MESSAGE',
+        screenConfig: {
+          message: selectedScreen.message,
+          matrix: selectedScreen.matrix
+        },
+        displaySeconds: 20,
+        isEnabled: true,
+        order: workflow.steps.length
+      };
+
+      const updatedSteps = [...workflow.steps, newStep];
+
+      // Update the workflow
+      const response = await fetch(`/api/workflows/${workflowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...workflow,
+          steps: updatedSteps
+        })
+      });
+
+      if (response.ok) {
+        alert(`✅ "${selectedScreen.name}" added to workflow!`);
+        setShowWorkflowSelector(false);
+        setSelectedScreen(null);
+        // Refresh workflows
+        fetchData();
+      } else {
+        alert('❌ Failed to add screen to workflow');
       }
     } catch (error) {
       alert('❌ Network error occurred');
@@ -1441,8 +1495,8 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
-                        // Add to workflow functionality (to be implemented)
-                        alert('Add to workflow feature coming soon!');
+                        setSelectedScreen(screen);
+                        setShowWorkflowSelector(true);
                       }}
                       className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
                     >
@@ -1462,6 +1516,43 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Workflow Selector Modal */}
+      {showWorkflowSelector && selectedScreen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowWorkflowSelector(false)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Add "{selectedScreen.name}" to Workflow</h3>
+            <p className="text-sm text-gray-600 mb-4">Select which workflow to add this screen to:</p>
+            <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
+              {workflows.filter(w => w.boardId === selectedBoard?.boardId).length === 0 ? (
+                <p className="text-center text-gray-500 py-4">No workflows found. Create a workflow first!</p>
+              ) : (
+                workflows
+                  .filter(w => w.boardId === selectedBoard?.boardId)
+                  .map((workflow) => (
+                    <button
+                      key={workflow.workflowId}
+                      onClick={() => handleAddToWorkflow(workflow.workflowId)}
+                      className="w-full text-left px-4 py-3 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+                    >
+                      <div className="font-semibold text-gray-900">{workflow.name}</div>
+                      <div className="text-xs text-gray-500">{workflow.steps.length} steps</div>
+                    </button>
+                  ))
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setShowWorkflowSelector(false);
+                setSelectedScreen(null);
+              }}
+              className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
