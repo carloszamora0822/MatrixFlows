@@ -453,13 +453,6 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
   const [editingWorkflowId, setEditingWorkflowId] = useState(null);
   const [stepDurations, setStepDurations] = useState({});
   const [stepUnits, setStepUnits] = useState({}); // Track units for each step
-  const [showCustomScreenBuilder, setShowCustomScreenBuilder] = useState(false);
-  const [customScreen, setCustomScreen] = useState({
-    message: '',
-    borderColor1: 'red',
-    borderColor2: 'orange',
-    matrix: null
-  });
   
   const [form, setForm] = useState({ 
     name: '', 
