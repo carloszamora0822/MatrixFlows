@@ -269,34 +269,47 @@ const PinScreen = () => {
               </div>
 
               {/* Border Colors */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Border Color 1
-                  </label>
-                  <select
-                    value={formData.borderColor1}
-                    onChange={(e) => setFormData({ ...formData, borderColor1: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
-                  >
-                    {colorOptions.map(color => (
-                      <option key={color.value} value={color.value}>{color.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Border Color 2
-                  </label>
-                  <select
-                    value={formData.borderColor2}
-                    onChange={(e) => setFormData({ ...formData, borderColor2: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
-                  >
-                    {colorOptions.map(color => (
-                      <option key={color.value} value={color.value}>{color.label}</option>
-                    ))}
-                  </select>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Border Colors
+                </label>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Color 1</p>
+                    <div className="flex gap-2">
+                      {colorOptions.map(color => (
+                        <button
+                          key={color.value}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, borderColor1: color.value })}
+                          className={`w-10 h-10 rounded-lg ${color.class} border-2 transition-all ${
+                            formData.borderColor1 === color.value 
+                              ? 'border-gray-900 scale-110 shadow-lg' 
+                              : 'border-gray-300 hover:scale-105'
+                          }`}
+                          title={color.label}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Color 2</p>
+                    <div className="flex gap-2">
+                      {colorOptions.map(color => (
+                        <button
+                          key={color.value}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, borderColor2: color.value })}
+                          className={`w-10 h-10 rounded-lg ${color.class} border-2 transition-all ${
+                            formData.borderColor2 === color.value 
+                              ? 'border-gray-900 scale-110 shadow-lg' 
+                              : 'border-gray-300 hover:scale-105'
+                          }`}
+                          title={color.label}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
