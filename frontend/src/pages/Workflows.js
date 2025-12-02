@@ -717,36 +717,39 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                         <p className="text-sm text-gray-600 mb-2">
                           {enabledSteps.length} steps • Full cycle: {timeStr} • 📅 {scheduleStr}
                         </p>
-                        {/* Visual Flow Preview with Screen Previews */}
-                        <div className="flex items-center space-x-3 overflow-x-auto pb-2">
+                        {/* Visual Flow Preview - Vertical Stack */}
+                        <div className="space-y-2 mt-3">
                           {enabledSteps.map((step, idx) => {
                             const screenType = screenTypes.find(t => t.value === step.screenType);
-                            const label = screenType?.label || step.screenType;
+                            const emoji = screenType?.label.split(' ')[0] || '📺';
+                            const label = screenType?.label.split(' ').slice(1).join(' ') || step.screenType;
                             return (
-                              <div key={idx} className="flex items-center">
-                                <div className="flex flex-col items-center space-y-2">
-                                  {/* Mini Vestaboard Preview */}
-                                  <div className="relative">
-                                    <iframe
-                                      src={`/preview?type=${step.screenType}&mini=true`}
-                                      className="w-[220px] h-[60px] border-2 border-blue-300 rounded bg-black"
-                                      style={{ transform: 'scale(0.5)', transformOrigin: 'top left', width: '440px', height: '120px' }}
-                                      title={`Preview ${step.screenType}`}
-                                    />
+                              <div key={idx} className="flex items-center space-x-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg hover:border-blue-400 transition-all">
+                                <div className="flex items-center justify-center w-10 h-10 bg-blue-500 text-white rounded-full font-bold text-sm">
+                                  {idx + 1}
+                                </div>
+                                <div className="text-3xl">{emoji}</div>
+                                <div className="flex-1">
+                                  <div className="font-semibold text-gray-800">{label}</div>
+                                  <div className="text-xs text-gray-500">Screen Type: {step.screenType}</div>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                  <div className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-bold">
+                                    {step.displaySeconds}s
                                   </div>
-                                  <div className="text-center">
-                                    <div className="text-xs font-semibold text-gray-700">{label}</div>
-                                    <div className="text-xs text-blue-600 font-bold">{step.displaySeconds}s</div>
-                                  </div>
+                                  {idx === 0 && <div className="text-xs text-green-600 font-semibold mt-1">FIRST</div>}
+                                  {idx === enabledSteps.length - 1 && <div className="text-xs text-blue-600 font-semibold mt-1">LAST</div>}
                                 </div>
                                 {idx < enabledSteps.length - 1 && (
-                                  <div className="text-blue-400 text-2xl mx-2">→</div>
+                                  <div className="text-blue-400 text-2xl">↓</div>
                                 )}
                               </div>
                             );
                           })}
                           {enabledSteps.length > 1 && (
-                            <div className="text-blue-400 text-2xl mx-2">🔄</div>
+                            <div className="flex items-center justify-center p-2 bg-green-50 border-2 border-green-300 rounded-lg">
+                              <span className="text-green-600 font-semibold text-sm">🔄 Loops back to step 1</span>
+                            </div>
                           )}
                         </div>
                       </>
