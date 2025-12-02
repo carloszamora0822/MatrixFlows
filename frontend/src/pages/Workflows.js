@@ -146,17 +146,23 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
         method: 'POST',
         credentials: 'include'
       });
+      
+      const data = await res.json();
+      
       if (res.ok) {
-        const data = await res.json();
         const screenType = data.result?.screenType || 'Unknown';
         const stepIndex = (data.result?.stepIndex || 0) + 1;
-        alert(`✅ Board updated!\n\nShowing: ${screenType}\nStep: ${stepIndex}\n\nClick "Update Now" again to advance to the next screen.`);
+        const vbResponse = data.result?.vestaboardResponse;
+        
+        alert(`✅ Board updated!\n\nShowing: ${screenType}\nStep: ${stepIndex}\nVestaboard Status: ${vbResponse?.status || 'Success'}\n\nClick "Update Now" again to advance to the next screen.`);
       } else {
-        const data = await res.json();
-        alert(`❌ Error: ${data.error?.message || 'Failed to update board'}`);
+        const errorMsg = data.error?.message || 'Failed to update board';
+        const errorDetails = data.error?.details?.originalError || '';
+        
+        alert(`❌ Error: ${errorMsg}\n\n${errorDetails}\n\nCheck:\n1. Is your API key correct?\n2. Is your Vestaboard online?\n3. Check backend terminal for detailed logs`);
       }
     } catch (error) {
-      alert('❌ Network error');
+      alert(`❌ Network error: ${error.message}\n\nThe backend might not be running. Check your terminal.`);
     } finally {
       setTriggerLoading(null);
     }

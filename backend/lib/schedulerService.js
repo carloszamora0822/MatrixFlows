@@ -101,7 +101,9 @@ class SchedulerService {
       const matrix = await screenEngine.render(nextStep.step.screenType, nextStep.step.screenConfig);
 
       // Post to Vestaboard
-      await vestaboardClient.postMessage(board.vestaboardWriteKey, matrix);
+      console.log(`📤 Attempting to post to Vestaboard with key: ${board.vestaboardWriteKey.substring(0, 10)}...`);
+      const vestaboardResult = await vestaboardClient.postMessage(board.vestaboardWriteKey, matrix);
+      console.log(`✅ Vestaboard API responded:`, vestaboardResult);
 
       // Update board state
       boardState.currentWorkflowId = workflow.workflowId;
@@ -121,7 +123,8 @@ class SchedulerService {
         success: true,
         screenType: nextStep.step.screenType,
         stepIndex: nextStep.index,
-        cycleCount: boardState.cycleCount
+        cycleCount: boardState.cycleCount,
+        vestaboardResponse: vestaboardResult
       };
 
     } catch (error) {
