@@ -1,0 +1,96 @@
+require('dotenv').config();
+const express = require('express');
+const cookieParser = require('cookie-parser');
+const cors = require('cors');
+const helmet = require('helmet');
+
+const { connectDB } = require('../lib/db');
+const Organization = require('../models/Organization');
+const User = require('../models/User');
+const { 
+  corsOptions, 
+  apiRateLimit, 
+  helmetOptions, 
+  requestLogger, 
+  errorHandler, 
+  notFoundHandler 
+} = require('../lib/middleware');
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Initialize database and create default data
+const initializeApp = async () => {
+  try {
+    console.log('🚀 Starting VBT Vestaboard System Backend...');
+    
+    // Connect to database
+    await connectDB();
+    
+    // Ensure VBT organization exists
+    await Organization.ensureVBTExists();
+    
+    // Create default admin user
+    await User.createDefaultAdmin();
+    
+    console.log('✅ Application initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize application:', error);
+    process.exit(1);
+  }
+};
+
+// Security middleware
+app.use(helmet(helmetOptions));
+app.use(cors(corsOptions));
+
+// Rate limiting
+app.use('/api/', apiRateLimit);
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
+
+// Request logging
+app.use(requestLogger);
+
+// Health check endpoint (no auth required)
+app.get('/api/health', require('./health'));
+
+// Authentication routes
+app.use('/api/auth/login', require('./auth/login'));
+app.use('/api/auth/logout', require('./auth/logout'));
+
+// User routes
+app.use('/api/users/me', require('./users/me'));
+app.use('/api/users', require('./users/index'));
+
+// Root endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'VBT Vestaboard System API',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 404 handler
+app.use('*', notFoundHandler);
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
+
+// Start server
+if (require.main === module) {
+  initializeApp().then(() => {
+    app.listen(PORT, () => {
+      console.log(`🌟 Server running on port ${PORT}`);
+      console.log(`🔗 API available at http://localhost:${PORT}/api`);
+      console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
+    });
+  });
+}
+
+module.exports = app;

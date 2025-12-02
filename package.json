@@ -1,0 +1,40 @@
+{
+  "name": "vbt-vestaboard-system",
+  "version": "1.0.0",
+  "description": "VBT Vestaboard System - Complete workflow management for Vestaboard displays",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm start",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "deploy": "node scripts/deploy.js",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "setup:env": "node scripts/setup-env.js",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend && npm test",
+    "test:backend": "cd backend && npm test"
+  },
+  "keywords": [
+    "vestaboard",
+    "workflow",
+    "scheduling",
+    "display",
+    "management"
+  ],
+  "author": "Carlos Zamora",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carloszamora0822/MatrixFlows.git"
+  }
+}
