@@ -106,6 +106,8 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
   const [form, setForm] = useState({ name: '', locationLabel: '', vestaboardWriteKey: '' });
   const [loading, setLoading] = useState(false);
   const [triggerLoading, setTriggerLoading] = useState(null);
+  const [runningSchedulers, setRunningSchedulers] = useState({});
+  const schedulerRefs = React.useRef({});
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -152,30 +154,81 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
       if (res.ok) {
         const screenType = data.result?.screenType || 'Unknown';
         const stepIndex = (data.result?.stepIndex || 0) + 1;
-        const vbResponse = data.result?.vestaboardResponse;
         
-        alert(`✅ Board updated!\n\nShowing: ${screenType}\nStep: ${stepIndex}\nVestaboard Status: ${vbResponse?.status || 'Success'}\n\nClick "Update Now" again to advance to the next screen.`);
+        return { success: true, screenType, stepIndex };
       } else {
         const errorMsg = data.error?.message || 'Failed to update board';
-        const errorDetails = data.error?.details?.originalError || '';
-        
-        alert(`❌ Error: ${errorMsg}\n\n${errorDetails}\n\nCheck:\n1. Is your API key correct?\n2. Is your Vestaboard online?\n3. Check backend terminal for detailed logs`);
+        alert(`❌ Error: ${errorMsg}`);
+        return { success: false };
       }
     } catch (error) {
-      alert(`❌ Network error: ${error.message}\n\nThe backend might not be running. Check your terminal.`);
+      alert(`❌ Network error: ${error.message}`);
+      return { success: false };
     } finally {
       setTriggerLoading(null);
     }
   };
 
+  const startAutoScheduler = (boardId) => {
+    if (runningSchedulers[boardId]) return; // Already running
+    
+    const boardWorkflow = workflows.find(w => w.boardId === boardId);
+    if (!boardWorkflow || !boardWorkflow.steps || boardWorkflow.steps.length === 0) {
+      alert('No workflow configured for this board!');
+      return;
+    }
+
+    setRunningSchedulers(prev => ({ ...prev, [boardId]: true }));
+    
+    let currentStepIndex = 0;
+    
+    const runNextStep = async () => {
+      if (!runningSchedulers[boardId] && !schedulerRefs.current[boardId]) return;
+      
+      const result = await handleTrigger(boardId);
+      
+      if (result.success) {
+        const currentStep = boardWorkflow.steps[currentStepIndex];
+        const delayMs = (currentStep?.displaySeconds || 15) * 1000;
+        
+        currentStepIndex = (currentStepIndex + 1) % boardWorkflow.steps.length;
+        
+        schedulerRefs.current[boardId] = setTimeout(runNextStep, delayMs);
+      } else {
+        stopAutoScheduler(boardId);
+      }
+    };
+    
+    runNextStep();
+  };
+
+  const stopAutoScheduler = (boardId) => {
+    if (schedulerRefs.current[boardId]) {
+      clearTimeout(schedulerRefs.current[boardId]);
+      delete schedulerRefs.current[boardId];
+    }
+    setRunningSchedulers(prev => {
+      const newState = { ...prev };
+      delete newState[boardId];
+      return newState;
+    });
+  };
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      Object.keys(schedulerRefs.current).forEach(boardId => {
+        clearTimeout(schedulerRefs.current[boardId]);
+      });
+    };
+  }, []);
+
   return (
     <div>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <h4 className="font-semibold text-blue-900 mb-2">💡 How Manual Updates Work</h4>
+        <h4 className="font-semibold text-blue-900 mb-2">� Automatic Scheduler</h4>
         <p className="text-sm text-blue-800">
-          Each click of "🔄 Update Now" advances your board to the NEXT screen in the workflow.
-          Click multiple times to cycle through all screens. Later, you can enable automatic updates
-          to cycle through screens every 15 seconds without clicking!
+          Click "▶️ Start Auto" to automatically cycle through your workflow steps. Each screen displays for its configured duration (e.g., 15 seconds), then automatically advances to the next screen. Click "⏹️ Stop" to pause.
         </p>
       </div>
 
@@ -229,17 +282,24 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
                     )}
                   </div>
                   <div className="flex space-x-2">
-                    <button onClick={() => handleTrigger(board.boardId)} disabled={triggerLoading === board.boardId || !hasWorkflow}
-                      className={`px-3 py-1 rounded text-sm ${
-                        !hasWorkflow 
-                          ? 'bg-gray-400 text-white cursor-not-allowed' 
-                          : 'bg-green-600 text-white hover:bg-green-700'
-                      }`}
-                      title={!hasWorkflow ? 'Create a workflow first' : 'Update board now'}>
-                      {triggerLoading === board.boardId ? '⏳' : '🔄 Update Now'}
-                    </button>
+                    {runningSchedulers[board.boardId] ? (
+                      <button onClick={() => stopAutoScheduler(board.boardId)}
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+                        ⏹️ Stop Auto
+                      </button>
+                    ) : (
+                      <button onClick={() => startAutoScheduler(board.boardId)} disabled={!hasWorkflow}
+                        className={`px-3 py-1 rounded text-sm ${
+                          !hasWorkflow 
+                            ? 'bg-gray-400 text-white cursor-not-allowed' 
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                        }`}
+                        title={!hasWorkflow ? 'Create a workflow first' : 'Start automatic cycling'}>
+                        ▶️ Start Auto
+                      </button>
+                    )}
                     <button onClick={() => handleDelete(board.boardId)}
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">Delete</button>
+                      className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm">Delete</button>
                   </div>
                 </div>
               </div>
