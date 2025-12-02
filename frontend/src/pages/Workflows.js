@@ -1719,52 +1719,53 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
         </div>
       </form>
 
-      {/* Right: Live Preview */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Live Preview</h2>
-        {previewMatrix ? (
-          <div className="bg-gray-900 p-4 rounded-lg inline-block">
-            <div className="grid grid-cols-22 gap-0.5">
-              {previewMatrix.map((row, rowIdx) =>
-                row.map((cell, colIdx) => {
-                  const isColorCode = cell >= 63 && cell <= 70;
-                  const isTextCode = cell >= 1 && cell <= 62;
-                  
-                  let cellClass = 'w-[14px] h-[14px] flex items-center justify-center text-xs font-mono rounded-sm';
-                  let displayChar = '';
-                  
-                  if (isColorCode) {
-                    cellClass += ` ${CHAR_COLORS[cell]}`;
-                  } else if (isTextCode) {
-                    cellClass += ' bg-gray-800 text-white';
-                    displayChar = CHAR_MAP[cell] || '?';
-                  } else {
-                    cellClass += ' bg-black';
-                  }
-                  
-                  return (
-                    <div key={`${rowIdx}-${colIdx}`} className={cellClass}>
-                      {!isColorCode && (
-                        <span className="font-bold text-white" style={{ fontSize: '6px' }}>
-                          {displayChar}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })
-              )}
+      {/* Right: Live Preview + Saved Screens */}
+      <div className="space-y-6">
+        {/* Live Preview */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Live Preview</h2>
+          {previewMatrix ? (
+            <div className="bg-gray-900 p-4 rounded-lg inline-block">
+              <div className="grid grid-cols-22 gap-0.5">
+                {previewMatrix.map((row, rowIdx) =>
+                  row.map((cell, colIdx) => {
+                    const isColorCode = cell >= 63 && cell <= 70;
+                    const isTextCode = cell >= 1 && cell <= 62;
+                    
+                    let cellClass = 'w-[14px] h-[14px] flex items-center justify-center text-xs font-mono rounded-sm';
+                    let displayChar = '';
+                    
+                    if (isColorCode) {
+                      cellClass += ` ${CHAR_COLORS[cell]}`;
+                    } else if (isTextCode) {
+                      cellClass += ' bg-gray-800 text-white';
+                      displayChar = CHAR_MAP[cell] || '?';
+                    } else {
+                      cellClass += ' bg-black';
+                    }
+                    
+                    return (
+                      <div key={`${rowIdx}-${colIdx}`} className={cellClass}>
+                        {!isColorCode && (
+                          <span className="font-bold text-white" style={{ fontSize: '6px' }}>
+                            {displayChar}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="text-center py-12 text-gray-400">
-            <div className="text-4xl mb-2">✍️</div>
-            <p>Type a message to see preview</p>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="text-center py-12 text-gray-400">
+              <div className="text-4xl mb-2">✍️</div>
+              <p>Type a message to see preview</p>
+            </div>
+          )}
+        </div>
 
-      {/* Saved Screens Library */}
-      <div className="lg:col-span-2 mt-8">
+        {/* Saved Screens Library */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">➕ Saved Custom Screens ({savedScreens.length})</h2>
           {savedScreens.length === 0 ? (
@@ -1773,7 +1774,8 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
               <p>No saved screens yet. Create and save a screen above!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="max-h-96 overflow-y-auto">
+              <div className="grid grid-cols-1 gap-4">
               {savedScreens.map((screen) => {
                 const expiresDate = new Date(screen.expiresAt);
                 const now = new Date();
@@ -1816,6 +1818,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
         </div>
