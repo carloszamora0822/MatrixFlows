@@ -4,10 +4,10 @@ import Layout from '../components/layout/Layout';
 import MiniVestaboard from '../components/MiniVestaboard';
 
 const Workflows = () => {
-  const [activeTab, setActiveTab] = useState('boards');
   const [boards, setBoards] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBoard, setSelectedBoard] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -31,73 +31,80 @@ const Workflows = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Workflow & Scheduling</h1>
-            <p className="mt-2 text-gray-600">
-              Manage automated Vestaboard updates and screen rotations
-            </p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8 px-4">
+        {/* Header */}
+        <div className="max-w-7xl mx-auto mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+            Vestaboard Control Center
+          </h1>
+          <p className="text-gray-600">Manage your boards and workflows in one beautiful interface</p>
+        </div>
 
-          {/* Status Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="card bg-gradient-to-br from-blue-50 to-blue-100">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="text-4xl">📺</div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Registered Boards</p>
-                  <p className="text-2xl font-bold text-gray-900">{boards.length}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="card bg-gradient-to-br from-green-50 to-green-100">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="text-4xl">🔄</div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Workflows</p>
-                  <p className="text-2xl font-bold text-gray-900">{workflows.length}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="card">
-            <div className="border-b border-gray-200 mb-6">
-              <nav className="-mb-px flex space-x-8">
-                <button
-                  onClick={() => setActiveTab('boards')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'boards'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+        {/* Board Selection Cards */}
+        <div className="max-w-7xl mx-auto mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Select a Board</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {boards.map(board => {
+              const assignedWorkflow = workflows.find(w => w.workflowId === board.defaultWorkflowId);
+              const isSelected = selectedBoard?.boardId === board.boardId;
+              
+              return (
+                <div
+                  key={board.boardId}
+                  onClick={() => setSelectedBoard(board)}
+                  className={`p-6 rounded-xl cursor-pointer transition-all duration-300 ${
+                    isSelected
+                      ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-2xl scale-105'
+                      : 'bg-white hover:shadow-xl hover:scale-102'
                   }`}
                 >
-                  📺 Boards
-                </button>
-                <button
-                  onClick={() => setActiveTab('workflows')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'workflows'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  🔄 Workflows
-                </button>
-              </nav>
-            </div>
-
-            {activeTab === 'boards' && <BoardsTab boards={boards} workflows={workflows} fetchData={fetchData} />}
-            {activeTab === 'workflows' && <WorkflowsTab workflows={workflows} boards={boards} fetchData={fetchData} />}
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className={`text-xl font-bold ${
+                      isSelected ? 'text-white' : 'text-gray-900'
+                    }`}>{board.name}</h3>
+                    {isSelected && <span className="text-2xl">✓</span>}
+                  </div>
+                  {board.locationLabel && (
+                    <p className={`text-sm mb-2 ${
+                      isSelected ? 'text-blue-100' : 'text-gray-600'
+                    }`}>{board.locationLabel}</p>
+                  )}
+                  {assignedWorkflow ? (
+                    <div className={`text-sm font-semibold ${
+                      isSelected ? 'text-green-200' : 'text-green-600'
+                    }`}>
+                      🔄 {assignedWorkflow.name}
+                    </div>
+                  ) : (
+                    <div className={`text-sm ${
+                      isSelected ? 'text-yellow-200' : 'text-yellow-600'
+                    }`}>
+                      ⚠️ No workflow assigned
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
+
+        {/* Workflow Management for Selected Board */}
+        {selectedBoard ? (
+          <div className="max-w-7xl mx-auto">
+            <WorkflowsTab 
+              workflows={workflows} 
+              boards={boards} 
+              fetchData={fetchData}
+              selectedBoard={selectedBoard}
+            />
+          </div>
+        ) : (
+          <div className="max-w-7xl mx-auto text-center py-20">
+            <div className="text-6xl mb-4">👆</div>
+            <h3 className="text-2xl font-semibold text-gray-700 mb-2">Select a Board to Get Started</h3>
+            <p className="text-gray-500">Choose a board above to manage its workflows</p>
+          </div>
+        )}
       </div>
     </Layout>
   );
