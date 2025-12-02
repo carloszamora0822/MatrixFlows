@@ -190,11 +190,17 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
       return;
     }
     
-    const boardWorkflow = workflows.find(w => w.boardId === boardId);
+    const board = boards.find(b => b.boardId === boardId);
+    if (!board || !board.defaultWorkflowId) {
+      alert('No workflow assigned to this board! Edit the board to assign a workflow.');
+      return;
+    }
+    
+    const boardWorkflow = workflows.find(w => w.workflowId === board.defaultWorkflowId);
     console.log('📋 Found workflow:', boardWorkflow);
     
     if (!boardWorkflow || !boardWorkflow.steps || boardWorkflow.steps.length === 0) {
-      alert('No workflow configured for this board!');
+      alert('Workflow not found or has no steps!');
       return;
     }
 
