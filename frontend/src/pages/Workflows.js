@@ -382,6 +382,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const [editingId, setEditingId] = useState(null);
   const [draggedStep, setDraggedStep] = useState(null);
   const [editingWorkflowId, setEditingWorkflowId] = useState(null);
+  const [stepDurations, setStepDurations] = useState({});
   const [form, setForm] = useState({ 
     name: '', 
     steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
@@ -398,10 +399,23 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const workflowData = {
-        ...form,
-        steps: form.steps.map((step, idx) => ({ ...step, order: idx, isEnabled: true }))
-      };
+      let workflowData;
+      
+      if (editingId) {
+        // When editing: only update name and schedule, keep existing steps
+        const existingWorkflow = workflows.find(w => w.workflowId === editingId);
+        workflowData = {
+          name: form.name,
+          schedule: form.schedule,
+          steps: existingWorkflow.steps // Keep existing steps!
+        };
+      } else {
+        // When creating: include steps
+        workflowData = {
+          ...form,
+          steps: form.steps.map((step, idx) => ({ ...step, order: idx, isEnabled: true }))
+        };
+      }
       
       console.log(editingId ? 'Updating' : 'Creating', 'workflow with data:', workflowData);
       
@@ -419,8 +433,8 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
       
       if (res.ok) {
         const successMessage = editingId 
-          ? '✅ Workflow updated successfully! All boards using this workflow will see the changes.' 
-          : '✅ Workflow created successfully! Assign it to boards in the Boards tab.';
+          ? '✅ Workflow name and schedule updated!' 
+          : '✅ Workflow created! Now add steps using "Reorder Steps".';
         alert(successMessage);
         setForm({ 
           name: '', 
@@ -434,12 +448,12 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
         });
         setEditingId(null);
         setShowForm(false);
-        await fetchData(); // Ensure data is refreshed
+        await fetchData();
       } else {
-        alert(`❌ Failed to create workflow:\n\n${data.error?.message}\n\nDetails: ${JSON.stringify(data.error?.details || {})}`);
+        alert(`❌ Failed:\n\n${data.error?.message}\n\nDetails: ${JSON.stringify(data.error?.details || {})}`);
       }
     } catch (error) {
-      console.error('Failed to create workflow:', error);
+      console.error('Failed to save workflow:', error);
       alert(`❌ Network error: ${error.message}`);
     } finally {
       setLoading(false);
@@ -450,15 +464,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
     setEditingId(workflow.workflowId);
     setForm({
       name: workflow.name,
-      steps: workflow.steps.sort((a, b) => a.order - b.order).map(s => {
-        const converted = convertFromSeconds(s.displaySeconds);
-        return {
-          screenType: s.screenType,
-          displaySeconds: s.displaySeconds,
-          displayValue: converted.value,
-          displayUnit: converted.unit
-        };
-      }),
+      steps: [], // No steps in edit form anymore!
       schedule: workflow.schedule || {
         type: 'always',
         startTimeLocal: '08:00',
@@ -583,57 +589,59 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
               <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="input-field" placeholder="e.g., Office Hours, Weekend Display" required />
               <p className="text-xs text-gray-500 mt-1">
-                � This workflow can be assigned to multiple boards!
+                💡 This workflow can be assigned to multiple boards!
               </p>
             </div>
             
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <label className="font-medium text-gray-700">Screen Steps (drag to reorder)</label>
-                <button type="button" onClick={addStep} className="text-sm text-blue-600 hover:text-blue-800 font-semibold">+ Add Step</button>
-              </div>
-              {form.steps.map((step, idx) => (
-                <div 
-                  key={idx} 
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, idx)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, idx)}
-                  className="flex items-center space-x-2 mb-2 p-2 bg-gray-50 rounded-lg border-2 border-gray-300 hover:border-blue-400 cursor-move transition-all group"
-                >
-                  <div className="flex flex-col items-center justify-center w-12 text-gray-400 group-hover:text-blue-600">
-                    <span className="text-xs font-bold">#{idx + 1}</span>
-                    <span className="text-lg leading-none">⋮⋮</span>
-                  </div>
-                  {idx === 0 && <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">FIRST</span>}
-                  {idx === form.steps.length - 1 && form.steps.length > 1 && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">LAST</span>}
-                  <select value={step.screenType} onChange={(e) => updateStep(idx, 'screenType', e.target.value)} className="input-field flex-1">
-                    {screenTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                  <div className="flex items-center space-x-1">
-                    <input 
-                      type="number" 
-                      value={step.displayValue || step.displaySeconds} 
-                      onChange={(e) => updateStep(idx, 'displayValue', parseInt(e.target.value))}
-                      className="input-field w-16 text-center font-semibold" 
-                      min="1" 
-                      max="999" 
-                      placeholder="15" 
-                    />
-                    <select 
-                      value={step.displayUnit || 'seconds'} 
-                      onChange={(e) => updateStep(idx, 'displayUnit', e.target.value)}
-                      className="input-field w-24 text-sm"
-                    >
-                      <option value="seconds">sec</option>
-                      <option value="minutes">min</option>
-                      <option value="hours">hrs</option>
-                    </select>
-                  </div>
-                  <button type="button" onClick={() => removeStep(idx)} className="px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded">✕</button>
+            {!editingId && (
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <label className="font-medium text-gray-700">Screen Steps (drag to reorder)</label>
+                  <button type="button" onClick={addStep} className="text-sm text-blue-600 hover:text-blue-800 font-semibold">+ Add Step</button>
                 </div>
-              ))}
-            </div>
+                {form.steps.map((step, idx) => (
+                  <div 
+                    key={idx} 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    className="flex items-center space-x-2 mb-2 p-2 bg-gray-50 rounded-lg border-2 border-gray-300 hover:border-blue-400 cursor-move transition-all group"
+                  >
+                    <div className="flex flex-col items-center justify-center w-12 text-gray-400 group-hover:text-blue-600">
+                      <span className="text-xs font-bold">#{idx + 1}</span>
+                      <span className="text-lg leading-none">⋮⋮</span>
+                    </div>
+                    {idx === 0 && <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">FIRST</span>}
+                    {idx === form.steps.length - 1 && form.steps.length > 1 && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">LAST</span>}
+                    <select value={step.screenType} onChange={(e) => updateStep(idx, 'screenType', e.target.value)} className="input-field flex-1">
+                      {screenTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    <div className="flex items-center space-x-1">
+                      <input 
+                        type="number" 
+                        value={step.displayValue || step.displaySeconds} 
+                        onChange={(e) => updateStep(idx, 'displayValue', parseInt(e.target.value))}
+                        className="input-field w-16 text-center font-semibold" 
+                        min="1" 
+                        max="999" 
+                        placeholder="15" 
+                      />
+                      <select 
+                        value={step.displayUnit || 'seconds'} 
+                        onChange={(e) => updateStep(idx, 'displayUnit', e.target.value)}
+                        className="input-field w-24 text-sm"
+                      >
+                        <option value="seconds">sec</option>
+                        <option value="minutes">min</option>
+                        <option value="hours">hrs</option>
+                      </select>
+                    </div>
+                    <button type="button" onClick={() => removeStep(idx)} className="px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div>
               <label className="font-medium block mb-2 text-gray-700">Schedule</label>
@@ -719,10 +727,11 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                       <>
                         <button 
                           onClick={async () => {
-                            // Save reordered workflow
+                            // Save reordered workflow with updated durations
                             const reorderedSteps = enabledSteps.map((step, idx) => ({
                               ...step,
-                              order: idx
+                              order: idx,
+                              displaySeconds: stepDurations[`${workflow.workflowId}-${idx}`] || step.displaySeconds
                             }));
                             
                             try {
@@ -738,8 +747,9 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                               });
                               
                               if (res.ok) {
-                                alert('✅ Workflow order saved!');
+                                alert('✅ Workflow order and timing saved!');
                                 setEditingWorkflowId(null);
+                                setStepDurations({});
                                 fetchData();
                               }
                             } catch (error) {
@@ -748,7 +758,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                           }}
                           className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-semibold"
                         >
-                          💾 Save Order
+                          💾 Save Order & Timing
                         </button>
                         <button 
                           onClick={() => setEditingWorkflowId(null)} 
@@ -792,7 +802,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                       <div key={idx} className="relative">
                         <MiniVestaboard
                           screenType={step.screenType}
-                          displaySeconds={step.displaySeconds}
+                          displaySeconds={stepDurations[`${workflow.workflowId}-${idx}`] || step.displaySeconds}
                           stepNumber={idx + 1}
                           isFirst={idx === 0}
                           isLast={idx === enabledSteps.length - 1}
@@ -825,8 +835,29 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                             }
                           }}
                         />
-                        <div className="mt-2 ml-2 text-sm font-semibold text-gray-700">
-                          {label}
+                        <div className="mt-2 ml-2 flex items-center space-x-2">
+                          <span className="text-sm font-semibold text-gray-700">{label}</span>
+                          {isEditing && (
+                            <div className="flex items-center space-x-1">
+                              <input
+                                type="number"
+                                value={stepDurations[`${workflow.workflowId}-${idx}`] || step.displaySeconds}
+                                onChange={(e) => {
+                                  const newDuration = parseInt(e.target.value);
+                                  setStepDurations({
+                                    ...stepDurations,
+                                    [`${workflow.workflowId}-${idx}`]: newDuration
+                                  });
+                                  // Update the step immediately
+                                  step.displaySeconds = newDuration;
+                                }}
+                                className="w-16 px-2 py-1 border-2 border-blue-400 rounded text-center font-bold"
+                                min="1"
+                                max="999"
+                              />
+                              <span className="text-xs text-gray-600">seconds</span>
+                            </div>
+                          )}
                         </div>
                         {idx < enabledSteps.length - 1 && (
                           <div className="flex justify-center my-3">
