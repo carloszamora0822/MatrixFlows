@@ -30,11 +30,11 @@ const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLas
   useEffect(() => {
     const fetchPreview = async () => {
       try {
-        const res = await fetch(`/api/screens/render`, {
+        const res = await fetch(`/api/screens/preview`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ screenType, config: {} })
+          body: JSON.stringify({ screenType, screenConfig: {} })
         });
         const data = await res.json();
         if (data.matrix) {
