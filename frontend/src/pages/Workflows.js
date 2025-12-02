@@ -406,13 +406,20 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
   );
 };
 
-const WorkflowsTab = ({ workflows, boards, fetchData }) => {
+const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [draggedStep, setDraggedStep] = useState(null);
   const [editingWorkflowId, setEditingWorkflowId] = useState(null);
   const [stepDurations, setStepDurations] = useState({});
   const [stepUnits, setStepUnits] = useState({}); // Track units for each step
+  const [showCustomScreenBuilder, setShowCustomScreenBuilder] = useState(false);
+  const [customScreen, setCustomScreen] = useState({
+    message: '',
+    borderColor1: 'red',
+    borderColor2: 'orange',
+    matrix: null
+  });
   
   const [form, setForm] = useState({ 
     name: '', 
@@ -591,16 +598,24 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold text-gray-800">Workflows</h3>
-        <button onClick={() => {
-          if (showForm) {
-            setShowForm(false);
-            setEditingId(null);
-          } else {
-            setShowForm(true);
-          }
-        }} className="btn-primary" disabled={boards.length === 0}>
-          {showForm ? 'Cancel' : '+ Create Workflow'}
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setShowCustomScreenBuilder(true)}
+            className="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-lg hover:from-orange-600 hover:to-pink-600 font-semibold shadow-md"
+          >
+            🎨 Create Custom Screen
+          </button>
+          <button onClick={() => {
+            if (showForm) {
+              setShowForm(false);
+              setEditingId(null);
+            } else {
+              setShowForm(true);
+            }
+          }} className="btn-primary" disabled={boards.length === 0}>
+            {showForm ? 'Cancel' : '+ Create Workflow'}
+          </button>
+        </div>
       </div>
 
       {boards.length === 0 && (
