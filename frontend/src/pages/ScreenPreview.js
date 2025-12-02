@@ -8,11 +8,13 @@ const ScreenPreview = () => {
   const { matrix, loading, error, generatePreview, clearPreview, hasPreview } = useScreenPreview();
 
   const screenTypes = [
-    { value: 'BIRTHDAY', label: 'Birthday Announcement', description: 'Celebrate team member birthdays' },
-    { value: 'CHECKRIDES', label: 'Checkride Schedule', description: 'Display upcoming flight checkrides' },
-    { value: 'UPCOMING_EVENTS', label: 'Upcoming Events', description: 'Show scheduled events and activities' },
-    { value: 'NEWEST_PILOT', label: 'Newest Pilot', description: 'Congratulate new pilots' },
-    { value: 'EMPLOYEE_RECOGNITION', label: 'Employee Recognition', description: 'Highlight employee achievements' }
+    { value: 'BIRTHDAY', label: '🎂 Birthday', description: 'Celebrate team member birthdays' },
+    { value: 'CHECKRIDES', label: '✈️ Checkrides', description: 'Display upcoming flight checkrides' },
+    { value: 'UPCOMING_EVENTS', label: '📅 Upcoming Events', description: 'Show scheduled events and activities' },
+    { value: 'NEWEST_PILOT', label: '🎓 Newest Pilot', description: 'Congratulate new pilots' },
+    { value: 'EMPLOYEE_RECOGNITION', label: '⭐ Employee Recognition', description: 'Highlight employee achievements' },
+    { value: 'WEATHER', label: '🌤️ Weather', description: 'Display current weather conditions' },
+    { value: 'METAR', label: '🛩️ METAR', description: 'Display aviation weather reports' }
   ];
 
   const handleGeneratePreview = () => {

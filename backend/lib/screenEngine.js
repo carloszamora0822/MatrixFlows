@@ -1,6 +1,9 @@
 const { VESTABOARD_CHAR_MAP } = require('../../shared/constants');
 const templates = require('./templates');
 const dataService = require('./dataService');
+const metarClient = require('./clients/metarClient');
+const weatherClient = require('./clients/weatherClient');
+const metarAnalyzer = require('./metarAnalyzer');
 
 class ScreenEngine {
   constructor() {
@@ -115,6 +118,10 @@ class ScreenEngine {
           return await this.renderNewestPilot(screenConfig);
         case 'EMPLOYEE_RECOGNITION':
           return await this.renderEmployeeRecognition(screenConfig);
+        case 'WEATHER':
+          return await this.renderWeather(screenConfig);
+        case 'METAR':
+          return await this.renderMetar(screenConfig);
         case 'CUSTOM_MESSAGE':
           return await this.renderCustomMessage(screenConfig);
         default:
@@ -267,11 +274,196 @@ class ScreenEngine {
   }
 
   /**
+   * Render Weather screen
+   */
+  async renderWeather(config) {
+    try {
+      const weather = await weatherClient.getWeather(config.locationOverride);
+      
+      // Select template based on weather condition
+      const template = this.selectWeatherTemplate(weather.condition);
+      const matrix = JSON.parse(JSON.stringify(template));
+
+      // Replace temperature placeholders (36, 36 = "00")
+      const tempCodes = this.numberToCodes(weather.temperature);
+      this.replacePlaceholders(matrix, [36, 36], tempCodes, 2, 0); // Row 2, first occurrence
+
+      // Replace wind speed placeholders
+      const windCodes = this.numberToCodes(weather.windSpeed);
+      this.replacePlaceholders(matrix, [36, 36], windCodes, 3, 0); // Row 3, first occurrence
+
+      return matrix;
+
+    } catch (error) {
+      console.error('Weather rendering error:', error);
+      return this.renderWeatherError(error.message);
+    }
+  }
+
+  /**
+   * Render METAR screen with safety color coding
+   */
+  async renderMetar(config) {
+    try {
+      const metar = await metarClient.getMetar(config.stationId || 'KVBT');
+      const matrix = new Array(6).fill(null).map(() => new Array(22).fill(0));
+
+      // Analyze METAR for safety
+      const safety = metarAnalyzer.analyzeSafety(metar.rawText);
+      const safetyColor = safety.color; // 62=Green, 66=Yellow, 63=Red
+
+      // Row 0: "METAR KVBT" centered with safety color border
+      const headerText = `METAR ${metar.stationId}`;
+      const headerCodes = this.textToCodes(headerText);
+      const startCol = Math.floor((22 - headerCodes.length) / 2);
+      
+      // Add colored borders on row 0
+      matrix[0][0] = safetyColor;
+      matrix[0][21] = safetyColor;
+      for (let i = 0; i < headerCodes.length && (startCol + i) < 21; i++) {
+        matrix[0][startCol + i] = headerCodes[i];
+      }
+
+      // Rows 1-5: METAR data with colored left/right borders
+      // Remove "METAR KVBT" from the beginning since it's already in the header
+      const metarTextWithoutHeader = metar.rawText.replace(/^METAR\s+\w+\s+/, '');
+      const metarLines = this.wrapTextToLines(metarTextWithoutHeader, 20, 5); // 20 chars to leave room for borders
+      
+      for (let row = 0; row < metarLines.length && row < 5; row++) {
+        // Left border
+        matrix[row + 1][0] = safetyColor;
+        
+        // METAR text
+        const lineCodes = this.textToCodes(metarLines[row]);
+        for (let col = 0; col < lineCodes.length && col < 20; col++) {
+          matrix[row + 1][col + 1] = lineCodes[col];
+        }
+        
+        // Right border
+        matrix[row + 1][21] = safetyColor;
+      }
+
+      console.log(`✅ METAR rendered with ${safety.safety} status (${safetyColor})`);
+      return matrix;
+
+    } catch (error) {
+      console.error('METAR rendering error:', error);
+      return this.renderMetarError(error.message);
+    }
+  }
+
+  /**
+   * Select weather template based on condition
+   */
+  selectWeatherTemplate(condition) {
+    const conditionLower = condition.toLowerCase();
+    if (conditionLower.includes('clear') || conditionLower.includes('sun')) {
+      return templates.weatherSunny;
+    }
+    // Default to cloudy for rain, clouds, etc.
+    return templates.weatherCloudy;
+  }
+
+  /**
+   * Convert number to character codes
+   */
+  numberToCodes(number) {
+    return number.toString().split('').map(digit => this.charMap[digit] || 0);
+  }
+
+  /**
+   * Replace placeholder pattern in matrix with new codes
+   */
+  replacePlaceholders(matrix, searchPattern, replacementCodes, startRow, occurrence) {
+    let found = 0;
+    for (let row = startRow; row < matrix.length; row++) {
+      for (let col = 0; col <= matrix[row].length - searchPattern.length; col++) {
+        let matches = true;
+        for (let i = 0; i < searchPattern.length; i++) {
+          if (matrix[row][col + i] !== searchPattern[i]) {
+            matches = false;
+            break;
+          }
+        }
+        
+        if (matches) {
+          if (found === occurrence) {
+            // Replace with new codes
+            for (let i = 0; i < replacementCodes.length && i < searchPattern.length; i++) {
+              matrix[row][col + i] = replacementCodes[i];
+            }
+            return;
+          }
+          found++;
+        }
+      }
+    }
+  }
+
+  /**
+   * Wrap text to multiple lines
+   */
+  wrapTextToLines(text, maxWidth, maxLines) {
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      if (lines.length >= maxLines) break;
+      
+      if ((currentLine + (currentLine ? ' ' : '') + word).length <= maxWidth) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          lines.push(word.substring(0, maxWidth));
+        }
+      }
+    }
+
+    if (currentLine && lines.length < maxLines) {
+      lines.push(currentLine);
+    }
+
+    return lines;
+  }
+
+  /**
+   * Render weather error screen
+   */
+  renderWeatherError(message) {
+    const matrix = new Array(6).fill(null).map(() => new Array(22).fill(0));
+    const errorText = this.centerText('WEATHER ERROR', 0, 21);
+    const messageText = this.centerText('DATA UNAVAILABLE', 0, 21);
+    
+    for (let i = 0; i < errorText.length; i++) matrix[1][i] = errorText[i];
+    for (let i = 0; i < messageText.length; i++) matrix[3][i] = messageText[i];
+    
+    return matrix;
+  }
+
+  /**
+   * Render METAR error screen
+   */
+  renderMetarError(message) {
+    const matrix = new Array(6).fill(null).map(() => new Array(22).fill(0));
+    const errorText = this.centerText('METAR ERROR', 0, 21);
+    const messageText = this.centerText('DATA UNAVAILABLE', 0, 21);
+    
+    for (let i = 0; i < errorText.length; i++) matrix[1][i] = errorText[i];
+    for (let i = 0; i < messageText.length; i++) matrix[3][i] = messageText[i];
+    
+    return matrix;
+  }
+
+  /**
    * Render Custom Message screen
    */
   async renderCustomMessage(config) {
-    // This will be implemented in Sprint 4
-    return this.renderErrorScreen('Custom messages coming in Sprint 4');
+    // This will be implemented later if needed
+    return this.renderErrorScreen('Custom messages coming soon');
   }
 
   /**
