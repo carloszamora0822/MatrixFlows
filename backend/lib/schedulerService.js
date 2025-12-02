@@ -79,12 +79,21 @@ class SchedulerService {
         });
       }
 
-      // Get active workflow
+      // Check if board has any workflows at all
+      const Workflow = require('../models/Workflow');
+      const allWorkflows = await Workflow.find({ boardId: board.boardId, isActive: true });
+      
+      if (allWorkflows.length === 0) {
+        console.log('⚠️  No workflows exist for this board');
+        throw new Error('No workflow assigned to this board. Please create a workflow first.');
+      }
+      
+      // Get active workflow based on schedule
       const workflow = await workflowService.getActiveWorkflow(board.boardId);
       
       if (!workflow) {
-        console.log('⚠️  No active workflow, skipping board');
-        throw new Error('No workflow assigned to this board. Please create a workflow first.');
+        console.log('⚠️  Workflow exists but not scheduled to run at this time');
+        throw new Error('Workflow is not scheduled to run at this time. Check your workflow schedule settings.');
       }
 
       // Get current step to display
