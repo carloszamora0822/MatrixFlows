@@ -581,7 +581,10 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
   const addCustomScreenToWorkflow = async (screen, workflowId) => {
     try {
       const workflow = workflows.find(w => w.workflowId === workflowId);
-      if (!workflow) return;
+      if (!workflow) {
+        alert('❌ Workflow not found');
+        return;
+      }
 
       // Add the custom screen as a new step
       const newStep = {
@@ -591,20 +594,30 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
           matrix: screen.matrix
         },
         displaySeconds: 20,
+        displayValue: 20,
+        displayUnit: 'seconds',
         isEnabled: true,
         order: workflow.steps.length
       };
 
       const updatedSteps = [...workflow.steps, newStep];
 
-      // Update the workflow
+      // Update the workflow with all required fields
       const response = await fetch(`/api/workflows/${workflowId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          ...workflow,
-          steps: updatedSteps
+          workflowId: workflow.workflowId,
+          name: workflow.name,
+          boardId: workflow.boardId,
+          steps: updatedSteps,
+          schedule: workflow.schedule || {
+            type: 'always',
+            startTimeLocal: '00:00',
+            endTimeLocal: '23:59',
+            daysOfWeek: [0, 1, 2, 3, 4, 5, 6]
+          }
         })
       });
 
@@ -612,9 +625,12 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
         alert(`✅ "${screen.name}" added to workflow!`);
         fetchData();
       } else {
-        alert('❌ Failed to add screen to workflow');
+        const error = await response.json();
+        console.error('Add screen error:', error);
+        alert(`❌ Failed: ${error.error?.message || 'Unknown error'}`);
       }
     } catch (error) {
+      console.error('Network error:', error);
       alert('❌ Network error occurred');
     }
   };
@@ -1074,6 +1090,7 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
     customMessage: '',
     borderColor1: 'red',
     borderColor2: 'orange',
+    hasExpiration: false,
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
@@ -1227,6 +1244,11 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
     }
 
     try {
+      // If no expiration, set to 100 years from now (effectively never expires)
+      const expirationDate = formData.hasExpiration 
+        ? formData.expiresAt 
+        : new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
       const response = await fetch('/api/custom-screens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1237,7 +1259,7 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
           borderColor1: formData.borderColor1,
           borderColor2: formData.borderColor2,
           matrix: previewMatrix,
-          expiresAt: formData.expiresAt
+          expiresAt: expirationDate
         })
       });
 
@@ -1253,6 +1275,7 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
           customMessage: '',
           borderColor1: 'red',
           borderColor2: 'orange',
+          hasExpiration: false,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         });
         setPreviewMatrix(null);
@@ -1406,20 +1429,29 @@ const CustomScreensTab = ({ boards, selectedBoard, workflows, fetchData }) => {
             />
           </div>
 
-          {/* Expires At */}
+          {/* Expiration */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Expires On
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.hasExpiration}
+                onChange={(e) => setFormData({ ...formData, hasExpiration: e.target.checked })}
+                className="w-5 h-5 text-orange-500 border-2 border-gray-300 rounded focus:ring-2 focus:ring-orange-200"
+              />
+              <span className="text-sm font-semibold text-gray-700">This screen expires?</span>
             </label>
-            <input
-              type="date"
-              value={formData.expiresAt}
-              onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
-              min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">Screen will be auto-deleted after this date</p>
+            {formData.hasExpiration && (
+              <div className="mt-3">
+                <input
+                  type="date"
+                  value={formData.expiresAt}
+                  onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+                />
+                <p className="text-xs text-gray-500 mt-1">Screen will be auto-deleted after this date</p>
+              </div>
+            )}
           </div>
 
           {/* Custom Message */}
