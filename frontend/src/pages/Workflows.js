@@ -1774,7 +1774,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
               <p>No saved screens yet. Create and save a screen above!</p>
             </div>
           ) : (
-            <div className="overflow-y-auto max-h-[225px]">
+            <div className="overflow-y-auto max-h-[230px] border-2 border-gray-300 rounded-lg p-3">
               <div className="grid grid-cols-1 gap-4">
               {savedScreens.map((screen) => {
                 const expiresDate = new Date(screen.expiresAt);
