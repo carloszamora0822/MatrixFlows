@@ -35,6 +35,9 @@ module.exports = async (req, res) => {
         });
       }
 
+      console.log(`💾 Saving custom screen "${name}"`);
+      console.log(`💾 Matrix received: ${Array.isArray(matrix) ? 'YES' : 'NO'}, length: ${matrix?.length}`);
+
       const customScreen = new CustomScreen({
         orgId: ORG_CONFIG.ID,
         name,
@@ -49,6 +52,7 @@ module.exports = async (req, res) => {
       await customScreen.save();
 
       console.log(`✅ Custom screen "${name}" saved (expires: ${expiresAt})`);
+      console.log(`✅ Saved matrix is array: ${Array.isArray(customScreen.matrix)}, length: ${customScreen.matrix?.length}`);
 
       return res.status(201).json({
         screenId: customScreen.screenId,
@@ -68,6 +72,12 @@ module.exports = async (req, res) => {
         orgId: ORG_CONFIG.ID,
         expiresAt: { $gt: now }
       }).sort({ createdAt: -1 });
+
+      console.log(`📚 Returning ${screens.length} custom screens`);
+      if (screens.length > 0) {
+        console.log(`📚 First screen has matrix: ${!!screens[0].matrix}`);
+        console.log(`📚 First screen matrix is array: ${Array.isArray(screens[0].matrix)}`);
+      }
 
       return res.status(200).json(screens);
 

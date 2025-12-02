@@ -929,7 +929,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                           }}
                           className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-semibold"
                         >
-                          💾 Save Order & Timing
+                          💾 Save
                         </button>
                         <button 
                           onClick={() => setEditingWorkflowId(null)} 
@@ -1409,7 +1409,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
               value={formData.screenName}
               onChange={(e) => setFormData({ ...formData, screenName: e.target.value })}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
-              placeholder="Event Announcement"
+              placeholder="ex. Event Announcement"
               required
             />
           </div>
