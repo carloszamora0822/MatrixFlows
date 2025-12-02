@@ -170,9 +170,16 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
   };
 
   const startAutoScheduler = (boardId) => {
-    if (runningSchedulers[boardId]) return; // Already running
+    console.log('🚀 Starting auto scheduler for board:', boardId);
+    
+    if (runningSchedulers[boardId]) {
+      console.log('⚠️ Scheduler already running');
+      return;
+    }
     
     const boardWorkflow = workflows.find(w => w.boardId === boardId);
+    console.log('📋 Found workflow:', boardWorkflow);
+    
     if (!boardWorkflow || !boardWorkflow.steps || boardWorkflow.steps.length === 0) {
       alert('No workflow configured for this board!');
       return;
@@ -183,18 +190,27 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
     let currentStepIndex = 0;
     
     const runNextStep = async () => {
-      if (!runningSchedulers[boardId] && !schedulerRefs.current[boardId]) return;
+      console.log(`🔄 Running step ${currentStepIndex + 1}/${boardWorkflow.steps.length}`);
+      
+      if (!runningSchedulers[boardId] && !schedulerRefs.current[boardId]) {
+        console.log('⏹️ Scheduler stopped');
+        return;
+      }
       
       const result = await handleTrigger(boardId);
+      console.log('📊 Trigger result:', result);
       
       if (result.success) {
         const currentStep = boardWorkflow.steps[currentStepIndex];
         const delayMs = (currentStep?.displaySeconds || 15) * 1000;
         
+        console.log(`⏰ Next update in ${delayMs/1000} seconds`);
+        
         currentStepIndex = (currentStepIndex + 1) % boardWorkflow.steps.length;
         
         schedulerRefs.current[boardId] = setTimeout(runNextStep, delayMs);
       } else {
+        console.error('❌ Trigger failed, stopping scheduler');
         stopAutoScheduler(boardId);
       }
     };
