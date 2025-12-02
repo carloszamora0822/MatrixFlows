@@ -147,13 +147,16 @@ const BoardsTab = ({ boards, fetchData }) => {
         credentials: 'include'
       });
       if (res.ok) {
-        alert('Board updated successfully!');
+        const data = await res.json();
+        const screenType = data.result?.screenType || 'Unknown';
+        const stepIndex = (data.result?.stepIndex || 0) + 1;
+        alert(`✅ Board updated!\n\nShowing: ${screenType}\nStep: ${stepIndex}\n\nClick "Update Now" again to advance to the next screen.`);
       } else {
         const data = await res.json();
-        alert(`Error: ${data.error?.message || 'Failed to update board'}`);
+        alert(`❌ Error: ${data.error?.message || 'Failed to update board'}`);
       }
     } catch (error) {
-      alert('Network error');
+      alert('❌ Network error');
     } finally {
       setTriggerLoading(null);
     }
@@ -161,6 +164,15 @@ const BoardsTab = ({ boards, fetchData }) => {
 
   return (
     <div>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h4 className="font-semibold text-blue-900 mb-2">💡 How Manual Updates Work</h4>
+        <p className="text-sm text-blue-800">
+          Each click of "🔄 Update Now" advances your board to the NEXT screen in the workflow.
+          Click multiple times to cycle through all screens. Later, you can enable automatic updates
+          to cycle through screens every 15 seconds without clicking!
+        </p>
+      </div>
+
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold">Registered Boards</h3>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary">
