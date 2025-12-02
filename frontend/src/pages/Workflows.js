@@ -1412,7 +1412,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
                     </button>
                     <button
                       onClick={async () => {
-                        if (confirm(`Delete "${screen.name}"?`)) {
+                        if (window.confirm(`Delete "${screen.name}"?`)) {
                           // Delete functionality (to be implemented)
                           alert('Delete feature coming soon!');
                         }
