@@ -453,6 +453,29 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
     setForm({ ...form, steps: newSteps });
   };
 
+  const handleDragStart = (e, idx) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', idx);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, dropIdx) => {
+    e.preventDefault();
+    const dragIdx = parseInt(e.dataTransfer.getData('text/plain'));
+    
+    if (dragIdx === dropIdx) return;
+    
+    const newSteps = [...form.steps];
+    const [removed] = newSteps.splice(dragIdx, 1);
+    newSteps.splice(dropIdx, 0, removed);
+    
+    setForm({ ...form, steps: newSteps });
+  };
+
   const screenTypes = [
     { value: 'BIRTHDAY', label: '🎂 Birthday' },
     { value: 'CHECKRIDES', label: '✈️ Checkrides' },
@@ -499,18 +522,31 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
               className="input-field" placeholder="Workflow Name" required />
             
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="font-medium">Screen Steps</label>
-                <button type="button" onClick={addStep} className="text-sm text-blue-600 hover:text-blue-800">+ Add Step</button>
+              <div className="flex justify-between items-center mb-3">
+                <label className="font-medium">Screen Steps (drag to reorder)</label>
+                <button type="button" onClick={addStep} className="text-sm text-blue-600 hover:text-blue-800 font-semibold">+ Add Step</button>
               </div>
               {form.steps.map((step, idx) => (
-                <div key={idx} className="flex space-x-2 mb-2">
+                <div 
+                  key={idx} 
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, idx)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, idx)}
+                  className="flex items-center space-x-2 mb-2 p-2 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-300 cursor-move transition-all group"
+                >
+                  <div className="flex flex-col items-center justify-center w-12 text-gray-400 group-hover:text-blue-600">
+                    <span className="text-xs font-bold">#{idx + 1}</span>
+                    <span className="text-lg leading-none">⋮⋮</span>
+                  </div>
+                  {idx === 0 && <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">FIRST</span>}
+                  {idx === form.steps.length - 1 && form.steps.length > 1 && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">LAST</span>}
                   <select value={step.screenType} onChange={(e) => updateStep(idx, 'screenType', e.target.value)} className="input-field flex-1">
                     {screenTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                   <input type="number" value={step.displaySeconds} onChange={(e) => updateStep(idx, 'displaySeconds', parseInt(e.target.value))}
                     className="input-field w-24" min="5" max="300" placeholder="Seconds" />
-                  <button type="button" onClick={() => removeStep(idx)} className="text-red-600 hover:text-red-800">✕</button>
+                  <button type="button" onClick={() => removeStep(idx)} className="px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded">✕</button>
                 </div>
               ))}
             </div>
