@@ -38,43 +38,77 @@ const Workflows = () => {
 
   const currentBoard = selectedBoard || boards[0];
   const assignedWorkflow = currentBoard ? workflows.find(w => w.workflowId === currentBoard.defaultWorkflowId) : null;
+  const isSingleBoard = boards.length === 1;
 
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8 px-4">
-        {/* Header */}
-        <div className="max-w-7xl mx-auto mb-8">
-          <div className="relative">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
-              {currentBoard?.name || 'Vestaboard'}
-            </h1>
-            <div className="flex items-center space-x-4">
-              {currentBoard?.locationLabel && (
-                <span className="px-4 py-2 bg-white rounded-full text-gray-700 text-sm font-semibold shadow-md">
-                  📍 {currentBoard.locationLabel}
-                </span>
-              )}
-              {assignedWorkflow && (
-                <span className="px-4 py-2 bg-green-100 rounded-full text-green-700 text-sm font-semibold shadow-md">
-                  🔄 {assignedWorkflow.name}
-                </span>
-              )}
-              {boards.length > 1 && (
-                <select
-                  value={currentBoard?.boardId || ''}
-                  onChange={(e) => setSelectedBoard(boards.find(b => b.boardId === e.target.value))}
-                  className="px-4 py-2 bg-white rounded-full text-gray-700 text-sm font-semibold border-2 border-gray-200 hover:border-blue-400 transition-all cursor-pointer shadow-md"
-                >
-                  {boards.map(board => (
-                    <option key={board.boardId} value={board.boardId}>
-                      {board.name}
-                    </option>
-                  ))}
-                </select>
-              )}
+        {/* Single Board Layout */}
+        {isSingleBoard ? (
+          <div className="max-w-7xl mx-auto mb-8">
+            <div className="relative">
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                {currentBoard?.name || 'Vestaboard'}
+              </h1>
+              <div className="flex items-center space-x-4">
+                {currentBoard?.locationLabel && (
+                  <span className="px-4 py-2 bg-white rounded-full text-gray-700 text-sm font-semibold shadow-md">
+                    📍 {currentBoard.locationLabel}
+                  </span>
+                )}
+                {assignedWorkflow && (
+                  <span className="px-4 py-2 bg-green-100 rounded-full text-green-700 text-sm font-semibold shadow-md">
+                    🔄 {assignedWorkflow.name}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          /* Multiple Boards Layout */
+          <div className="max-w-7xl mx-auto mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-6">Select a Board</h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {boards.map(board => {
+                const workflow = workflows.find(w => w.workflowId === board.defaultWorkflowId);
+                const isSelected = currentBoard?.boardId === board.boardId;
+                
+                return (
+                  <div
+                    key={board.boardId}
+                    onClick={() => setSelectedBoard(board)}
+                    className={`p-6 rounded-xl cursor-pointer transition-all duration-300 ${
+                      isSelected
+                        ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-2xl scale-105 ring-4 ring-blue-300'
+                        : 'bg-white hover:shadow-xl hover:scale-102 border-2 border-gray-200 hover:border-blue-400'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className={`text-xl font-bold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                        {board.name}
+                      </h3>
+                      {isSelected && <span className="text-2xl">✓</span>}
+                    </div>
+                    {board.locationLabel && (
+                      <p className={`text-sm mb-2 ${isSelected ? 'text-blue-100' : 'text-gray-600'}`}>
+                        📍 {board.locationLabel}
+                      </p>
+                    )}
+                    {workflow ? (
+                      <div className={`text-sm font-semibold ${isSelected ? 'text-green-200' : 'text-green-600'}`}>
+                        🔄 {workflow.name}
+                      </div>
+                    ) : (
+                      <div className={`text-sm ${isSelected ? 'text-yellow-200' : 'text-yellow-600'}`}>
+                        ⚠️ No workflow assigned
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Workflow Management */}
         {currentBoard ? (
