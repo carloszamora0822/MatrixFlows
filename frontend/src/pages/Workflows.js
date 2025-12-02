@@ -1012,6 +1012,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
     customMessage: '',
     borderColor1: 'red',
     borderColor2: 'orange',
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
     startTimeLocal: '09:00',
@@ -1171,27 +1172,48 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
           message: formData.customMessage,
           borderColor1: formData.borderColor1,
           borderColor2: formData.borderColor2,
-          matrix: previewMatrix
+          matrix: previewMatrix,
+          expiresAt: formData.expiresAt
         })
       });
 
       if (response.ok) {
         const data = await response.json();
         alert(`✅ Screen "${formData.screenName}" saved!`);
-        // Add to saved screens list
-        setSavedScreens([...savedScreens, data]);
+        // Refresh the list
+        fetchSavedScreens();
         // Reset form
         setFormData({
           ...formData,
           screenName: '',
           customMessage: '',
           borderColor1: 'red',
-          borderColor2: 'orange'
+          borderColor2: 'orange',
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         });
         setPreviewMatrix(null);
       } else {
         const error = await response.json();
         alert(`❌ Error: ${error.error?.message || 'Failed to save screen'}`);
+      }
+    } catch (error) {
+      alert('❌ Network error occurred');
+    }
+  };
+
+  const handleDeleteScreen = async (screenId, screenName) => {
+    try {
+      const response = await fetch(`/api/custom-screens?id=${screenId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        alert(`✅ Screen "${screenName}" deleted!`);
+        // Refresh the list
+        fetchSavedScreens();
+      } else {
+        alert('❌ Failed to delete screen');
       }
     } catch (error) {
       alert('❌ Network error occurred');
@@ -1268,6 +1290,22 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
               placeholder="Event Announcement"
               required
             />
+          </div>
+
+          {/* Expires At */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Expires On
+            </label>
+            <input
+              type="date"
+              value={formData.expiresAt}
+              onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">Screen will be auto-deleted after this date</p>
           </div>
 
           {/* Custom Message */}
@@ -1413,8 +1451,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
                     <button
                       onClick={async () => {
                         if (window.confirm(`Delete "${screen.name}"?`)) {
-                          // Delete functionality (to be implemented)
-                          alert('Delete feature coming soon!');
+                          handleDeleteScreen(screen.screenId, screen.name);
                         }
                       }}
                       className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
