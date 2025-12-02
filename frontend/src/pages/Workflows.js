@@ -584,12 +584,17 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
         return;
       }
 
+      console.log('📝 Adding custom screen:', screen);
+      console.log('📝 Screen has matrix:', !!screen.matrix);
+
       // Add the custom screen as a new step
       const newStep = {
         screenType: 'CUSTOM_MESSAGE',
         screenConfig: {
           message: screen.message,
-          matrix: screen.matrix
+          matrix: screen.matrix,
+          borderColor1: screen.borderColor1,
+          borderColor2: screen.borderColor2
         },
         displaySeconds: 20,
         displayValue: 20,
@@ -1039,11 +1044,39 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                           {isEditing && enabledSteps.length > 1 && (
                             <button
                               onClick={async () => {
-                                if (window.confirm(`Delete this ${label} screen from workflow?`)) {
-                                  // Remove step and reorder
+                                const isCustomMessage = step.screenType === 'CUSTOM_MESSAGE';
+                                const confirmMsg = isCustomMessage 
+                                  ? `Delete this custom screen ENTIRELY from the system? (Will be removed from all workflows and the library)`
+                                  : `Delete this ${label} screen from workflow?`;
+                                
+                                if (window.confirm(confirmMsg)) {
+                                  // If it's a custom message, try to find and delete it from the library
+                                  if (isCustomMessage && step.screenConfig?.message) {
+                                    try {
+                                      // Find matching custom screen in library
+                                      const screensRes = await fetch('/api/custom-screens', { credentials: 'include' });
+                                      if (screensRes.ok) {
+                                        const allScreens = await screensRes.json();
+                                        const matchingScreen = allScreens.find(s => s.message === step.screenConfig.message);
+                                        
+                                        if (matchingScreen) {
+                                          // Delete from custom screens library
+                                          await fetch(`/api/custom-screens?id=${matchingScreen.screenId}`, {
+                                            method: 'DELETE',
+                                            credentials: 'include'
+                                          });
+                                          console.log('✅ Custom screen deleted from library');
+                                        }
+                                      }
+                                    } catch (error) {
+                                      console.error('Failed to delete from library:', error);
+                                    }
+                                  }
+                                  
+                                  // Remove step from workflow and reorder
                                   const newSteps = enabledSteps.filter((_, i) => i !== idx).map((s, i) => ({ ...s, order: i }));
                                   
-                                  // Save to backend
+                                  // Save workflow update to backend
                                   try {
                                     const response = await fetch(`/api/workflows?id=${workflow.workflowId}`, {
                                       method: 'PUT',
@@ -1057,7 +1090,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                                     });
                                     
                                     if (response.ok) {
-                                      console.log('✅ Screen deleted and saved');
+                                      console.log('✅ Screen deleted from workflow');
                                       fetchData();
                                     } else {
                                       alert('❌ Failed to delete screen');
