@@ -449,7 +449,6 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
 const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [draggedStep, setDraggedStep] = useState(null);
   const [editingWorkflowId, setEditingWorkflowId] = useState(null);
   const [stepDurations, setStepDurations] = useState({});
   const [stepUnits, setStepUnits] = useState({}); // Track units for each step
@@ -881,7 +880,6 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                           onDragStart={(e) => {
                             e.dataTransfer.effectAllowed = 'move';
                             e.dataTransfer.setData('text/plain', idx);
-                            setDraggedStep(idx);
                           }}
                           onDragOver={(e) => {
                             e.preventDefault();
@@ -900,7 +898,6 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                               
                               // Update workflow in place
                               workflow.steps = newSteps.map((s, i) => ({ ...s, order: i }));
-                              setDraggedStep(null);
                               // Force re-render
                               fetchData();
                             }
