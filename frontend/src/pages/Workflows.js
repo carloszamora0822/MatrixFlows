@@ -452,6 +452,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
   const [editingWorkflowId, setEditingWorkflowId] = useState(null);
   const [stepDurations, setStepDurations] = useState({});
   const [stepUnits, setStepUnits] = useState({}); // Track units for each step
+  const [savedScreens, setSavedScreens] = useState([]);
   
   const [form, setForm] = useState({ 
     name: '', 
@@ -464,6 +465,22 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
     }
   });
   const [loading, setLoading] = useState(false);
+
+  // Fetch saved screens
+  useEffect(() => {
+    const fetchSavedScreens = async () => {
+      try {
+        const response = await fetch('/api/custom-screens', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setSavedScreens(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch saved screens:', error);
+      }
+    };
+    fetchSavedScreens();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -559,6 +576,47 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
     if (unit === 'minutes') return value * 60;
     if (unit === 'hours') return value * 3600;
     return value; // seconds
+  };
+
+  const addCustomScreenToWorkflow = async (screen, workflowId) => {
+    try {
+      const workflow = workflows.find(w => w.workflowId === workflowId);
+      if (!workflow) return;
+
+      // Add the custom screen as a new step
+      const newStep = {
+        screenType: 'CUSTOM_MESSAGE',
+        screenConfig: {
+          message: screen.message,
+          matrix: screen.matrix
+        },
+        displaySeconds: 20,
+        isEnabled: true,
+        order: workflow.steps.length
+      };
+
+      const updatedSteps = [...workflow.steps, newStep];
+
+      // Update the workflow
+      const response = await fetch(`/api/workflows/${workflowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...workflow,
+          steps: updatedSteps
+        })
+      });
+
+      if (response.ok) {
+        alert(`✅ "${screen.name}" added to workflow!`);
+        fetchData();
+      } else {
+        alert('❌ Failed to add screen to workflow');
+      }
+    } catch (error) {
+      alert('❌ Network error occurred');
+    }
   };
 
   const convertFromSeconds = (seconds) => {
@@ -862,6 +920,26 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                     <p className="text-purple-800 font-semibold">🎯 Drag and drop mode active! Grab the screens to reorder them.</p>
                   </div>
                 )}
+
+                {/* Add Saved Screens Section */}
+                {editingWorkflowId === workflow.workflowId && savedScreens.length > 0 && (
+                  <div className="mb-6 p-4 bg-green-50 border-2 border-green-400 rounded-lg">
+                    <h4 className="font-semibold text-green-900 mb-3">➕ Add Saved Custom Screen</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {savedScreens.map((screen) => (
+                        <button
+                          key={screen.screenId}
+                          onClick={() => addCustomScreenToWorkflow(screen, workflow.workflowId)}
+                          className="text-left p-3 bg-white border-2 border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all"
+                        >
+                          <div className="font-semibold text-gray-900">{screen.name}</div>
+                          <div className="text-xs text-gray-600 truncate">{screen.message}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4 pl-12">
                   {enabledSteps.map((step, idx) => {
                     const screenType = screenTypes.find(t => t.value === step.screenType);
