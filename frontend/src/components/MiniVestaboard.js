@@ -23,19 +23,28 @@ const CHAR_COLORS = {
   70: 'bg-gray-900'
 };
 
-const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLast, onDragStart, onDragOver, onDrop, draggable = false }) => {
+const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, isFirst, isLast, onDragStart, onDragOver, onDrop, draggable = false }) => {
   const [matrix, setMatrix] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     const fetchPreview = async () => {
+      // If screenConfig has a matrix, use it directly (for custom screens)
+      if (screenConfig?.matrix && Array.isArray(screenConfig.matrix)) {
+        console.log('🎨 Using pre-saved matrix from screenConfig');
+        setMatrix(screenConfig.matrix);
+        setLoading(false);
+        return;
+      }
+
+      // Otherwise fetch preview from backend
       try {
         const res = await fetch(`/api/screens/preview`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ screenType, screenConfig: {} })
+          body: JSON.stringify({ screenType, screenConfig: screenConfig || {} })
         });
         const data = await res.json();
         if (data.matrix) {
@@ -49,7 +58,7 @@ const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLas
     };
 
     fetchPreview();
-  }, [screenType]);
+  }, [screenType, screenConfig]);
 
   if (loading) {
     return (

@@ -993,6 +993,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                       <div key={idx} className="relative flex flex-col items-center w-full">
                         <MiniVestaboard
                           screenType={step.screenType}
+                          screenConfig={step.screenConfig}
                           displaySeconds={stepDurations[`${workflow.workflowId}-${idx}`] || step.displaySeconds}
                           stepNumber={idx + 1}
                           isFirst={idx === 0}
@@ -1448,7 +1449,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
               value={formData.customMessage}
               onChange={(e) => setFormData({ ...formData, customMessage: e.target.value })}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
-              placeholder="Event today at 10/16"
+              placeholder="ex. Event today at 10/16"
               rows="4"
               maxLength="80"
               required
