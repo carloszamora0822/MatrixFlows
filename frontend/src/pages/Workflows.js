@@ -837,21 +837,26 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                             }
                           }}
                         />
-                        <div className="mt-2 ml-2 flex items-center space-x-2">
-                          <span className="text-sm font-semibold text-gray-700">{label}</span>
-                          {isEditing && (
-                            <div className="flex items-center space-x-1 bg-blue-50 px-2 py-1 rounded border-2 border-blue-300">
-                              {(() => {
-                                const stepKey = `${workflow.workflowId}-${idx}`;
-                                const currentSeconds = stepDurations[stepKey] || step.displaySeconds;
-                                const converted = convertFromSeconds(currentSeconds);
-                                const currentUnit = stepUnits[stepKey] || converted.unit;
-                                const displayValue = stepUnits[stepKey] 
-                                  ? (currentUnit === 'hours' ? currentSeconds / 3600 : currentUnit === 'minutes' ? currentSeconds / 60 : currentSeconds)
-                                  : converted.value;
-                                
-                                return (
-                                  <>
+                        <div className="mt-2 ml-2 text-sm font-semibold text-gray-700">
+                          {label}
+                        </div>
+                        
+                        {/* Time Display/Editor - Always show, between screens */}
+                        <div className="flex justify-center my-3">
+                          {(() => {
+                            const stepKey = `${workflow.workflowId}-${idx}`;
+                            const currentSeconds = stepDurations[stepKey] || step.displaySeconds;
+                            const converted = convertFromSeconds(currentSeconds);
+                            const currentUnit = stepUnits[stepKey] || converted.unit;
+                            const displayValue = stepUnits[stepKey] 
+                              ? (currentUnit === 'hours' ? currentSeconds / 3600 : currentUnit === 'minutes' ? currentSeconds / 60 : currentSeconds)
+                              : converted.value;
+                            
+                            return (
+                              <div className={`flex flex-col items-center space-y-2 ${isEditing ? 'bg-purple-50 border-2 border-purple-400' : 'bg-gray-50 border-2 border-gray-300'} px-4 py-2 rounded-lg`}>
+                                <div className="text-xs text-gray-500 font-semibold uppercase">Display Time</div>
+                                {isEditing ? (
+                                  <div className="flex items-center space-x-2">
                                     <input
                                       type="number"
                                       value={Math.round(displayValue)}
@@ -864,7 +869,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                                         });
                                         step.displaySeconds = newSeconds;
                                       }}
-                                      className="w-16 px-2 py-1 border-2 border-blue-400 rounded text-center font-bold"
+                                      className="w-20 px-3 py-2 border-2 border-purple-500 rounded text-center font-bold text-lg"
                                       min="1"
                                       max="999"
                                     />
@@ -876,23 +881,27 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                                           ...stepUnits,
                                           [stepKey]: newUnit
                                         });
-                                        // Keep the same number of seconds, just change display unit
                                       }}
-                                      className="px-2 py-1 border-2 border-blue-400 rounded text-xs font-semibold"
+                                      className="px-3 py-2 border-2 border-purple-500 rounded font-semibold bg-white"
                                     >
-                                      <option value="seconds">sec</option>
-                                      <option value="minutes">min</option>
-                                      <option value="hours">hrs</option>
+                                      <option value="seconds">seconds</option>
+                                      <option value="minutes">minutes</option>
+                                      <option value="hours">hours</option>
                                     </select>
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          )}
+                                  </div>
+                                ) : (
+                                  <div className="text-lg font-bold text-blue-600">
+                                    {Math.round(displayValue)} {currentUnit}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
+                        
                         {idx < enabledSteps.length - 1 && (
-                          <div className="flex justify-center my-3">
-                            <div className="text-blue-400 text-2xl">↓</div>
+                          <div className="flex justify-center my-2">
+                            <div className="text-blue-400 text-3xl">↓</div>
                           </div>
                         )}
                       </div>
