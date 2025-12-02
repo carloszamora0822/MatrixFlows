@@ -380,7 +380,6 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
 const WorkflowsTab = ({ workflows, boards, fetchData }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [expandedWorkflow, setExpandedWorkflow] = useState('all'); // Start with all expanded
   const [form, setForm] = useState({ 
     name: '', 
     steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
@@ -686,100 +685,75 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
           <p className="text-sm text-gray-500 mt-2">Create a workflow to automate your board updates</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {workflows.map((workflow) => {
-            const isExpanded = expandedWorkflow === 'all' || expandedWorkflow === workflow.workflowId;
+            const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
+            const totalSeconds = enabledSteps.reduce((sum, s) => sum + (s.displaySeconds || 0), 0);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+            
+            const schedule = workflow.schedule || { type: 'always' };
+            let scheduleStr = '24/7';
+            if (schedule.type === 'dailyWindow') {
+              const days = schedule.daysOfWeek?.length === 7 ? 'Daily' : 
+                           schedule.daysOfWeek?.length === 5 && schedule.daysOfWeek.includes(1) ? 'Weekdays' :
+                           schedule.daysOfWeek?.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(',');
+              scheduleStr = `${days} ${schedule.startTimeLocal}-${schedule.endTimeLocal}`;
+            }
+            
             return (
-            <div key={workflow.workflowId} 
-              className="p-4 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 cursor-pointer">
-              <div className="flex justify-between items-start mb-2" onClick={() => setExpandedWorkflow(isExpanded ? null : workflow.workflowId)}>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-2xl">{isExpanded ? '🔽' : '▶️'}</span>
-                    <h4 className="font-semibold text-lg text-gray-900">{workflow.name}</h4>
+              <div key={workflow.workflowId} className="bg-white rounded-lg border-2 border-gray-200 shadow-lg p-6">
+                {/* Header */}
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h4 className="font-bold text-xl text-gray-900">{workflow.name}</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {enabledSteps.length} steps • {timeStr} cycle • 📅 {scheduleStr}
+                    </p>
                   </div>
-                  {(() => {
-                    const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
-                    const totalSeconds = enabledSteps.reduce((sum, s) => sum + (s.displaySeconds || 0), 0);
-                    const minutes = Math.floor(totalSeconds / 60);
-                    const seconds = totalSeconds % 60;
-                    const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-                    
-                    const schedule = workflow.schedule || { type: 'always' };
-                    let scheduleStr = '24/7';
-                    if (schedule.type === 'dailyWindow') {
-                      const days = schedule.daysOfWeek?.length === 7 ? 'Daily' : 
-                                   schedule.daysOfWeek?.length === 5 && schedule.daysOfWeek.includes(1) ? 'Weekdays' :
-                                   schedule.daysOfWeek?.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(',');
-                      scheduleStr = `${days} ${schedule.startTimeLocal}-${schedule.endTimeLocal}`;
-                    }
-                    
-                    return (
-                      <>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {enabledSteps.length} steps • Full cycle: {timeStr} • 📅 {scheduleStr}
-                        </p>
-                        {/* Real Vestaboard Preview */}
-                        <div className="space-y-4 mt-4 pl-12">
-                          {enabledSteps.map((step, idx) => {
-                            const screenType = screenTypes.find(t => t.value === step.screenType);
-                            const label = screenType?.label || step.screenType;
-                            return (
-                              <div key={idx} className="relative">
-                                <MiniVestaboard
-                                  screenType={step.screenType}
-                                  displaySeconds={step.displaySeconds}
-                                  stepNumber={idx + 1}
-                                  isFirst={idx === 0}
-                                  isLast={idx === enabledSteps.length - 1}
-                                />
-                                <div className="mt-2 ml-2 text-sm font-semibold text-gray-700">
-                                  {label}
-                                </div>
-                                {idx < enabledSteps.length - 1 && (
-                                  <div className="flex justify-center my-2">
-                                    <div className="text-blue-400 text-2xl">↓</div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                          {enabledSteps.length > 1 && (
-                            <div className="flex items-center justify-center p-3 bg-green-50 border-2 border-green-400 rounded-lg">
-                              <span className="text-green-600 font-semibold">🔄 Loops back to step 1</span>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    );
-                  })()}
+                  <div className="flex space-x-2">
+                    <button onClick={() => handleEdit(workflow)} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                      ✏️ Edit
+                    </button>
+                    <button onClick={() => handleDelete(workflow.workflowId)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+                      🗑️ Delete
+                    </button>
+                  </div>
                 </div>
-                <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => handleEdit(workflow)} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
-                    ✏️ Edit
-                  </button>
-                  <button onClick={() => handleDelete(workflow.workflowId)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
-                    🗑️ Delete
-                  </button>
+
+                {/* Mini Vestaboard Previews */}
+                <div className="space-y-4 pl-12">
+                  {enabledSteps.map((step, idx) => {
+                    const screenType = screenTypes.find(t => t.value === step.screenType);
+                    const label = screenType?.label || step.screenType;
+                    return (
+                      <div key={idx} className="relative">
+                        <MiniVestaboard
+                          screenType={step.screenType}
+                          displaySeconds={step.displaySeconds}
+                          stepNumber={idx + 1}
+                          isFirst={idx === 0}
+                          isLast={idx === enabledSteps.length - 1}
+                        />
+                        <div className="mt-2 ml-2 text-sm font-semibold text-gray-700">
+                          {label}
+                        </div>
+                        {idx < enabledSteps.length - 1 && (
+                          <div className="flex justify-center my-3">
+                            <div className="text-blue-400 text-2xl">↓</div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {enabledSteps.length > 1 && (
+                    <div className="flex items-center justify-center p-3 bg-green-50 border-2 border-green-400 rounded-lg">
+                      <span className="text-green-600 font-semibold">🔄 Loops back to step 1</span>
+                    </div>
+                  )}
                 </div>
               </div>
-              {isExpanded && (
-                <div className="mt-4 space-y-2 border-t-2 border-gray-200 pt-4">
-                  <h5 className="font-semibold text-sm text-blue-600 mb-2">📋 Workflow Steps:</h5>
-                  {workflow.steps
-                    .filter(s => s.isEnabled)
-                    .sort((a, b) => a.order - b.order)
-                    .map((step, idx) => (
-                    <div key={idx} className="flex items-center space-x-3 p-2 bg-gray-50 rounded border border-gray-200">
-                      <span className="font-bold text-blue-600">{idx + 1}.</span>
-                      <span className="text-2xl">{screenTypes.find(t => t.value === step.screenType)?.label.split(' ')[0]}</span>
-                      <span className="flex-1 font-medium">{screenTypes.find(t => t.value === step.screenType)?.label.split(' ').slice(1).join(' ')}</span>
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">{step.displaySeconds}s</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
             );
           })}
         </div>
