@@ -15,7 +15,7 @@ const Navigation = () => {
   const navigation = [
     { name: 'Dashboard', href: '/', current: location.pathname === '/' },
     { name: 'Screen Preview', href: '/preview', current: location.pathname === '/preview' },
-    { name: 'Boards', href: '/boards', current: location.pathname === '/boards' },
+    { name: 'Pin Screen', href: '/pin-screen', current: location.pathname === '/pin-screen' },
     { name: 'Data Management', href: '/data', current: location.pathname === '/data' },
     { name: 'Workflows', href: '/workflows', current: location.pathname === '/workflows' },
   ];

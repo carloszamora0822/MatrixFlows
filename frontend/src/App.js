@@ -11,6 +11,7 @@ import Events from './pages/data/Events';
 import Pilots from './pages/data/Pilots';
 import Recognition from './pages/data/Recognition';
 import Workflows from './pages/Workflows';
+import PinScreen from './pages/PinScreen';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -81,23 +82,6 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* Placeholder routes for future sprints */}
-      <Route 
-        path="/boards" 
-        element={
-          <ProtectedRoute>
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-              <div className="text-center">
-                <h1 className="text-2xl font-bold text-gray-900">Boards Management</h1>
-                <p className="mt-2 text-gray-600">Coming in Sprint 5</p>
-                <a href="/" className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                  Back to Dashboard
-                </a>
-              </div>
-            </div>
-          </ProtectedRoute>
-        } 
-      />
 
       <Route 
         path="/data" 
@@ -163,18 +147,10 @@ const AppRoutes = () => {
       />
 
       <Route 
-        path="/pin" 
+        path="/pin-screen" 
         element={
           <ProtectedRoute>
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-              <div className="text-center">
-                <h1 className="text-2xl font-bold text-gray-900">Pin Screen Wizard</h1>
-                <p className="mt-2 text-gray-600">Coming in Sprint 6</p>
-                <a href="/" className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                  Back to Dashboard
-                </a>
-              </div>
-            </div>
+            <PinScreen />
           </ProtectedRoute>
         } 
       />
