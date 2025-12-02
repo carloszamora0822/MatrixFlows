@@ -97,7 +97,7 @@ const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLas
               const isColorCode = cell >= 63 && cell <= 70;
               const isTextCode = cell >= 1 && cell <= 62;
               
-              let cellClass = 'w-3 h-3 flex items-center justify-center text-xs font-mono rounded-sm';
+              let cellClass = 'w-[14px] h-[14px] flex items-center justify-center text-xs font-mono rounded-sm';
               let displayChar = '';
               
               if (isColorCode) {
