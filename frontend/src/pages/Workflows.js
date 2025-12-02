@@ -1244,6 +1244,8 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
   });
 
   const [previewMatrix, setPreviewMatrix] = useState(null);
+  const [savedScreens, setSavedScreens] = useState([]);
+  const [editingScreenId, setEditingScreenId] = useState(null);
 
   const colorCodeMap = {
     red: 63,
@@ -1283,6 +1285,73 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
     21: 'U', 22: 'V', 23: 'W', 24: 'X', 25: 'Y', 26: 'Z',
     27: '1', 28: '2', 29: '3', 30: '4', 31: '5', 32: '6', 33: '7', 34: '8', 35: '9', 36: '0',
     37: '!', 59: '/', 44: '-', 56: '.', 55: ',', 50: ':'
+  };
+
+  // Fetch saved screens on mount
+  useEffect(() => {
+    fetchSavedScreens();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchSavedScreens = async () => {
+    try {
+      const response = await fetch('/api/custom-screens', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setSavedScreens(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch saved screens:', error);
+    }
+  };
+
+  const loadScreenForEditing = (screen) => {
+    setFormData({
+      ...formData,
+      screenName: screen.name,
+      customMessage: screen.message,
+      borderColor1: screen.borderColor1,
+      borderColor2: screen.borderColor2,
+      hasExpiration: true,
+      expiresAt: new Date(screen.expiresAt).toISOString().split('T')[0]
+    });
+    setPreviewMatrix(screen.matrix);
+    setEditingScreenId(screen.screenId);
+  };
+
+  const deleteScreen = async (screenId, screenName) => {
+    if (!window.confirm(`Delete "${screenName}" permanently?`)) return;
+    
+    try {
+      const response = await fetch(`/api/custom-screens?id=${screenId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        console.log(`✅ Screen "${screenName}" deleted`);
+        fetchSavedScreens();
+        // Clear form if editing this screen
+        if (editingScreenId === screenId) {
+          setFormData({
+            ...formData,
+            screenName: '',
+            customMessage: '',
+            borderColor1: 'red',
+            borderColor2: 'orange',
+            hasExpiration: false,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          });
+          setPreviewMatrix(null);
+          setEditingScreenId(null);
+        }
+      } else {
+        alert('❌ Failed to delete screen');
+      }
+    } catch (error) {
+      console.error('Failed to delete:', error);
+      alert('❌ Network error');
+    }
   };
 
   // Use backend renderer - ONE ENGINE for all previews!
@@ -1351,6 +1420,8 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
       if (response.ok) {
         await response.json();
         alert(`✅ Screen "${formData.screenName}" saved!`);
+        // Refresh saved screens list
+        fetchSavedScreens();
         // Reset form
         setFormData({
           ...formData,
@@ -1362,6 +1433,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         });
         setPreviewMatrix(null);
+        setEditingScreenId(null);
       } else {
         const error = await response.json();
         alert(`❌ Error: ${error.error?.message || 'Failed to save screen'}`);
@@ -1589,6 +1661,59 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
           </div>
         )}
       </div>
+
+      {/* Saved Screens Library */}
+      {savedScreens.length > 0 && (
+        <div className="lg:col-span-2 mt-8">
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">➕ Saved Custom Screens</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {savedScreens.map((screen) => {
+                const expiresDate = new Date(screen.expiresAt);
+                const now = new Date();
+                const daysUntilExpire = Math.ceil((expiresDate - now) / (1000 * 60 * 60 * 24));
+                const expiresText = daysUntilExpire > 365 
+                  ? 'Never expires' 
+                  : daysUntilExpire > 1 
+                    ? `Expires in ${daysUntilExpire} days`
+                    : daysUntilExpire === 1 
+                      ? 'Expires tomorrow'
+                      : 'Expires today';
+                
+                return (
+                  <div 
+                    key={screen.screenId} 
+                    className={`border-2 rounded-lg p-4 transition-all ${
+                      editingScreenId === screen.screenId 
+                        ? 'border-orange-500 bg-orange-50' 
+                        : 'border-gray-200 hover:border-blue-400'
+                    }`}
+                  >
+                    <h3 className="font-semibold text-gray-900 mb-1">{screen.name}</h3>
+                    <p className="text-xs text-gray-600 truncate mb-2">{screen.message}</p>
+                    <p className="text-xs text-gray-500 italic mb-3">⏱️ {expiresText}</p>
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => loadScreenForEditing(screen)}
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => deleteScreen(screen.screenId, screen.name)}
+                        className="px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
