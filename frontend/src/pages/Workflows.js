@@ -717,29 +717,36 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
                         <p className="text-sm text-gray-600 mb-2">
                           {enabledSteps.length} steps • Full cycle: {timeStr} • 📅 {scheduleStr}
                         </p>
-                        {/* Visual Flow Preview */}
-                        <div className="flex items-center space-x-2 overflow-x-auto pb-2">
+                        {/* Visual Flow Preview with Screen Previews */}
+                        <div className="flex items-center space-x-3 overflow-x-auto pb-2">
                           {enabledSteps.map((step, idx) => {
                             const screenType = screenTypes.find(t => t.value === step.screenType);
-                            const emoji = screenType?.label.split(' ')[0] || '📺';
-                            const label = screenType?.label.split(' ').slice(1).join(' ') || step.screenType;
+                            const label = screenType?.label || step.screenType;
                             return (
                               <div key={idx} className="flex items-center">
-                                <div className="flex flex-col items-center">
-                                  <div className="px-3 py-2 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300 rounded-lg text-center min-w-[100px]">
-                                    <div className="text-2xl mb-1">{emoji}</div>
+                                <div className="flex flex-col items-center space-y-2">
+                                  {/* Mini Vestaboard Preview */}
+                                  <div className="relative">
+                                    <iframe
+                                      src={`/preview?type=${step.screenType}&mini=true`}
+                                      className="w-[220px] h-[60px] border-2 border-blue-300 rounded bg-black"
+                                      style={{ transform: 'scale(0.5)', transformOrigin: 'top left', width: '440px', height: '120px' }}
+                                      title={`Preview ${step.screenType}`}
+                                    />
+                                  </div>
+                                  <div className="text-center">
                                     <div className="text-xs font-semibold text-gray-700">{label}</div>
                                     <div className="text-xs text-blue-600 font-bold">{step.displaySeconds}s</div>
                                   </div>
                                 </div>
                                 {idx < enabledSteps.length - 1 && (
-                                  <div className="text-blue-400 text-xl mx-1">→</div>
+                                  <div className="text-blue-400 text-2xl mx-2">→</div>
                                 )}
                               </div>
                             );
                           })}
                           {enabledSteps.length > 1 && (
-                            <div className="text-blue-400 text-xl mx-1">🔄</div>
+                            <div className="text-blue-400 text-2xl mx-2">🔄</div>
                           )}
                         </div>
                       </>
