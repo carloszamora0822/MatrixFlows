@@ -697,9 +697,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
           <p className="text-sm text-gray-500 mt-2">Create a workflow to automate your board updates</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-6">
-          {/* Left Column - Workflow List */}
-          <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
+        <div className="space-y-6">
           {workflows.map((workflow) => {
             const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
             const totalSeconds = enabledSteps.reduce((sum, s) => sum + (s.displaySeconds || 0), 0);
@@ -918,31 +916,6 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
               </div>
             );
           })}
-          </div>
-          
-          {/* Right Column - Edit Panel */}
-          <div className="sticky top-6 h-fit">
-            {editingWorkflowId ? (
-              <div className="bg-purple-50 border-2 border-purple-400 rounded-lg p-6 shadow-xl">
-                <h3 className="text-xl font-bold text-purple-900 mb-4">🎯 Editing Workflow</h3>
-                <p className="text-purple-700 mb-4">
-                  Drag and drop screens to reorder them. Click the time values to edit durations.
-                </p>
-                <div className="bg-white rounded p-4 border-2 border-purple-300">
-                  <p className="text-sm text-gray-600 mb-2"><strong>Workflow:</strong> {workflows.find(w => w.workflowId === editingWorkflowId)?.name}</p>
-                  <p className="text-sm text-gray-600"><strong>Mode:</strong> Drag & Drop + Time Editing</p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-6 text-center">
-                <div className="text-6xl mb-4">👈</div>
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Select a Workflow</h3>
-                <p className="text-sm text-gray-500">
-                  Click "🎯 Reorder Steps" on any workflow to start editing
-                </p>
-              </div>
-            )}
-          </div>
         </div>
       )}
     </div>
