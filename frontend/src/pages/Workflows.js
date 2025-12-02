@@ -474,12 +474,15 @@ const WorkflowsTab = ({ workflows, boards, fetchData }) => {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <h4 className="font-semibold text-lg">{workflow.name}</h4>
-                  <p className="text-sm text-gray-600">{workflow.steps.length} steps</p>
+                  <p className="text-sm text-gray-600">{workflow.steps.filter(s => s.isEnabled).length} steps</p>
                 </div>
                 <button onClick={() => handleDelete(workflow.workflowId)} className="text-red-600 hover:text-red-800 text-sm">Delete</button>
               </div>
               <div className="space-y-1">
-                {workflow.steps.map((step, idx) => (
+                {workflow.steps
+                  .filter(s => s.isEnabled)
+                  .sort((a, b) => a.order - b.order)
+                  .map((step, idx) => (
                   <div key={idx} className="text-sm text-gray-700">
                     {idx + 1}. {screenTypes.find(t => t.value === step.screenType)?.label || step.screenType} ({step.displaySeconds}s)
                   </div>
