@@ -45,7 +45,11 @@ const PinScreen = () => {
   useEffect(() => {
     if (formData.customMessage) {
       generatePreview();
+    } else {
+      // Clear preview if no message
+      setPreviewMatrix(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.customMessage, formData.borderColor1, formData.borderColor2]);
 
   const colorCodeMap = {
