@@ -1320,17 +1320,60 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
   };
 
   const deleteScreen = async (screenId, screenName) => {
-    if (!window.confirm(`Delete "${screenName}" permanently?`)) return;
+    if (!window.confirm(`Delete "${screenName}" ENTIRELY from the system? (Will be removed from all workflows and the library)`)) return;
     
     try {
+      // First, find the screen to get its message
+      const screen = savedScreens.find(s => s.screenId === screenId);
+      if (!screen) {
+        alert('❌ Screen not found');
+        return;
+      }
+
+      // Delete from custom screens library
       const response = await fetch(`/api/custom-screens?id=${screenId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
       
       if (response.ok) {
-        console.log(`✅ Screen "${screenName}" deleted`);
+        console.log(`✅ Screen "${screenName}" deleted from library`);
+        
+        // Now remove from all workflows
+        const workflowsRes = await fetch('/api/workflows', { credentials: 'include' });
+        if (workflowsRes.ok) {
+          const allWorkflows = await workflowsRes.json();
+          
+          for (const workflow of allWorkflows) {
+            const originalLength = workflow.steps.length;
+            
+            // Filter out steps that match this custom screen
+            const newSteps = workflow.steps.filter(step => {
+              if (step.screenType === 'CUSTOM_MESSAGE' && step.screenConfig?.message === screen.message) {
+                return false; // Remove this step
+              }
+              return true; // Keep this step
+            }).map((s, i) => ({ ...s, order: i })); // Reorder
+            
+            // If workflow changed, update it
+            if (newSteps.length < originalLength) {
+              await fetch(`/api/workflows?id=${workflow.workflowId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  name: workflow.name,
+                  steps: newSteps,
+                  schedule: workflow.schedule
+                })
+              });
+              console.log(`✅ Removed "${screenName}" from workflow "${workflow.name}"`);
+            }
+          }
+        }
+        
         fetchSavedScreens();
+        
         // Clear form if editing this screen
         if (editingScreenId === screenId) {
           setFormData({
@@ -1345,6 +1388,8 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
           setPreviewMatrix(null);
           setEditingScreenId(null);
         }
+        
+        alert(`✅ "${screenName}" deleted from library and all workflows!`);
       } else {
         alert('❌ Failed to delete screen');
       }
