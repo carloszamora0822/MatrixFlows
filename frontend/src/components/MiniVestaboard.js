@@ -121,11 +121,8 @@ const MiniVestaboard = ({ screenType, displaySeconds, stepNumber, isFirst, isLas
         </div>
       </div>
 
-      {/* Info badges */}
+      {/* Info badges - only FIRST/LAST */}
       <div className="absolute -right-2 -top-2 flex flex-col gap-1">
-        <div className="px-2 py-1 bg-blue-600 text-white rounded-full text-xs font-bold shadow-lg">
-          {displaySeconds}s
-        </div>
         {isFirst && (
           <div className="px-2 py-1 bg-green-500 text-white rounded-full text-xs font-bold shadow-lg">
             FIRST
