@@ -63,24 +63,37 @@ const updateBoard = async (req, res) => {
   });
 
   const { id } = req.query;
-  const { name, locationLabel, vestaboardWriteKey, defaultWorkflowId } = req.body;
+  const { name, locationLabel, vestaboardWriteKey, defaultWorkflowId, isActive } = req.body;
   
   if (!id) {
     return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Board ID required' } });
   }
   
-  if (!name || !vestaboardWriteKey) {
-    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Name and API key required' } });
+  // Build update object - only include provided fields
+  const updateData = {};
+  
+  // If this is a partial update (e.g., just toggling isActive)
+  if (isActive !== undefined && Object.keys(req.body).length === 1) {
+    updateData.isActive = isActive;
+  } else {
+    // Full update - require name and API key
+    if (!name || !vestaboardWriteKey) {
+      return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Name and API key required' } });
+    }
+    
+    updateData.name = name.trim();
+    updateData.locationLabel = locationLabel?.trim();
+    updateData.vestaboardWriteKey = vestaboardWriteKey.trim();
+    updateData.defaultWorkflowId = defaultWorkflowId || undefined;
+    
+    if (isActive !== undefined) {
+      updateData.isActive = isActive;
+    }
   }
 
   const updated = await Vestaboard.findOneAndUpdate(
     { boardId: id, orgId: ORG_CONFIG.ID },
-    {
-      name: name.trim(),
-      locationLabel: locationLabel?.trim(),
-      vestaboardWriteKey: vestaboardWriteKey.trim(),
-      defaultWorkflowId: defaultWorkflowId || undefined
-    },
+    updateData,
     { new: true }
   );
 

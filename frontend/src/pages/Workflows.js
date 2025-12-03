@@ -144,10 +144,7 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', locationLabel: '', vestaboardWriteKey: '', defaultWorkflowId: '' });
   const [loading, setLoading] = useState(false);
-  const [triggerLoading, setTriggerLoading] = useState(null);
-  const [runningSchedulers, setRunningSchedulers] = useState({});
   const [editingBoard, setEditingBoard] = useState(null);
-  const schedulerRefs = React.useRef({});
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -185,126 +182,6 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
       console.error('Failed to delete:', error);
     }
   };
-
-  const handleTrigger = async (boardId) => {
-    setTriggerLoading(boardId);
-    try {
-      // Get auth token from cookie
-      const authToken = document.cookie.split('; ').find(row => row.startsWith('authToken='))?.split('=')[1];
-      
-      const res = await fetch(`/api/workflows/trigger?boardId=${boardId}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const data = await res.json();
-      
-      if (res.ok) {
-        const screenType = data.result?.screenType || 'Unknown';
-        const stepIndex = (data.result?.stepIndex || 0) + 1;
-        
-        return { success: true, screenType, stepIndex };
-      } else {
-        const errorMsg = data.error?.message || 'Failed to update board';
-        alert(`❌ Error: ${errorMsg}`);
-        return { success: false };
-      }
-    } catch (error) {
-      alert(`❌ Network error: ${error.message}`);
-      return { success: false };
-    } finally {
-      setTriggerLoading(null);
-    }
-  };
-
-  const startAutoScheduler = (boardId) => {
-    console.log('🚀 Starting auto scheduler for board:', boardId);
-    
-    if (schedulerRefs.current[boardId]) {
-      console.log('⚠️ Scheduler already running');
-      return;
-    }
-    
-    const board = boards.find(b => b.boardId === boardId);
-    if (!board || !board.defaultWorkflowId) {
-      alert('No workflow assigned to this board! Edit the board to assign a workflow.');
-      return;
-    }
-    
-    const boardWorkflow = workflows.find(w => w.workflowId === board.defaultWorkflowId);
-    console.log('📋 Found workflow:', boardWorkflow);
-    
-    if (!boardWorkflow || !boardWorkflow.steps || boardWorkflow.steps.length === 0) {
-      alert('Workflow not found or has no steps!');
-      return;
-    }
-
-    // Mark as running immediately in ref (not state)
-    schedulerRefs.current[boardId] = true;
-    setRunningSchedulers(prev => ({ ...prev, [boardId]: true }));
-    
-    let currentStepIndex = 0;
-    
-    const runNextStep = async () => {
-      console.log(`🔄 Running step ${currentStepIndex + 1}/${boardWorkflow.steps.length}`);
-      
-      // Check ref instead of state
-      if (!schedulerRefs.current[boardId]) {
-        console.log('⏹️ Scheduler stopped');
-        return;
-      }
-      
-      const startTime = Date.now();
-      const result = await handleTrigger(boardId);
-      const apiDuration = Date.now() - startTime;
-      
-      console.log('📊 Trigger result:', result, `(took ${apiDuration}ms)`);
-      
-      if (result.success) {
-        const currentStep = boardWorkflow.steps[currentStepIndex];
-        currentStepIndex = (currentStepIndex + 1) % boardWorkflow.steps.length;
-        
-        // Wait for display time MINUS the API call duration
-        // So total time = exactly displaySeconds
-        const displayMs = (currentStep?.displaySeconds || 15) * 1000;
-        const remainingMs = Math.max(100, displayMs - apiDuration);
-        
-        console.log(`⏰ Display time: ${displayMs}ms, API took: ${apiDuration}ms, waiting: ${remainingMs}ms`);
-        
-        schedulerRefs.current[boardId] = setTimeout(runNextStep, remainingMs);
-      } else {
-        console.error('❌ Trigger failed, stopping scheduler');
-        stopAutoScheduler(boardId);
-      }
-    };
-    
-    runNextStep();
-  };
-
-  const stopAutoScheduler = (boardId) => {
-    if (schedulerRefs.current[boardId]) {
-      clearTimeout(schedulerRefs.current[boardId]);
-      delete schedulerRefs.current[boardId];
-    }
-    setRunningSchedulers(prev => {
-      const newState = { ...prev };
-      delete newState[boardId];
-      return newState;
-    });
-  };
-
-  // Cleanup on unmount
-  React.useEffect(() => {
-    return () => {
-      Object.keys(schedulerRefs.current).forEach(boardId => {
-        clearTimeout(schedulerRefs.current[boardId]);
-      });
-    };
-  }, []);
 
   const handleToggleActive = async (boardId, currentStatus) => {
     try {
@@ -386,7 +263,7 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
                   <div className="flex items-center space-x-3">
                     {/* Active/Inactive Toggle */}
                     <div className="flex items-center space-x-2">
-                      <span className={`text-xs font-semibold ${board.isActive ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className={`text-sm font-semibold ${board.isActive ? 'text-green-600' : 'text-gray-500'}`}>
                         {board.isActive ? 'Active' : 'Inactive'}
                       </span>
                       <button
@@ -394,7 +271,7 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                           board.isActive ? 'bg-green-600' : 'bg-gray-300'
                         }`}
-                        title={board.isActive ? 'Click to deactivate board' : 'Click to activate board'}
+                        title={board.isActive ? 'Click to deactivate board - stops all automatic updates' : 'Click to activate board - enables automatic updates'}
                       >
                         <span
                           className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -403,28 +280,6 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
                         />
                       </button>
                     </div>
-
-                    <button 
-                      onClick={async () => {
-                        if (!assignedWorkflow) {
-                          alert('No workflow assigned to this board');
-                          return;
-                        }
-                        const result = await handleTrigger(board.boardId);
-                        if (result.success) {
-                          alert(`✅ Board updated!\nScreen: ${result.screenType}\nStep: ${result.stepIndex}`);
-                        }
-                      }}
-                      disabled={triggerLoading === board.boardId || !assignedWorkflow}
-                      className={`px-3 py-1 rounded text-sm font-semibold ${
-                        !assignedWorkflow 
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                          : 'bg-purple-600 text-white hover:bg-purple-700'
-                      }`}
-                      title={!assignedWorkflow ? 'Assign a workflow first' : 'Trigger board update now'}
-                    >
-                      {triggerLoading === board.boardId ? '⏳' : '🚀 Trigger'}
-                    </button>
                     
                     <button onClick={() => {
                       setEditingBoard(board.boardId);
