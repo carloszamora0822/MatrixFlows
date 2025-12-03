@@ -287,24 +287,13 @@ class ScreenEngine {
       console.log(`🌤️  Weather: ${weather.condition}, ${weather.temperature}°F, ${weather.isNight ? '🌙 Night' : '☀️ Day'}`);
 
       // Replace temperature placeholders (36, 36 = "00")
+      // Both day and night templates have same positions now
       const tempCodes = this.numberToCodes(weather.temperature);
-      if (weather.isNight) {
-        // Night template: temp at row 1
-        this.replacePlaceholders(matrix, [36, 36], tempCodes, 1, 0);
-      } else {
-        // Day template: temp at row 2
-        this.replacePlaceholders(matrix, [36, 36], tempCodes, 2, 0);
-      }
+      this.replacePlaceholders(matrix, [36, 36], tempCodes, 2, 0); // Row 2
 
       // Replace wind speed placeholders
       const windCodes = this.numberToCodes(weather.windSpeed);
-      if (weather.isNight) {
-        // Night template: wind at row 2
-        this.replacePlaceholders(matrix, [36, 36], windCodes, 2, 0);
-      } else {
-        // Day template: wind at row 3
-        this.replacePlaceholders(matrix, [36, 36], windCodes, 3, 0);
-      }
+      this.replacePlaceholders(matrix, [36, 36], windCodes, 3, 0); // Row 3
 
       return matrix;
 
