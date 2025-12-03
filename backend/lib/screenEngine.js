@@ -162,11 +162,11 @@ class ScreenEngine {
   }
 
   /**
-   * Render Checkrides screen
+   * Render Checkrides screen - shows upcoming checkrides one per row
+   * Format: Date Time Description (fits in 20 cells)
    */
   async renderCheckrides(config) {
-    const template = templates.checkrides;
-    const matrix = JSON.parse(JSON.stringify(template));
+    const matrix = new Array(6).fill(null).map(() => new Array(22).fill(0));
     
     // Get checkride data
     const checkrides = await dataService.getUpcomingCheckrides();
@@ -174,29 +174,48 @@ class ScreenEngine {
       return this.renderErrorScreen('No checkride data found');
     }
 
-    // Take first checkride
-    const checkride = checkrides[0];
-    
-    const row1Text = this.centerText('UPCOMING CHECKRIDE', 1, 20);
-    const row2Text = this.centerText(`${checkride.time} - ${checkride.callsign}`, 1, 20);
-    const row3Text = this.centerText(checkride.type, 1, 20);
-    const row4Text = this.centerText(checkride.destination, 1, 20);
+    // Row 0: Header with colored borders
+    const headerText = 'CHECKRIDES';
+    const headerCodes = this.textToCodes(headerText);
+    const headerStart = Math.floor((22 - headerCodes.length) / 2);
+    matrix[0][0] = 63; // Red border
+    matrix[0][21] = 63;
+    for (let i = 0; i < headerCodes.length && (headerStart + i) < 21; i++) {
+      matrix[0][headerStart + i] = headerCodes[i];
+    }
 
-    // Insert into matrix
-    for (let i = 0; i < row1Text.length; i++) matrix[1][i + 1] = row1Text[i];
-    for (let i = 0; i < row2Text.length; i++) matrix[2][i + 1] = row2Text[i];
-    for (let i = 0; i < row3Text.length; i++) matrix[3][i + 1] = row3Text[i];
-    for (let i = 0; i < row4Text.length; i++) matrix[4][i + 1] = row4Text[i];
+    // Rows 1-5: Display up to 5 checkrides (one per row)
+    const maxCheckrides = Math.min(checkrides.length, 5);
+    for (let row = 0; row < maxCheckrides; row++) {
+      const checkride = checkrides[row];
+      
+      // Format: "MM/DD HH:MM CALLSIGN TYPE" (fit in 20 cells with borders)
+      const dateStr = checkride.date.substring(5); // Get MM/DD
+      const timeStr = checkride.time;
+      const callsign = checkride.callsign.substring(0, 6); // Limit callsign
+      const type = checkride.type.substring(0, 4); // Limit type
+      
+      // Build line text (max 20 chars to fit between borders)
+      const lineText = `${dateStr} ${timeStr} ${callsign} ${type}`.substring(0, 20);
+      const lineCodes = this.textToCodes(lineText);
+      
+      // Add colored borders and text
+      matrix[row + 1][0] = 63; // Red border left
+      for (let col = 0; col < lineCodes.length && col < 20; col++) {
+        matrix[row + 1][col + 1] = lineCodes[col];
+      }
+      matrix[row + 1][21] = 63; // Red border right
+    }
 
     return matrix;
   }
 
   /**
-   * Render Upcoming Events screen
+   * Render Upcoming Events screen - shows upcoming events one per row
+   * Format: Date Time Description (fits in 20 cells)
    */
   async renderUpcomingEvents(config) {
-    const template = templates.upcomingEvents;
-    const matrix = JSON.parse(JSON.stringify(template));
+    const matrix = new Array(6).fill(null).map(() => new Array(22).fill(0));
     
     // Get event data
     const events = await dataService.getUpcomingEvents();
@@ -204,19 +223,37 @@ class ScreenEngine {
       return this.renderErrorScreen('No event data found');
     }
 
-    // Take first event
-    const event = events[0];
-    
-    const row1Text = this.centerText('UPCOMING EVENT', 1, 20);
-    const row2Text = this.centerText(event.date, 1, 20);
-    const row3Text = this.centerText(event.time, 1, 20);
-    const row4Text = this.centerText(event.description.substring(0, 20), 1, 20);
+    // Row 0: Header with colored borders
+    const headerText = 'UPCOMING EVENTS';
+    const headerCodes = this.textToCodes(headerText);
+    const headerStart = Math.floor((22 - headerCodes.length) / 2);
+    matrix[0][0] = 66; // Green border
+    matrix[0][21] = 66;
+    for (let i = 0; i < headerCodes.length && (headerStart + i) < 21; i++) {
+      matrix[0][headerStart + i] = headerCodes[i];
+    }
 
-    // Insert into matrix
-    for (let i = 0; i < row1Text.length; i++) matrix[1][i + 1] = row1Text[i];
-    for (let i = 0; i < row2Text.length; i++) matrix[2][i + 1] = row2Text[i];
-    for (let i = 0; i < row3Text.length; i++) matrix[3][i + 1] = row3Text[i];
-    for (let i = 0; i < row4Text.length; i++) matrix[4][i + 1] = row4Text[i];
+    // Rows 1-5: Display up to 5 events (one per row)
+    const maxEvents = Math.min(events.length, 5);
+    for (let row = 0; row < maxEvents; row++) {
+      const event = events[row];
+      
+      // Format: "MM/DD HH:MM DESCRIPTION" (fit in 20 cells with borders)
+      const dateStr = event.date.substring(5); // Get MM/DD
+      const timeStr = event.time;
+      const desc = event.description.substring(0, 10); // Limit description
+      
+      // Build line text (max 20 chars to fit between borders)
+      const lineText = `${dateStr} ${timeStr} ${desc}`.substring(0, 20);
+      const lineCodes = this.textToCodes(lineText);
+      
+      // Add colored borders and text
+      matrix[row + 1][0] = 66; // Green border left
+      for (let col = 0; col < lineCodes.length && col < 20; col++) {
+        matrix[row + 1][col + 1] = lineCodes[col];
+      }
+      matrix[row + 1][21] = 66; // Green border right
+    }
 
     return matrix;
   }
