@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import MatrixPreview from '../components/ui/MatrixPreview';
 
 const PinScreen = () => {
   const navigate = useNavigate();
@@ -395,39 +396,9 @@ const PinScreen = () => {
 
           {/* Right: Live Preview */}
           <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Live Preview</h2>
             {previewMatrix ? (
-              <div className="bg-gray-900 p-4 rounded-lg inline-block">
-                <div className="grid grid-cols-22 gap-0.5">
-                  {previewMatrix.map((row, rowIdx) =>
-                    row.map((cell, colIdx) => {
-                      const isColorCode = cell >= 63 && cell <= 70;
-                      const isTextCode = cell >= 1 && cell <= 62;
-                      
-                      let cellClass = 'w-4 h-4 flex items-center justify-center text-xs font-mono rounded-sm';
-                      let displayChar = '';
-                      
-                      if (isColorCode) {
-                        cellClass += ` ${CHAR_COLORS[cell]}`;
-                      } else if (isTextCode) {
-                        cellClass += ' bg-gray-800 text-white';
-                        displayChar = CHAR_MAP[cell] || '?';
-                      } else {
-                        cellClass += ' bg-black';
-                      }
-                      
-                      return (
-                        <div key={`${rowIdx}-${colIdx}`} className={cellClass}>
-                          {!isColorCode && (
-                            <span className="font-bold text-white" style={{ fontSize: '6px' }}>
-                              {displayChar}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+              <div className="flex justify-center">
+                <MatrixPreview matrix={previewMatrix} title="📌 Pin Screen Preview" />
               </div>
             ) : (
               <div className="text-center py-12 text-gray-400">
