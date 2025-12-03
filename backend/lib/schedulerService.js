@@ -99,34 +99,32 @@ class SchedulerService {
         throw new Error('Workflow is not scheduled to run at this time. Check your workflow schedule settings.');
       }
 
-      // ⏰ INTERVAL SCHEDULING: Check if workflow uses time-aligned intervals
-      const intervalMinutes = workflow.schedule?.updateIntervalMinutes;
-      if (intervalMinutes) {
-        console.log(`⏱️  Workflow uses ${intervalMinutes}-minute interval scheduling`);
-        
-        // Check if it's time to update based on aligned clock times
-        const shouldUpdate = intervalScheduler.shouldUpdateNow(
-          workflow,
-          boardState.lastUpdateAt,
-          new Date()
-        );
-        
-        if (!shouldUpdate) {
-          const currentTime = new Date();
-          const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-          const nextTrigger = intervalScheduler.getNextAlignedTime(currentMinutes, intervalMinutes);
-          console.log(`⏸️  Not time to update yet. Next trigger at ${intervalScheduler.formatTime(nextTrigger)}`);
-          return { 
-            boardId: board.boardId, 
-            success: true, 
-            skipped: true,
-            reason: `Waiting for next ${intervalMinutes}-minute interval trigger`,
-            nextTrigger: intervalScheduler.formatTime(nextTrigger)
-          };
-        }
-        
-        console.log(`✅ Interval trigger activated - updating board now!`);
+      // ⏰ INTERVAL SCHEDULING: All workflows use time-aligned intervals
+      const intervalMinutes = workflow.schedule?.updateIntervalMinutes || 30;
+      console.log(`⏱️  Workflow uses ${intervalMinutes}-minute interval scheduling`);
+      
+      // Check if it's time to update based on aligned clock times
+      const shouldUpdate = intervalScheduler.shouldUpdateNow(
+        workflow,
+        boardState.lastUpdateAt,
+        new Date()
+      );
+      
+      if (!shouldUpdate) {
+        const currentTime = new Date();
+        const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+        const nextTrigger = intervalScheduler.getNextAlignedTime(currentMinutes, intervalMinutes);
+        console.log(`⏸️  Not time to update yet. Next trigger at ${intervalScheduler.formatTime(nextTrigger)}`);
+        return { 
+          boardId: board.boardId, 
+          success: true, 
+          skipped: true,
+          reason: `Waiting for next ${intervalMinutes}-minute interval trigger`,
+          nextTrigger: intervalScheduler.formatTime(nextTrigger)
+        };
       }
+      
+      console.log(`✅ Interval trigger activated - updating board now!`);
 
       // Get current step to display
       const currentStep = workflowService.getNextStep(workflow, boardState.currentStepIndex);

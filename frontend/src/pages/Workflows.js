@@ -459,7 +459,8 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
       type: 'always',
       startTimeLocal: '00:00',
       endTimeLocal: '23:59',
-      daysOfWeek: [0, 1, 2, 3, 4, 5, 6] // All days
+      daysOfWeek: [0, 1, 2, 3, 4, 5, 6], // All days
+      updateIntervalMinutes: 30 // Default 30 minutes
     }
   });
   const [loading, setLoading] = useState(false);
@@ -745,7 +746,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                 setForm({
                   name: '',
                   steps: [], // Reset to empty
-                  schedule: { type: 'always', startTimeLocal: '00:00', endTimeLocal: '23:59', daysOfWeek: [0, 1, 2, 3, 4, 5, 6] }
+                  schedule: { type: 'always', startTimeLocal: '00:00', endTimeLocal: '23:59', daysOfWeek: [0, 1, 2, 3, 4, 5, 6], updateIntervalMinutes: 30 }
                 });
               }}
               className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -818,104 +819,83 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                 </>
               )}
 
-              {/* Update Interval - Always show */}
+              {/* Update Interval - Always enabled */}
               <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4">
-                <label className="flex items-center space-x-2 mb-3">
-                  <input 
-                    type="checkbox" 
-                    checked={form.schedule.updateIntervalMinutes !== null && form.schedule.updateIntervalMinutes !== undefined}
-                    onChange={(e) => {
-                      setForm({
-                        ...form, 
-                        schedule: {
-                          ...form.schedule, 
-                          updateIntervalMinutes: e.target.checked ? 30 : null
-                        }
-                      });
-                    }}
-                    className="rounded w-5 h-5"
-                  />
-                  <span className="font-semibold text-purple-900">⏱️ Set Update Interval (Time-Aligned Triggers)</span>
-                </label>
-
-                {(form.schedule.updateIntervalMinutes !== null && form.schedule.updateIntervalMinutes !== undefined) && (
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Trigger every:</label>
-                      <input 
-                        type="number" 
-                        value={form.schedule.updateIntervalMinutes || 30}
-                        onChange={(e) => setForm({...form, schedule: {...form.schedule, updateIntervalMinutes: parseInt(e.target.value) || 30}})}
-                        min="1"
-                        max="1440"
-                        className="input-field w-24 text-center font-bold"
-                      />
-                      <span className="text-sm font-semibold text-gray-700">minutes</span>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg p-3 border border-purple-200">
-                      <p className="text-sm text-purple-900 font-semibold mb-2">📍 How it works:</p>
-                      <ul className="text-sm text-gray-700 space-y-1">
-                        <li>• Triggers at <strong>aligned clock times</strong> (e.g., 8:30, 9:00, 9:30...)</li>
-                        <li>• <strong>Not</strong> "X minutes after last run" - always synced to the clock</li>
-                        {form.schedule.type === 'dailyWindow' && (
-                          <li>• Only runs between {form.schedule.startTimeLocal || '00:00'} - {form.schedule.endTimeLocal || '23:59'}</li>
-                        )}
-                        <li>• Example: 30 min interval → runs at :00 and :30 each hour</li>
-                      </ul>
-                    </div>
-
-                    {form.schedule.type === 'dailyWindow' && form.schedule.startTimeLocal && form.schedule.updateIntervalMinutes && (
-                      <div className="bg-green-50 border border-green-300 rounded-lg p-3">
-                        <p className="text-sm font-semibold text-green-900 mb-1">🎯 Preview Trigger Times:</p>
-                        <p className="text-xs text-green-800 font-mono">
-                          {(() => {
-                            const [startHour, startMin] = (form.schedule.startTimeLocal || '00:00').split(':').map(Number);
-                            const [endHour, endMin] = (form.schedule.endTimeLocal || '23:59').split(':').map(Number);
-                            const interval = form.schedule.updateIntervalMinutes || 30;
-                            
-                            const times = [];
-                            let currentMin = Math.floor(startMin / interval) * interval;
-                            let currentHour = startHour;
-                            
-                            if (currentMin < startMin) {
-                              currentMin += interval;
-                              if (currentMin >= 60) {
-                                currentMin -= 60;
-                                currentHour++;
-                              }
-                            }
-                            
-                            while (currentHour < endHour || (currentHour === endHour && currentMin <= endMin)) {
-                              const h = currentHour % 12 || 12;
-                              const ampm = currentHour < 12 ? 'AM' : 'PM';
-                              times.push(`${h}:${currentMin.toString().padStart(2, '0')}${ampm}`);
-                              
-                              currentMin += interval;
-                              if (currentMin >= 60) {
-                                currentMin -= 60;
-                                currentHour++;
-                              }
-                              
-                              if (times.length > 20) {
-                                times.push('...');
-                                break;
-                              }
-                            }
-                            
-                            return times.join(', ');
-                          })()}
-                        </p>
-                      </div>
-                    )}
+                <label className="block font-semibold text-purple-900 mb-3">⏱️ Update Interval (Time-Aligned Triggers)</label>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Trigger every:</label>
+                    <input 
+                      type="number" 
+                      value={form.schedule.updateIntervalMinutes || 30}
+                      onChange={(e) => setForm({...form, schedule: {...form.schedule, updateIntervalMinutes: parseInt(e.target.value) || 30}})}
+                      min="1"
+                      max="1440"
+                      className="input-field w-24 text-center font-bold text-lg"
+                      required
+                    />
+                    <span className="text-sm font-semibold text-gray-700">minutes</span>
                   </div>
-                )}
+                  
+                  <div className="bg-white rounded-lg p-3 border border-purple-200">
+                    <p className="text-sm text-purple-900 font-semibold mb-2">📍 How it works:</p>
+                    <ul className="text-sm text-gray-700 space-y-1">
+                      <li>• Triggers at <strong>aligned clock times</strong> (e.g., 8:30, 9:00, 9:30...)</li>
+                      <li>• <strong>Not</strong> "X minutes after last run" - always synced to the clock</li>
+                      {form.schedule.type === 'dailyWindow' && (
+                        <li>• Only runs between {form.schedule.startTimeLocal || '00:00'} - {form.schedule.endTimeLocal || '23:59'}</li>
+                      )}
+                      <li>• Example: 30 min interval → runs at :00 and :30 each hour</li>
+                    </ul>
+                  </div>
 
-                {(form.schedule.updateIntervalMinutes === null || form.schedule.updateIntervalMinutes === undefined) && (
-                  <p className="text-sm text-gray-600 italic">
-                    When disabled, workflow cycles through steps based on each step's display duration.
-                  </p>
-                )}
+                  {form.schedule.updateIntervalMinutes && (
+                    <div className="bg-green-50 border border-green-300 rounded-lg p-3">
+                      <p className="text-sm font-semibold text-green-900 mb-1">🎯 Trigger Times {form.schedule.type === 'dailyWindow' ? 'Today' : '(24/7)'}:</p>
+                      <p className="text-xs text-green-800 font-mono">
+                        {(() => {
+                          const startTime = form.schedule.type === 'dailyWindow' ? (form.schedule.startTimeLocal || '00:00') : '00:00';
+                          const endTime = form.schedule.type === 'dailyWindow' ? (form.schedule.endTimeLocal || '23:59') : '23:59';
+                          const [startHour, startMin] = startTime.split(':').map(Number);
+                          const [endHour, endMin] = endTime.split(':').map(Number);
+                          const interval = form.schedule.updateIntervalMinutes || 30;
+                          
+                          const times = [];
+                          let currentMin = Math.floor(startMin / interval) * interval;
+                          let currentHour = startHour;
+                          
+                          if (currentMin < startMin) {
+                            currentMin += interval;
+                            if (currentMin >= 60) {
+                              currentMin -= 60;
+                              currentHour++;
+                            }
+                          }
+                          
+                          while (currentHour < endHour || (currentHour === endHour && currentMin <= endMin)) {
+                            const h = currentHour % 12 || 12;
+                            const ampm = currentHour < 12 ? 'AM' : 'PM';
+                            times.push(`${h}:${currentMin.toString().padStart(2, '0')}${ampm}`);
+                            
+                            currentMin += interval;
+                            if (currentMin >= 60) {
+                              currentMin -= 60;
+                              currentHour++;
+                            }
+                            
+                            if (times.length > 20) {
+                              times.push('...');
+                              break;
+                            }
+                          }
+                          
+                          return times.join(', ');
+                        })()}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -939,7 +919,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                   setForm({
                     name: '',
                     steps: [],
-                    schedule: { type: 'always', startTimeLocal: '00:00', endTimeLocal: '23:59', daysOfWeek: [0, 1, 2, 3, 4, 5, 6] }
+                    schedule: { type: 'always', startTimeLocal: '00:00', endTimeLocal: '23:59', daysOfWeek: [0, 1, 2, 3, 4, 5, 6], updateIntervalMinutes: 30 }
                   });
                 }}
                 className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-all"
@@ -990,21 +970,21 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
             if (schedule.type === 'dailyWindow') {
               const days = schedule.daysOfWeek?.length === 7 ? 'Daily' : 
                            schedule.daysOfWeek?.length === 5 && schedule.daysOfWeek.includes(1) ? 'Weekdays' :
-                           schedule.daysOfWeek?.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(',');
-              scheduleStr = `${days} ${schedule.startTimeLocal}-${schedule.endTimeLocal}`;
+                           `${schedule.daysOfWeek?.length || 0} days`;
+              scheduleStr = `${days} ${schedule.startTimeLocal || '00:00'} - ${schedule.endTimeLocal || '23:59'}`;
               
-              // Check if currently active
+              // Check if current time falls within schedule
               const now = new Date();
               const currentDay = now.getDay();
               const currentTime = now.toTimeString().slice(0, 5);
-              const inSchedule = schedule.daysOfWeek?.includes(currentDay) && 
-                        currentTime >= schedule.startTimeLocal && 
-                        currentTime <= schedule.endTimeLocal;
               
-              // Only active if in schedule AND no pinned workflow is blocking
-              isActive = inSchedule && !hasActivePinnedWorkflow;
+              const isDayActive = schedule.daysOfWeek?.includes(currentDay);
+              const isTimeActive = currentTime >= (schedule.startTimeLocal || '00:00') && 
+                                   currentTime <= (schedule.endTimeLocal || '23:59');
+              
+              // Regular workflows are active if schedule matches AND no pin is blocking
+              isActive = !isPinnedWorkflow && isDayActive && isTimeActive && !hasActivePinnedWorkflow;
             } else if (schedule.type === 'specificDateRange') {
-              // For pinned workflows, check if in date range
               const now = new Date();
               const currentDate = now.toISOString().split('T')[0];
               const currentTime = now.toTimeString().slice(0, 5);

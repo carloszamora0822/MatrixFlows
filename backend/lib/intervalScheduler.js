@@ -15,12 +15,7 @@
  */
 function shouldUpdateNow(workflow, lastUpdateAt, currentTime = new Date()) {
   const schedule = workflow.schedule || {};
-  const intervalMinutes = schedule.updateIntervalMinutes;
-  
-  // If no interval set, use traditional step-based cycling
-  if (!intervalMinutes) {
-    return false; // Handled by traditional logic
-  }
+  const intervalMinutes = schedule.updateIntervalMinutes || 30; // Default to 30 if not set
   
   // Get current time in minutes since midnight
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();

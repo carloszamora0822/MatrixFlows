@@ -47,7 +47,8 @@ const workflowScheduleSchema = new mongoose.Schema({
   endDate: String,        // YYYY-MM-DD
   updateIntervalMinutes: {
     type: Number,
-    default: null,        // null = cycle through steps based on displaySeconds
+    required: true,
+    default: 30,          // Default 30 minutes
     min: 1,               // Minimum 1 minute
     max: 1440             // Maximum 24 hours (1440 minutes)
   }
