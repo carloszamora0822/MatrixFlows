@@ -125,22 +125,28 @@ module.exports = async (req, res) => {
       console.log(`✅ Updated ${workflowsUpdated} workflows (removed expired screens)`);
     }
 
-    // Process all boards
-    const result = await schedulerService.processAllBoards();
-    
+    // Respond immediately, then process boards in background
     const duration = Date.now() - startTime;
-    console.log(`✅ Cron job completed in ${duration}ms`);
-
-    return res.status(200).json({
-      success: result.success,
+    
+    res.status(200).json({
+      success: true,
       timestamp: new Date().toISOString(),
       duration: `${duration}ms`,
-      boardsProcessed: result.boardsProcessed,
-      successCount: result.successCount,
       expiredScreensDeleted: expiredScreens.length || 0,
       workflowsUpdated: expiredScreens.length > 0 ? workflowsUpdated : 0,
-      message: `Processed ${result.boardsProcessed} boards in ${duration}ms`
+      message: 'Cron job started - processing boards in background'
     });
+
+    // Process all boards asynchronously (don't await)
+    schedulerService.processAllBoards()
+      .then(result => {
+        const totalDuration = Date.now() - startTime;
+        console.log(`✅ Cron job completed in ${totalDuration}ms`);
+        console.log(`📊 Processed ${result.boardsProcessed} boards, ${result.successCount} successful`);
+      })
+      .catch(error => {
+        console.error('❌ Error processing boards:', error);
+      });
 
   } catch (error) {
     console.error('❌ Cron endpoint error:', error);
