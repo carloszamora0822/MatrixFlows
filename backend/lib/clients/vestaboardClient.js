@@ -31,10 +31,21 @@ class VestaboardClient {
             'X-Vestaboard-Read-Write-Key': writeKey,
             'Content-Type': 'application/json'
           },
-          timeout: 15000
+          timeout: 15000,
+          validateStatus: (status) => status < 500 // Accept any status < 500 as valid
         }
       );
 
+      // Handle 304 Not Modified
+      if (response.status === 304) {
+        console.log(`✅ Vestaboard already displaying this content (304 Not Modified)`);
+        return {
+          success: true,
+          status: 304,
+          data: { message: 'Not modified - board already displaying this content' }
+        };
+      }
+      
       console.log(`✅ Vestaboard update successful`);
       return {
         success: true,
