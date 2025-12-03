@@ -65,9 +65,11 @@ class SchedulerService {
   /**
    * Process a single board
    * @param {object} board - Vestaboard document
+   * @param {boolean} forceUpdate - Skip interval check (for manual triggers)
    */
-  async processBoard(board) {
+  async processBoard(board, forceUpdate = false) {
     console.log(`\n🎯 Processing board: ${board.name} (${board.boardId})`);
+    if (forceUpdate) console.log('🚀 FORCE UPDATE - Bypassing interval check');
 
     try {
       // Get or create board state
@@ -99,32 +101,34 @@ class SchedulerService {
         throw new Error('Workflow is not scheduled to run at this time. Check your workflow schedule settings.');
       }
 
-      // ⏰ INTERVAL SCHEDULING: All workflows use time-aligned intervals
-      const intervalMinutes = workflow.schedule?.updateIntervalMinutes || 30;
-      console.log(`⏱️  Workflow uses ${intervalMinutes}-minute interval scheduling`);
-      
-      // Check if it's time to update based on aligned clock times
-      const shouldUpdate = intervalScheduler.shouldUpdateNow(
-        workflow,
-        boardState.lastUpdateAt,
-        new Date()
-      );
-      
-      if (!shouldUpdate) {
-        const currentTime = new Date();
-        const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-        const nextTrigger = intervalScheduler.getNextAlignedTime(currentMinutes, intervalMinutes);
-        console.log(`⏸️  Not time to update yet. Next trigger at ${intervalScheduler.formatTime(nextTrigger)}`);
-        return { 
-          boardId: board.boardId, 
-          success: true, 
-          skipped: true,
-          reason: `Waiting for next ${intervalMinutes}-minute interval trigger`,
-          nextTrigger: intervalScheduler.formatTime(nextTrigger)
-        };
+      // ⏰ INTERVAL SCHEDULING: Check interval ONLY if not forced
+      if (!forceUpdate) {
+        const intervalMinutes = workflow.schedule?.updateIntervalMinutes || 30;
+        console.log(`⏱️  Workflow uses ${intervalMinutes}-minute interval scheduling`);
+        
+        // Check if it's time to update based on aligned clock times
+        const shouldUpdate = intervalScheduler.shouldUpdateNow(
+          workflow,
+          boardState.lastUpdateAt,
+          new Date()
+        );
+        
+        if (!shouldUpdate) {
+          const currentTime = new Date();
+          const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+          const nextTrigger = intervalScheduler.getNextAlignedTime(currentMinutes, intervalMinutes);
+          console.log(`⏸️  Not time to update yet. Next trigger at ${intervalScheduler.formatTime(nextTrigger)}`);
+          return { 
+            boardId: board.boardId, 
+            success: true, 
+            skipped: true,
+            reason: `Waiting for next ${intervalMinutes}-minute interval trigger`,
+            nextTrigger: intervalScheduler.formatTime(nextTrigger)
+          };
+        }
+        
+        console.log(`✅ Interval trigger activated - updating board now!`);
       }
-      
-      console.log(`✅ Interval trigger activated - updating board now!`);
 
       // Get current step to display
       const currentStep = workflowService.getNextStep(workflow, boardState.currentStepIndex);
@@ -139,9 +143,18 @@ class SchedulerService {
       // Render the screen
       const matrix = await screenEngine.render(currentStep.step.screenType, currentStep.step.screenConfig);
 
+      // Get API key - use board's key if available, otherwise use environment variable
+      const apiKey = board.vestaboardWriteKey || process.env.VESTABOARD_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error('No Vestaboard API key configured! Add one to the board or set VESTABOARD_API_KEY in environment.');
+      }
+
       // Post to Vestaboard
-      console.log(`📤 Attempting to post to Vestaboard with key: ${board.vestaboardWriteKey.substring(0, 10)}...`);
-      const vestaboardResult = await vestaboardClient.postMessage(board.vestaboardWriteKey, matrix);
+      console.log(`📤 Posting to Vestaboard ${board.name}...`);
+      console.log(`📤 Using API key: ${apiKey.substring(0, 10)}...`);
+      console.log(`📤 Matrix size: ${matrix.length}x${matrix[0]?.length}`);
+      const vestaboardResult = await vestaboardClient.postMessage(apiKey, matrix);
       console.log(`✅ Vestaboard API responded:`, vestaboardResult);
 
       // Calculate next step index (advance AFTER displaying current step)
@@ -196,10 +209,12 @@ class SchedulerService {
 
   /**
    * Manually trigger an update for a specific board
+   * Bypasses interval scheduling - runs immediately!
    * @param {string} boardId
    */
   async triggerBoardUpdate(boardId) {
     console.log(`🎯 Manual trigger for board: ${boardId}`);
+    console.log(`🚀 This is a MANUAL trigger - bypassing interval check!`);
     
     const Vestaboard = require('../models/Vestaboard');
     const board = await Vestaboard.findOne({
@@ -212,7 +227,8 @@ class SchedulerService {
       throw new Error(`Board ${boardId} not found or inactive`);
     }
 
-    return await this.processBoard(board);
+    // Pass forceUpdate=true to bypass interval scheduling
+    return await this.processBoard(board, true);
   }
 }
 
