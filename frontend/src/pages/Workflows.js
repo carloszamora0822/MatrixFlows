@@ -454,12 +454,12 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
   
   const [form, setForm] = useState({ 
     name: '', 
-    steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
+    steps: [], // Start empty - user will add steps via Edit Flow interface
     schedule: {
       type: 'always',
-      startTimeLocal: '08:00',
-      endTimeLocal: '18:00',
-      daysOfWeek: [1, 2, 3, 4, 5] // Mon-Fri
+      startTimeLocal: '00:00',
+      endTimeLocal: '23:59',
+      daysOfWeek: [0, 1, 2, 3, 4, 5, 6] // All days
     }
   });
   const [loading, setLoading] = useState(false);
@@ -732,69 +732,43 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
       )}
 
       {showForm && (
-        <div className="bg-white p-6 rounded-lg mb-6 border-2 border-blue-400 shadow-xl">
-          <h4 className="font-semibold mb-4 text-lg text-blue-600">
-            {editingId ? '✏️ Edit Workflow' : '➕ Create New Workflow'}
-          </h4>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-white p-6 rounded-lg mb-6 border-4 border-blue-500 shadow-xl">
+          <div className="flex justify-between items-center mb-6">
+            <h4 className="font-bold text-2xl text-blue-600">
+              {editingId ? '⚙️ Edit Workflow Settings' : '➕ Create New Workflow'}
+            </h4>
+            <button 
+              type="button" 
+              onClick={() => {
+                setShowForm(false);
+                setEditingId(null);
+                setForm({
+                  name: '',
+                  steps: [], // Reset to empty
+                  schedule: { type: 'always', startTimeLocal: '00:00', endTimeLocal: '23:59', daysOfWeek: [0, 1, 2, 3, 4, 5, 6] }
+                });
+              }}
+              className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="font-medium text-gray-700 block mb-2">Workflow Name</label>
-              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="input-field" placeholder="e.g., Office Hours, Weekend Display" required />
-              <p className="text-xs text-gray-500 mt-1">
-                💡 This workflow can be assigned to multiple boards!
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Workflow Name</label>
+              <input 
+                type="text" 
+                value={form.name} 
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-lg font-semibold" 
+                placeholder="e.g., Morning Rotation, Weekend Display" 
+                required 
+              />
+              <p className="text-sm text-gray-600 mt-2">
+                💡 Assign this workflow to one or more boards in the Boards tab
               </p>
             </div>
-            
-            {!editingId && (
-              <div>
-                <div className="flex justify-between items-center mb-3">
-                  <label className="font-medium text-gray-700">Screen Steps (drag to reorder)</label>
-                  <button type="button" onClick={addStep} className="text-sm text-blue-600 hover:text-blue-800 font-semibold">+ Add Step</button>
-                </div>
-                {form.steps.map((step, idx) => (
-                  <div 
-                    key={idx} 
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, idx)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, idx)}
-                    className="flex items-center space-x-2 mb-2 p-2 bg-gray-50 rounded-lg border-2 border-gray-300 hover:border-blue-400 cursor-move transition-all group"
-                  >
-                    <div className="flex flex-col items-center justify-center w-12 text-gray-400 group-hover:text-blue-600">
-                      <span className="text-xs font-bold">#{idx + 1}</span>
-                      <span className="text-lg leading-none">⋮⋮</span>
-                    </div>
-                    {idx === 0 && <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">FIRST</span>}
-                    {idx === form.steps.length - 1 && form.steps.length > 1 && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">LAST</span>}
-                    <select value={step.screenType} onChange={(e) => updateStep(idx, 'screenType', e.target.value)} className="input-field flex-1">
-                      {screenTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
-                    <div className="flex items-center space-x-1">
-                      <input 
-                        type="number" 
-                        value={step.displayValue || step.displaySeconds} 
-                        onChange={(e) => updateStep(idx, 'displayValue', parseInt(e.target.value))}
-                        className="input-field w-16 text-center font-semibold" 
-                        min="1" 
-                        max="999" 
-                        placeholder="15" 
-                      />
-                      <select 
-                        value={step.displayUnit || 'seconds'} 
-                        onChange={(e) => updateStep(idx, 'displayUnit', e.target.value)}
-                        className="input-field w-24 text-sm"
-                      >
-                        <option value="seconds">sec</option>
-                        <option value="minutes">min</option>
-                        <option value="hours">hrs</option>
-                      </select>
-                    </div>
-                    <button type="button" onClick={() => removeStep(idx)} className="px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded">✕</button>
-                  </div>
-                ))}
-              </div>
-            )}
 
             <div>
               <label className="font-medium block mb-2 text-gray-700">Schedule</label>
@@ -834,9 +808,41 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
               )}
             </div>
 
-            <button type="submit" disabled={loading} className="btn-primary">
-              {loading ? (editingId ? 'Updating...' : 'Creating...') : (editingId ? '💾 Update Workflow' : '✨ Create Workflow')}
-            </button>
+            {!editingId && (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                <p className="text-blue-900 font-semibold">📋 What happens next:</p>
+                <ol className="list-decimal list-inside text-blue-800 mt-2 space-y-1">
+                  <li>Click "Create Workflow" to save basic settings</li>
+                  <li>Then click "⚡ Edit Flow" to add and arrange your screens</li>
+                  <li>Drag screens to reorder, adjust timing, and save</li>
+                </ol>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3">
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingId(null);
+                  setForm({
+                    name: '',
+                    steps: [],
+                    schedule: { type: 'always', startTimeLocal: '00:00', endTimeLocal: '23:59', daysOfWeek: [0, 1, 2, 3, 4, 5, 6] }
+                  });
+                }}
+                className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                disabled={loading} 
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+              >
+                {loading ? (editingId ? 'Updating...' : 'Creating...') : (editingId ? '💾 Update Settings' : '✨ Create Workflow')}
+              </button>
+            </div>
           </form>
         </div>
       )}
@@ -849,38 +855,6 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
         </div>
       ) : (
         <div className="space-y-6 max-w-4xl mx-auto">
-          {/* Manual Update Button */}
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold mb-1">🔄 Manual Board Update</h3>
-                <p className="text-sm text-blue-100">
-                  Click to run workflows and update your Vestaboard now
-                </p>
-              </div>
-              <button
-                onClick={async () => {
-                  try {
-                    const response = await fetch('/api/manual-update', {
-                      method: 'POST',
-                      credentials: 'include'
-                    });
-                    const data = await response.json();
-                    if (response.ok) {
-                      alert(`✅ Board updated! ${data.successCount}/${data.boardsProcessed} boards processed successfully`);
-                    } else {
-                      alert(`❌ Update failed: ${data.error?.message || 'Unknown error'}`);
-                    }
-                  } catch (error) {
-                    alert('❌ Network error occurred');
-                  }
-                }}
-                className="px-6 py-3 bg-white text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl"
-              >
-                🚀 Update Now
-              </button>
-            </div>
-          </div>
           {workflows.map((workflow) => {
             const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
             const totalSeconds = enabledSteps.reduce((sum, s) => sum + (s.displaySeconds || 0), 0);
