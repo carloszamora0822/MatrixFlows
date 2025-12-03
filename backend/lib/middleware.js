@@ -17,7 +17,10 @@ const corsOptions = {
       process.env.FRONTEND_URL
     ].filter(Boolean);
     
-    if (allowedOrigins.includes(origin)) {
+    // In production, also allow any vercel.app domain
+    const isVercelDomain = origin && origin.includes('.vercel.app');
+    
+    if (allowedOrigins.includes(origin) || isVercelDomain) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
