@@ -1135,34 +1135,9 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                             <button
                               onClick={async () => {
                                 const isCustomMessage = step.screenType === 'CUSTOM_MESSAGE';
-                                const confirmMsg = isCustomMessage 
-                                  ? `Delete this custom screen ENTIRELY from the system?`
-                                  : `Delete this ${label} screen from workflow?`;
+                                const confirmMsg = `Remove this ${isCustomMessage ? 'custom screen' : label} from workflow?`;
                                 
                                 if (window.confirm(confirmMsg)) {
-                                  // If it's a custom message, try to find and delete it from the library
-                                  if (isCustomMessage && step.screenConfig?.message) {
-                                    try {
-                                      // Find matching custom screen in library
-                                      const screensRes = await fetch('/api/custom-screens', { credentials: 'include' });
-                                      if (screensRes.ok) {
-                                        const allScreens = await screensRes.json();
-                                        const matchingScreen = allScreens.find(s => s.message === step.screenConfig.message);
-                                        
-                                        if (matchingScreen) {
-                                          // Delete from custom screens library
-                                          await fetch(`/api/custom-screens?id=${matchingScreen.screenId}`, {
-                                            method: 'DELETE',
-                                            credentials: 'include'
-                                          });
-                                          console.log('✅ Custom screen deleted from library');
-                                        }
-                                      }
-                                    } catch (error) {
-                                      console.error('Failed to delete from library:', error);
-                                    }
-                                  }
-                                  
                                   // Remove step from workflow and reorder
                                   const newSteps = enabledSteps.filter((_, i) => i !== idx).map((s, i) => ({ ...s, order: i }));
                                   
@@ -1180,20 +1155,20 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                                     });
                                     
                                     if (response.ok) {
-                                      console.log('✅ Screen deleted from workflow');
+                                      console.log('✅ Screen removed from workflow');
                                       fetchData();
                                     } else {
-                                      alert('❌ Failed to delete screen');
+                                      alert('❌ Failed to remove screen');
                                     }
                                   } catch (error) {
-                                    console.error('Failed to delete:', error);
+                                    console.error('Failed to remove:', error);
                                     alert('❌ Network error');
                                   }
                                 }
                               }}
                               className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 font-semibold"
                             >
-                              🗑️ Delete
+                              🗑️ Remove
                             </button>
                           )}
                         </div>
