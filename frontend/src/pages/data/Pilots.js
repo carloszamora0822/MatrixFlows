@@ -17,13 +17,14 @@ const Pilots = () => {
   useEffect(() => {
     fetchPilots();
     generatePreview('NEWEST_PILOT');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (formData.name) {
       generatePreview('NEWEST_PILOT');
     }
-  }, [formData]);
+  }, [formData, generatePreview]);
 
   const fetchPilots = async () => {
     try {

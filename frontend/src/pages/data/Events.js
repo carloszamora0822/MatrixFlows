@@ -18,13 +18,14 @@ const Events = () => {
   useEffect(() => {
     fetchEvents();
     generatePreview('UPCOMING_EVENTS', { borderColor1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (formData.date || formData.time || formData.description) {
       generatePreview('UPCOMING_EVENTS', { borderColor1 });
     }
-  }, [formData, borderColor1]);
+  }, [formData, borderColor1, generatePreview]);
 
   const fetchEvents = async () => {
     try {

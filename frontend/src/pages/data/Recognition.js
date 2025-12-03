@@ -19,13 +19,14 @@ const Recognition = () => {
   useEffect(() => {
     fetchRecognitions();
     generatePreview('EMPLOYEE_RECOGNITION', { borderColor1, borderColor2 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (formData.firstName || formData.lastName) {
       generatePreview('EMPLOYEE_RECOGNITION', { borderColor1, borderColor2 });
     }
-  }, [formData, borderColor1, borderColor2]);
+  }, [formData, borderColor1, borderColor2, generatePreview]);
 
   const fetchRecognitions = async () => {
     try {

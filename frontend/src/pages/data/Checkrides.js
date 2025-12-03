@@ -18,6 +18,7 @@ const Checkrides = () => {
   useEffect(() => {
     fetchCheckrides();
     generatePreview('CHECKRIDES', { borderColor1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-generate preview when form data changes
@@ -25,7 +26,7 @@ const Checkrides = () => {
     if (formData.time || formData.name || formData.callsign || formData.type || formData.date) {
       generatePreview('CHECKRIDES', { borderColor1 });
     }
-  }, [formData, borderColor1]);
+  }, [formData, borderColor1, generatePreview]);
 
   const fetchCheckrides = async () => {
     try {
