@@ -464,6 +464,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
     }
   });
   const [loading, setLoading] = useState(false);
+  const [triggeringNow, setTriggeringNow] = useState(false);
 
   // Fetch saved screens
   useEffect(() => {
@@ -483,9 +484,11 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
     fetchSavedScreens();
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, triggerNow = false) => {
     e.preventDefault();
     setLoading(true);
+    if (triggerNow) setTriggeringNow(true);
+    
     try {
       let workflowData;
       
@@ -520,18 +523,54 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
       const data = await res.json();
       
       if (res.ok) {
-        const successMessage = editingId 
-          ? '✅ Workflow name and schedule updated!' 
-          : '✅ Workflow created! Now add steps using "Reorder Steps".';
+        const workflowId = editingId || data.workflowId;
+        let successMessage = editingId 
+          ? '✅ Workflow settings updated!' 
+          : '✅ Workflow created!';
+        
+        // 🚀 TRIGGER NOW: If requested, immediately update all boards using this workflow
+        if (triggerNow) {
+          console.log('🚀 Triggering workflow immediately on all assigned boards...');
+          
+          // Find all boards using this workflow
+          const boardsUsingWorkflow = boards.filter(b => b.defaultWorkflowId === workflowId);
+          
+          if (boardsUsingWorkflow.length === 0) {
+            successMessage += '\n\n⚠️ No boards assigned to this workflow yet. Assign it to a board in the Boards tab.';
+          } else {
+            let triggeredCount = 0;
+            for (const board of boardsUsingWorkflow) {
+              try {
+                const triggerRes = await fetch(`/api/workflows/trigger?boardId=${board.boardId}`, {
+                  method: 'POST',
+                  credentials: 'include'
+                });
+                
+                if (triggerRes.ok) {
+                  console.log(`✅ Triggered board: ${board.name}`);
+                  triggeredCount++;
+                } else {
+                  console.error(`❌ Failed to trigger board: ${board.name}`);
+                }
+              } catch (triggerError) {
+                console.error(`❌ Trigger error for board ${board.name}:`, triggerError);
+              }
+            }
+            
+            successMessage += `\n\n🚀 Triggered ${triggeredCount}/${boardsUsingWorkflow.length} board(s) immediately!`;
+          }
+        }
+        
         alert(successMessage);
         setForm({ 
           name: '', 
-          steps: [{ screenType: 'BIRTHDAY', displaySeconds: 15, displayValue: 15, displayUnit: 'seconds' }],
+          steps: [],
           schedule: {
             type: 'always',
-            startTimeLocal: '08:00',
-            endTimeLocal: '18:00',
-            daysOfWeek: [1, 2, 3, 4, 5]
+            startTimeLocal: '00:00',
+            endTimeLocal: '23:59',
+            daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+            updateIntervalMinutes: 30
           }
         });
         setEditingId(null);
@@ -545,6 +584,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
       alert(`❌ Network error: ${error.message}`);
     } finally {
       setLoading(false);
+      setTriggeringNow(false);
     }
   };
 
@@ -910,7 +950,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
               </div>
             )}
 
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-between items-center">
               <button 
                 type="button" 
                 onClick={() => {
@@ -926,13 +966,25 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
               >
                 Cancel
               </button>
-              <button 
-                type="submit" 
-                disabled={loading} 
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
-              >
-                {loading ? (editingId ? 'Updating...' : 'Creating...') : (editingId ? '💾 Update Settings' : '✨ Create Workflow')}
-              </button>
+              
+              <div className="flex space-x-3">
+                <button 
+                  type="submit" 
+                  disabled={loading || triggeringNow} 
+                  className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+                >
+                  {loading && !triggeringNow ? (editingId ? 'Saving...' : 'Saving...') : (editingId ? '💾 Save' : '💾 Save')}
+                </button>
+                
+                <button 
+                  type="button"
+                  onClick={(e) => handleSubmit(e, true)}
+                  disabled={loading || triggeringNow} 
+                  className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+                >
+                  {triggeringNow ? '🚀 Triggering...' : (editingId ? '� Save & Trigger Now' : '🚀 Save & Trigger Now')}
+                </button>
+              </div>
             </div>
           </form>
         </div>
