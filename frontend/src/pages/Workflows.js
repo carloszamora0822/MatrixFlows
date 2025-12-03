@@ -44,72 +44,6 @@ const Workflows = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8 px-4">
-        {/* Single Board Layout */}
-        {isSingleBoard ? (
-          <div className="max-w-7xl mx-auto mb-8">
-            <div className="relative">
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
-                {currentBoard?.name || 'Vestaboard'}
-              </h1>
-              <div className="flex items-center space-x-4">
-                {currentBoard?.locationLabel && (
-                  <span className="px-4 py-2 bg-white rounded-full text-gray-700 text-sm font-semibold shadow-md">
-                    📍 {currentBoard.locationLabel}
-                  </span>
-                )}
-                {assignedWorkflow && (
-                  <span className="px-4 py-2 bg-green-100 rounded-full text-green-700 text-sm font-semibold shadow-md">
-                    🔄 {assignedWorkflow.name}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Multiple Boards Layout */
-          <div className="max-w-7xl mx-auto mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-6">Select a Board</h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {boards.map(board => {
-                const workflow = workflows.find(w => w.workflowId === board.defaultWorkflowId);
-                const isSelected = currentBoard?.boardId === board.boardId;
-                
-                return (
-                  <div
-                    key={board.boardId}
-                    onClick={() => setSelectedBoard(board)}
-                    className={`p-6 rounded-xl cursor-pointer transition-all duration-300 ${
-                      isSelected
-                        ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-2xl scale-105 ring-4 ring-blue-300'
-                        : 'bg-white hover:shadow-xl hover:scale-102 border-2 border-gray-200 hover:border-blue-400'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className={`text-xl font-bold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
-                        {board.name}
-                      </h3>
-                      {isSelected && <span className="text-2xl">✓</span>}
-                    </div>
-                    {board.locationLabel && (
-                      <p className={`text-sm mb-2 ${isSelected ? 'text-blue-100' : 'text-gray-600'}`}>
-                        📍 {board.locationLabel}
-                      </p>
-                    )}
-                    {workflow ? (
-                      <div className={`text-sm font-semibold ${isSelected ? 'text-green-200' : 'text-green-600'}`}>
-                        🔄 {workflow.name}
-                      </div>
-                    ) : (
-                      <div className={`text-sm ${isSelected ? 'text-yellow-200' : 'text-yellow-600'}`}>
-                        ⚠️ No workflow assigned
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Tabs - Always show */}
         <div className="max-w-7xl mx-auto mb-6">
@@ -372,15 +306,26 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
     };
   }, []);
 
+  const handleToggleActive = async (boardId, currentStatus) => {
+    try {
+      const res = await fetch(`/api/boards?id=${boardId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isActive: !currentStatus })
+      });
+      
+      if (res.ok) {
+        fetchData(); // Refresh board list
+      }
+    } catch (error) {
+      console.error('Failed to toggle board status:', error);
+      alert('Failed to update board status');
+    }
+  };
+
   return (
     <div>
-      <div className="bg-white border-2 border-blue-400 rounded-lg p-4 mb-6 shadow-lg">
-        <h4 className="font-semibold text-blue-600 mb-2">🔄 Automatic Scheduler</h4>
-        <p className="text-sm text-gray-700">
-          Click "▶️ Start Auto" to automatically cycle through your workflow steps. Each screen displays for its configured duration (e.g., 15 seconds), then automatically advances to the next screen. Click "⏹️ Stop" to pause.
-        </p>
-      </div>
-
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold text-gray-800">Registered Boards</h3>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary">
@@ -438,23 +383,49 @@ const BoardsTab = ({ boards, workflows, fetchData }) => {
                       <p className="text-xs text-yellow-600 mt-1">⚠️ No workflow assigned - edit board to assign one</p>
                     )}
                   </div>
-                  <div className="flex space-x-2">
-                    {runningSchedulers[board.boardId] ? (
-                      <button onClick={() => stopAutoScheduler(board.boardId)}
-                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
-                        ⏹️ Stop Auto
-                      </button>
-                    ) : (
-                      <button onClick={() => startAutoScheduler(board.boardId)} disabled={!assignedWorkflow}
-                        className={`px-3 py-1 rounded text-sm ${
-                          !assignedWorkflow 
-                            ? 'bg-gray-400 text-white cursor-not-allowed' 
-                            : 'bg-green-600 text-white hover:bg-green-700'
+                  <div className="flex items-center space-x-3">
+                    {/* Active/Inactive Toggle */}
+                    <div className="flex items-center space-x-2">
+                      <span className={`text-xs font-semibold ${board.isActive ? 'text-green-600' : 'text-gray-500'}`}>
+                        {board.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                      <button
+                        onClick={() => handleToggleActive(board.boardId, board.isActive)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                          board.isActive ? 'bg-green-600' : 'bg-gray-300'
                         }`}
-                        title={!assignedWorkflow ? 'Assign a workflow first' : 'Start automatic cycling'}>
-                        ▶️ Start Auto
+                        title={board.isActive ? 'Click to deactivate board' : 'Click to activate board'}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            board.isActive ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
                       </button>
-                    )}
+                    </div>
+
+                    <button 
+                      onClick={async () => {
+                        if (!assignedWorkflow) {
+                          alert('No workflow assigned to this board');
+                          return;
+                        }
+                        const result = await handleTrigger(board.boardId);
+                        if (result.success) {
+                          alert(`✅ Board updated!\nScreen: ${result.screenType}\nStep: ${result.stepIndex}`);
+                        }
+                      }}
+                      disabled={triggerLoading === board.boardId || !assignedWorkflow}
+                      className={`px-3 py-1 rounded text-sm font-semibold ${
+                        !assignedWorkflow 
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                          : 'bg-purple-600 text-white hover:bg-purple-700'
+                      }`}
+                      title={!assignedWorkflow ? 'Assign a workflow first' : 'Trigger board update now'}
+                    >
+                      {triggerLoading === board.boardId ? '⏳' : '🚀 Trigger'}
+                    </button>
+                    
                     <button onClick={() => {
                       setEditingBoard(board.boardId);
                       setForm({
@@ -566,30 +537,44 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
         
         // 🚀 TRIGGER NOW: If requested, immediately update all boards using this workflow
         if (triggerNow) {
-          console.log('🚀 Triggering workflow immediately on all assigned boards...');
+          console.log('🚀 Triggering workflow immediately...');
+          console.log('Workflow ID:', workflowId);
+          console.log('All boards:', boards);
+          
+          // Refresh boards to get latest data
+          await fetchData();
+          const latestBoards = (await fetch('/api/boards', { credentials: 'include' })).json ? await (await fetch('/api/boards', { credentials: 'include' })).json() : boards;
           
           // Find all boards using this workflow
-          const boardsUsingWorkflow = boards.filter(b => b.defaultWorkflowId === workflowId);
+          const boardsUsingWorkflow = latestBoards.filter(b => b.defaultWorkflowId === workflowId);
+          console.log('Boards using workflow:', boardsUsingWorkflow);
           
           if (boardsUsingWorkflow.length === 0) {
-            successMessage += '\n\n⚠️ No boards assigned to this workflow yet. Assign it to a board in the Boards tab.';
+            successMessage += '\n\n⚠️ No boards assigned to this workflow yet. Assign it to a board in the Vestaboard Setup tab.';
           } else {
             let triggeredCount = 0;
             for (const board of boardsUsingWorkflow) {
               try {
+                console.log(`Triggering board: ${board.name} (${board.boardId})`);
                 const triggerRes = await fetch(`/api/workflows/trigger?boardId=${board.boardId}`, {
                   method: 'POST',
                   credentials: 'include'
                 });
                 
+                console.log('Trigger response status:', triggerRes.status);
+                const triggerData = await triggerRes.json();
+                console.log('Trigger response data:', triggerData);
+                
                 if (triggerRes.ok) {
                   console.log(`✅ Triggered board: ${board.name}`);
                   triggeredCount++;
                 } else {
-                  console.error(`❌ Failed to trigger board: ${board.name}`);
+                  console.error(`❌ Failed to trigger board: ${board.name}`, triggerData);
+                  alert(`❌ Failed to trigger ${board.name}: ${triggerData.error?.message || 'Unknown error'}`);
                 }
               } catch (triggerError) {
                 console.error(`❌ Trigger error for board ${board.name}:`, triggerError);
+                alert(`❌ Trigger error for ${board.name}: ${triggerError.message}`);
               }
             }
             
