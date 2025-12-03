@@ -8,7 +8,7 @@ const Workflows = () => {
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBoard, setSelectedBoard] = useState(null);
-  const [activeTab, setActiveTab] = useState('workflows'); // 'workflows' or 'custom-screens'
+  const [activeTab, setActiveTab] = useState('workflows'); // 'workflows', 'custom-screens', or 'boards'
 
   useEffect(() => {
     fetchData();
@@ -111,40 +111,50 @@ const Workflows = () => {
           </div>
         )}
 
-        {/* Tabs */}
-        {currentBoard && (
-          <div className="max-w-7xl mx-auto mb-6">
-            <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-8">
-                <button
-                  onClick={() => setActiveTab('workflows')}
-                  className={`${
-                    activeTab === 'workflows'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-                >
-                  🔄 Workflows
-                </button>
-                <button
-                  onClick={() => setActiveTab('custom-screens')}
-                  className={`${
-                    activeTab === 'custom-screens'
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-                >
-                  🎨 Custom Screens
-                </button>
-              </nav>
-            </div>
+        {/* Tabs - Always show */}
+        <div className="max-w-7xl mx-auto mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('workflows')}
+                disabled={!currentBoard}
+                className={`${
+                  activeTab === 'workflows'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } ${!currentBoard ? 'opacity-50 cursor-not-allowed' : ''} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              >
+                🔄 Workflows
+              </button>
+              <button
+                onClick={() => setActiveTab('custom-screens')}
+                disabled={!currentBoard}
+                className={`${
+                  activeTab === 'custom-screens'
+                    ? 'border-orange-500 text-orange-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } ${!currentBoard ? 'opacity-50 cursor-not-allowed' : ''} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              >
+                🎨 Custom Screens
+              </button>
+              <button
+                onClick={() => setActiveTab('boards')}
+                className={`${
+                  activeTab === 'boards'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              >
+                📺 Vestaboard Setup
+              </button>
+            </nav>
           </div>
-        )}
+        </div>
 
         {/* Tab Content */}
-        {currentBoard ? (
-          <div className="max-w-7xl mx-auto">
-            {activeTab === 'workflows' ? (
+        <div className="max-w-7xl mx-auto">
+          {activeTab === 'workflows' ? (
+            currentBoard ? (
               <WorkflowsTab 
                 workflows={workflows}
                 boards={boards}
@@ -152,19 +162,45 @@ const Workflows = () => {
                 selectedBoard={selectedBoard}
               />
             ) : (
+              <div className="text-center py-20 bg-white rounded-lg shadow">
+                <div className="text-6xl mb-4">📺</div>
+                <h3 className="text-2xl font-semibold text-gray-700 mb-2">Select a Board</h3>
+                <p className="text-gray-500 mb-6">Choose a board above to manage workflows</p>
+                <button 
+                  onClick={() => setActiveTab('boards')}
+                  className="btn-primary"
+                >
+                  Go to Vestaboard Setup
+                </button>
+              </div>
+            )
+          ) : activeTab === 'custom-screens' ? (
+            currentBoard ? (
               <CustomScreensTab 
                 boards={boards}
                 selectedBoard={selectedBoard}
               />
-            )}
-          </div>
-        ) : (
-          <div className="max-w-7xl mx-auto text-center py-20">
-            <div className="text-6xl mb-4">📺</div>
-            <h3 className="text-2xl font-semibold text-gray-700 mb-2">No Boards Found</h3>
-            <p className="text-gray-500">Create a board to get started</p>
-          </div>
-        )}
+            ) : (
+              <div className="text-center py-20 bg-white rounded-lg shadow">
+                <div className="text-6xl mb-4">📺</div>
+                <h3 className="text-2xl font-semibold text-gray-700 mb-2">Select a Board</h3>
+                <p className="text-gray-500 mb-6">Choose a board above to create custom screens</p>
+                <button 
+                  onClick={() => setActiveTab('boards')}
+                  className="btn-primary"
+                >
+                  Go to Vestaboard Setup
+                </button>
+              </div>
+            )
+          ) : (
+            <BoardsTab 
+              boards={boards}
+              workflows={workflows}
+              fetchData={fetchData}
+            />
+          )}
+        </div>
       </div>
     </Layout>
   );
