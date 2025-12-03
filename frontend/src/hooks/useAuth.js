@@ -24,11 +24,20 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       setError(null);
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      
       const response = await fetch(getApiUrl('/api/users/me'), {
         method: 'GET',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
       });
       
@@ -37,10 +46,12 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
       } else {
         setUser(null);
+        localStorage.removeItem('authToken');
       }
     } catch (error) {
       console.error('Auth check failed:', error);
       setUser(null);
+      localStorage.removeItem('authToken');
       setError('Failed to check authentication status');
     } finally {
       setLoading(false);
@@ -63,14 +74,20 @@ export const AuthProvider = ({ children }) => {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw data.error || { message: 'Login failed' };
+      if (response.ok) {
+        // Store token in localStorage
+        if (data.token) {
+          localStorage.setItem('authToken', data.token);
+        }
+        setUser(data.user);
+        return { success: true };
+      } else {
+        setError(data.error?.message || 'Login failed');
+        return { success: false, error: data.error?.message || 'Login failed' };
       }
-
-      setUser(data.user);
-      return data.user;
     } catch (error) {
-      setError(error.message || 'Login failed');
+      console.error('Login failed:', error);
+      setError('Network error - please try again');
       throw error;
     } finally {
       setLoading(false);
@@ -86,11 +103,13 @@ export const AuthProvider = ({ children }) => {
         credentials: 'include',
       });
       
+      localStorage.removeItem('authToken');
       setUser(null);
     } catch (error) {
       console.error('Logout failed:', error);
       setError('Logout failed');
-      // Still clear user even if logout request fails
+      // Still clear user and token even if logout request fails
+      localStorage.removeItem('authToken');
       setUser(null);
     }
   };

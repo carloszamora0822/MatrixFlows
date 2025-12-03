@@ -68,6 +68,7 @@ const loginHandler = async (req, res) => {
         role: safeUser.role,
         lastLoginAt: safeUser.lastLoginAt
       },
+      token: token, // Return token for localStorage storage
       message: 'Login successful'
     });
 
