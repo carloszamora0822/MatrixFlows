@@ -849,6 +849,38 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
         </div>
       ) : (
         <div className="space-y-6 max-w-4xl mx-auto">
+          {/* Manual Update Button */}
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold mb-1">🔄 Manual Board Update</h3>
+                <p className="text-sm text-blue-100">
+                  Click to run workflows and update your Vestaboard now
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch('/api/manual-update', {
+                      method: 'POST',
+                      credentials: 'include'
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                      alert(`✅ Board updated! ${data.successCount}/${data.boardsProcessed} boards processed successfully`);
+                    } else {
+                      alert(`❌ Update failed: ${data.error?.message || 'Unknown error'}`);
+                    }
+                  } catch (error) {
+                    alert('❌ Network error occurred');
+                  }
+                }}
+                className="px-6 py-3 bg-white text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl"
+              >
+                🚀 Update Now
+              </button>
+            </div>
+          </div>
           {workflows.map((workflow) => {
             const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
             const totalSeconds = enabledSteps.reduce((sum, s) => sum + (s.displaySeconds || 0), 0);
