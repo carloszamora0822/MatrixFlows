@@ -71,7 +71,7 @@ const loginRateLimit = createRateLimit(
  */
 const apiRateLimit = createRateLimit(
   15 * 60 * 1000, // 15 minutes
-  1000 // 500 requests per window (increased for production use)
+  2500 // 2500 requests per window (increased for production use)
 );
 
 /**
