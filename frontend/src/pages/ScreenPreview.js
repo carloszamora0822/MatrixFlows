@@ -358,6 +358,7 @@ const ScreenPreview = () => {
   const [screenPreviews, setScreenPreviews] = useState({});
   const [savedScreens, setSavedScreens] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(null);
 
   const screenTypes = [
     { value: 'BIRTHDAY', label: '🎂 Birthday' },
@@ -372,6 +373,15 @@ const ScreenPreview = () => {
   useEffect(() => {
     loadAllPreviews();
     loadSavedScreens();
+    
+    // Auto-refresh all built-in screens every hour
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing built-in screens...');
+      loadAllPreviews();
+    }, 60 * 60 * 1000); // 1 hour in milliseconds
+    
+    // Cleanup interval on unmount
+    return () => clearInterval(refreshInterval);
   }, []);
 
   const loadAllPreviews = async () => {
@@ -396,6 +406,7 @@ const ScreenPreview = () => {
     }
     
     setScreenPreviews(previews);
+    setLastRefresh(new Date());
     setLoading(false);
   };
 
@@ -425,7 +436,25 @@ const ScreenPreview = () => {
 
           {/* All Built-in Screens */}
           <div className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Built-in Screens</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Built-in Screens</h2>
+              <button
+                onClick={() => {
+                  console.log('🔄 Manual refresh triggered');
+                  loadAllPreviews();
+                }}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <span>{loading ? '⏳' : '🔄'}</span>
+                {loading ? 'Refreshing...' : 'Refresh All'}
+              </button>
+            </div>
+            {lastRefresh && (
+              <p className="text-sm text-gray-500 mb-6">
+                Last updated: {lastRefresh.toLocaleTimeString()} • Auto-refreshes every hour
+              </p>
+            )}
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
