@@ -143,7 +143,7 @@ module.exports = async (req, res) => {
       });
 
     } else if (req.method === 'DELETE') {
-      // Delete custom screen
+      // Delete custom screen AND remove it from all workflows
       const screenId = req.query.id;
       
       if (!screenId) {
@@ -155,11 +155,32 @@ module.exports = async (req, res) => {
         });
       }
 
+      const Workflow = require('../../models/Workflow');
+
+      // Delete the custom screen
       await CustomScreen.deleteOne({ screenId, orgId: ORG_CONFIG.ID });
+      console.log(`✅ Custom screen ${screenId} deleted from library`);
+
+      // Remove this screen from ALL workflows
+      const customScreenConfig = { customScreenId: screenId };
+      const result = await Workflow.updateMany(
+        { orgId: ORG_CONFIG.ID },
+        { 
+          $pull: { 
+            steps: { 
+              'step.screenType': 'CUSTOM_MESSAGE',
+              'step.screenConfig.customScreenId': screenId
+            }
+          }
+        }
+      );
+
+      console.log(`✅ Removed custom screen ${screenId} from ${result.modifiedCount} workflow(s)`);
       
-      console.log(`✅ Custom screen ${screenId} deleted`);
-      
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ 
+        success: true,
+        workflowsUpdated: result.modifiedCount
+      });
 
     } else {
       return res.status(405).json({
