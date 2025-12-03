@@ -12,6 +12,7 @@ import Pilots from './pages/data/Pilots';
 import Recognition from './pages/data/Recognition';
 import Workflows from './pages/Workflows';
 import Boards from './pages/Boards';
+import CustomScreenEditor from './pages/CustomScreenEditor';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -151,6 +152,24 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Boards />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/custom-screen/new" 
+        element={
+          <ProtectedRoute>
+            <CustomScreenEditor />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/custom-screen/edit/:screenId" 
+        element={
+          <ProtectedRoute>
+            <CustomScreenEditor />
           </ProtectedRoute>
         } 
       />
