@@ -52,8 +52,8 @@ const createRateLimit = (windowMs = 15 * 60 * 1000, max = 100) => {
     standardHeaders: true,
     legacyHeaders: false,
     skip: (req) => {
-      // Skip rate limiting for health checks
-      return req.path === '/api/health';
+      // Skip rate limiting for health checks and cron endpoint
+      return req.path === '/api/health' || req.path === '/api/cron/update';
     }
   });
 };
@@ -71,7 +71,7 @@ const loginRateLimit = createRateLimit(
  */
 const apiRateLimit = createRateLimit(
   15 * 60 * 1000, // 15 minutes
-  100 // 100 requests per window
+  500 // 500 requests per window (increased for production use)
 );
 
 /**
