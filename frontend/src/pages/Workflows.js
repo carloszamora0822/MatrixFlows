@@ -772,40 +772,151 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
 
             <div>
               <label className="font-medium block mb-2 text-gray-700">Schedule</label>
-              <select value={form.schedule.type} onChange={(e) => setForm({...form, schedule: {...form.schedule, type: e.target.value}})} className="input-field mb-2">
+              <select value={form.schedule.type} onChange={(e) => setForm({...form, schedule: {...form.schedule, type: e.target.value}})} className="input-field mb-4">
                 <option value="always">Always Running (24/7)</option>
                 <option value="dailyWindow">Daily Time Window</option>
               </select>
 
               {form.schedule.type === 'dailyWindow' && (
                 <>
-                  <div className="flex space-x-2 mb-2">
-                    <input type="time" value={form.schedule.startTimeLocal} 
-                      onChange={(e) => setForm({...form, schedule: {...form.schedule, startTimeLocal: e.target.value}})}
-                      className="input-field" />
-                    <span className="py-2">to</span>
-                    <input type="time" value={form.schedule.endTimeLocal}
-                      onChange={(e) => setForm({...form, schedule: {...form.schedule, endTimeLocal: e.target.value}})}
-                      className="input-field" />
+                  <div className="flex space-x-2 mb-4">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                      <input type="time" value={form.schedule.startTimeLocal} 
+                        onChange={(e) => setForm({...form, schedule: {...form.schedule, startTimeLocal: e.target.value}})}
+                        className="input-field w-full" />
+                    </div>
+                    <div className="flex items-end pb-2">
+                      <span className="text-gray-600">→</span>
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                      <input type="time" value={form.schedule.endTimeLocal}
+                        onChange={(e) => setForm({...form, schedule: {...form.schedule, endTimeLocal: e.target.value}})}
+                        className="input-field w-full" />
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
-                      <label key={idx} className="flex items-center space-x-1">
-                        <input type="checkbox" 
-                          checked={form.schedule.daysOfWeek.includes(idx)}
-                          onChange={(e) => {
-                            const newDays = e.target.checked 
-                              ? [...form.schedule.daysOfWeek, idx]
-                              : form.schedule.daysOfWeek.filter(d => d !== idx);
-                            setForm({...form, schedule: {...form.schedule, daysOfWeek: newDays}});
-                          }}
-                          className="rounded" />
-                        <span className="text-sm">{day}</span>
-                      </label>
-                    ))}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Active Days</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
+                        <label key={idx} className={`flex items-center space-x-2 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all ${form.schedule.daysOfWeek.includes(idx) ? 'bg-blue-100 border-blue-500 text-blue-900' : 'bg-gray-50 border-gray-300 text-gray-600 hover:border-gray-400'}`}>
+                          <input type="checkbox" 
+                            checked={form.schedule.daysOfWeek.includes(idx)}
+                            onChange={(e) => {
+                              const newDays = e.target.checked 
+                                ? [...form.schedule.daysOfWeek, idx]
+                                : form.schedule.daysOfWeek.filter(d => d !== idx);
+                              setForm({...form, schedule: {...form.schedule, daysOfWeek: newDays}});
+                            }}
+                            className="rounded" />
+                          <span className="text-sm font-semibold">{day}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
+
+              {/* Update Interval - Always show */}
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4">
+                <label className="flex items-center space-x-2 mb-3">
+                  <input 
+                    type="checkbox" 
+                    checked={form.schedule.updateIntervalMinutes !== null && form.schedule.updateIntervalMinutes !== undefined}
+                    onChange={(e) => {
+                      setForm({
+                        ...form, 
+                        schedule: {
+                          ...form.schedule, 
+                          updateIntervalMinutes: e.target.checked ? 30 : null
+                        }
+                      });
+                    }}
+                    className="rounded w-5 h-5"
+                  />
+                  <span className="font-semibold text-purple-900">⏱️ Set Update Interval (Time-Aligned Triggers)</span>
+                </label>
+
+                {(form.schedule.updateIntervalMinutes !== null && form.schedule.updateIntervalMinutes !== undefined) && (
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Trigger every:</label>
+                      <input 
+                        type="number" 
+                        value={form.schedule.updateIntervalMinutes || 30}
+                        onChange={(e) => setForm({...form, schedule: {...form.schedule, updateIntervalMinutes: parseInt(e.target.value) || 30}})}
+                        min="1"
+                        max="1440"
+                        className="input-field w-24 text-center font-bold"
+                      />
+                      <span className="text-sm font-semibold text-gray-700">minutes</span>
+                    </div>
+                    
+                    <div className="bg-white rounded-lg p-3 border border-purple-200">
+                      <p className="text-sm text-purple-900 font-semibold mb-2">📍 How it works:</p>
+                      <ul className="text-sm text-gray-700 space-y-1">
+                        <li>• Triggers at <strong>aligned clock times</strong> (e.g., 8:30, 9:00, 9:30...)</li>
+                        <li>• <strong>Not</strong> "X minutes after last run" - always synced to the clock</li>
+                        {form.schedule.type === 'dailyWindow' && (
+                          <li>• Only runs between {form.schedule.startTimeLocal || '00:00'} - {form.schedule.endTimeLocal || '23:59'}</li>
+                        )}
+                        <li>• Example: 30 min interval → runs at :00 and :30 each hour</li>
+                      </ul>
+                    </div>
+
+                    {form.schedule.type === 'dailyWindow' && form.schedule.startTimeLocal && form.schedule.updateIntervalMinutes && (
+                      <div className="bg-green-50 border border-green-300 rounded-lg p-3">
+                        <p className="text-sm font-semibold text-green-900 mb-1">🎯 Preview Trigger Times:</p>
+                        <p className="text-xs text-green-800 font-mono">
+                          {(() => {
+                            const [startHour, startMin] = (form.schedule.startTimeLocal || '00:00').split(':').map(Number);
+                            const [endHour, endMin] = (form.schedule.endTimeLocal || '23:59').split(':').map(Number);
+                            const interval = form.schedule.updateIntervalMinutes || 30;
+                            
+                            const times = [];
+                            let currentMin = Math.floor(startMin / interval) * interval;
+                            let currentHour = startHour;
+                            
+                            if (currentMin < startMin) {
+                              currentMin += interval;
+                              if (currentMin >= 60) {
+                                currentMin -= 60;
+                                currentHour++;
+                              }
+                            }
+                            
+                            while (currentHour < endHour || (currentHour === endHour && currentMin <= endMin)) {
+                              const h = currentHour % 12 || 12;
+                              const ampm = currentHour < 12 ? 'AM' : 'PM';
+                              times.push(`${h}:${currentMin.toString().padStart(2, '0')}${ampm}`);
+                              
+                              currentMin += interval;
+                              if (currentMin >= 60) {
+                                currentMin -= 60;
+                                currentHour++;
+                              }
+                              
+                              if (times.length > 20) {
+                                times.push('...');
+                                break;
+                              }
+                            }
+                            
+                            return times.join(', ');
+                          })()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(form.schedule.updateIntervalMinutes === null || form.schedule.updateIntervalMinutes === undefined) && (
+                  <p className="text-sm text-gray-600 italic">
+                    When disabled, workflow cycles through steps based on each step's display duration.
+                  </p>
+                )}
+              </div>
             </div>
 
             {!editingId && (

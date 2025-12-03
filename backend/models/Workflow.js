@@ -44,7 +44,13 @@ const workflowScheduleSchema = new mongoose.Schema({
   endTimeLocal: String,   // HH:MM format
   daysOfWeek: [Number],   // 0=Sunday, 6=Saturday
   startDate: String,      // YYYY-MM-DD
-  endDate: String         // YYYY-MM-DD
+  endDate: String,        // YYYY-MM-DD
+  updateIntervalMinutes: {
+    type: Number,
+    default: null,        // null = cycle through steps based on displaySeconds
+    min: 1,               // Minimum 1 minute
+    max: 1440             // Maximum 24 hours (1440 minutes)
+  }
 }, { _id: false });
 
 const workflowSchema = new mongoose.Schema({
