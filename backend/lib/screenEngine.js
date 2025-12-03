@@ -288,11 +288,23 @@ class ScreenEngine {
 
       // Replace temperature placeholders (36, 36 = "00")
       const tempCodes = this.numberToCodes(weather.temperature);
-      this.replacePlaceholders(matrix, [36, 36], tempCodes, 2, 0); // Row 2, first occurrence
+      if (weather.isNight) {
+        // Night template: temp at row 1
+        this.replacePlaceholders(matrix, [36, 36], tempCodes, 1, 0);
+      } else {
+        // Day template: temp at row 2
+        this.replacePlaceholders(matrix, [36, 36], tempCodes, 2, 0);
+      }
 
       // Replace wind speed placeholders
       const windCodes = this.numberToCodes(weather.windSpeed);
-      this.replacePlaceholders(matrix, [36, 36], windCodes, 3, 0); // Row 3, first occurrence
+      if (weather.isNight) {
+        // Night template: wind at row 2
+        this.replacePlaceholders(matrix, [36, 36], windCodes, 2, 0);
+      } else {
+        // Day template: wind at row 3
+        this.replacePlaceholders(matrix, [36, 36], windCodes, 3, 0);
+      }
 
       return matrix;
 
