@@ -99,17 +99,21 @@ class WorkflowService {
    * @returns {boolean}
    */
   isInDailyWindow(schedule, now) {
-    // Check day of week
+    // Convert UTC to Central Time (UTC-6) for comparison
+    const centralOffset = -6 * 60; // -6 hours in minutes
+    const localTime = new Date(now.getTime() + (centralOffset * 60 * 1000));
+    
+    // Check day of week (using local time)
     if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0) {
-      const currentDay = now.getDay(); // 0=Sunday, 6=Saturday
+      const currentDay = localTime.getDay(); // 0=Sunday, 6=Saturday
       if (!schedule.daysOfWeek.includes(currentDay)) {
         return false;
       }
     }
 
-    // Check time window
+    // Check time window (using local time)
     if (schedule.startTimeLocal && schedule.endTimeLocal) {
-      const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const currentTime = `${String(localTime.getHours()).padStart(2, '0')}:${String(localTime.getMinutes()).padStart(2, '0')}`;
       
       if (currentTime < schedule.startTimeLocal || currentTime > schedule.endTimeLocal) {
         return false;
