@@ -1,6 +1,101 @@
 # MatrixFlow Deployment Guide
 
-## Deploy to Railway
+## Deploy to Vercel (Frontend) + Render (Backend)
+
+**100% FREE Deployment!** ✅
+
+This guide will help you deploy:
+- **Frontend** → Vercel (FREE forever)
+- **Backend** → Render (FREE tier)
+- **Database** → MongoDB Atlas (FREE tier)
+- **Scheduler** → Power Automate (FREE with Microsoft 365)
+
+---
+
+## Quick Start (5 Steps)
+
+1. Deploy Backend to Render
+2. Deploy Frontend to Vercel
+3. Setup MongoDB Atlas
+4. Configure Environment Variables
+5. Setup Power Automate
+
+---
+
+## Step 1: Deploy Backend to Render
+
+### 1.1 Create Render Account
+- Go to https://render.com
+- Sign up with GitHub
+
+### 1.2 Create New Web Service
+1. Click "New +" → "Web Service"
+2. Connect your GitHub repository: `carloszamora0822/MatrixFlows`
+3. Configure:
+   - **Name:** `matrixflow-backend`
+   - **Region:** Oregon (US West)
+   - **Branch:** `main`
+   - **Root Directory:** `backend`
+   - **Environment:** Node
+   - **Build Command:** `npm install`
+   - **Start Command:** `node api/index.js`
+   - **Plan:** Free
+
+### 1.3 Add Environment Variables
+Click "Environment" tab and add:
+
+```
+NODE_ENV=production
+PORT=3001
+MONGODB_URI=<your-mongodb-connection-string>
+JWT_SECRET=<generate-with-openssl>
+CRON_SECRET=<generate-with-openssl>
+```
+
+**Generate secrets:**
+```bash
+openssl rand -hex 32
+```
+
+### 1.4 Deploy!
+- Click "Create Web Service"
+- Wait ~5 minutes for deployment
+- Note your backend URL: `https://matrixflow-backend.onrender.com`
+
+---
+
+## Step 2: Deploy Frontend to Vercel
+
+### 2.1 Create Vercel Account
+- Go to https://vercel.com
+- Sign up with GitHub
+
+### 2.2 Import Project
+1. Click "Add New..." → "Project"
+2. Import `carloszamora0822/MatrixFlows`
+3. Configure:
+   - **Framework Preset:** Create React App
+   - **Root Directory:** `frontend`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `build`
+
+### 2.3 Add Environment Variable
+Click "Environment Variables" and add:
+
+```
+REACT_APP_API_URL=https://matrixflow-backend.onrender.com
+```
+
+**IMPORTANT:** Use YOUR actual Render backend URL from Step 1!
+
+### 2.4 Deploy!
+- Click "Deploy"
+- Wait ~2 minutes
+- Note your frontend URL: `https://matrixflow.vercel.app`
+
+---
+
+## Deploy to Railway (Alternative)
 
 ### Step 1: Prerequisites
 - GitHub account
