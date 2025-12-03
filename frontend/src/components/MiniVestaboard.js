@@ -99,14 +99,14 @@ const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, 
       </div>
       
       {/* Mini Vestaboard */}
-      <div className={`bg-gray-900 p-2 rounded-lg shadow-xl border-2 ${isDragging ? 'border-blue-500' : 'border-gray-700'} ${draggable ? 'hover:border-blue-400' : ''}`} style={{ width: '330px' }}>
+      <div className={`bg-gray-900 p-4 rounded-lg shadow-xl border-2 ${isDragging ? 'border-blue-500' : 'border-gray-700'} ${draggable ? 'hover:border-blue-400' : ''}`}>
         <div className="grid grid-cols-22 gap-0.5">
           {matrix && matrix.map((row, rowIdx) =>
             row.map((cell, colIdx) => {
               const isColorCode = cell >= 63 && cell <= 70;
               const isTextCode = cell >= 1 && cell <= 62;
               
-              let cellClass = 'w-[14px] h-[14px] flex items-center justify-center text-xs font-mono rounded-sm';
+              let cellClass = 'w-4 h-4 flex items-center justify-center text-xs font-mono rounded-sm';
               let displayChar = '';
               
               if (isColorCode) {

@@ -1759,7 +1759,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
                     const isColorCode = cell >= 63 && cell <= 70;
                     const isTextCode = cell >= 1 && cell <= 62;
                     
-                    let cellClass = 'w-[14px] h-[14px] flex items-center justify-center text-xs font-mono rounded-sm';
+                    let cellClass = 'w-4 h-4 flex items-center justify-center text-xs font-mono rounded-sm';
                     let displayChar = '';
                     
                     if (isColorCode) {
@@ -1774,7 +1774,7 @@ const CustomScreensTab = ({ boards, selectedBoard }) => {
                     return (
                       <div key={`${rowIdx}-${colIdx}`} className={cellClass}>
                         {!isColorCode && (
-                          <span className="font-bold text-white" style={{ fontSize: '6px' }}>
+                          <span className="font-bold text-white">
                             {displayChar}
                           </span>
                         )}
