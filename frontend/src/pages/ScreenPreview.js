@@ -430,14 +430,23 @@ const ScreenPreview = () => {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">📺 Screen Library</h1>
             <p className="mt-2 text-gray-600">
-              Browse all available screen types, create custom screens, and manage your library
+              Create custom screens and browse all available screen types
             </p>
           </div>
 
-          {/* All Built-in Screens */}
+          {/* Custom Screens - FIRST! */}
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">🎨 Custom Screens</h2>
+            <CustomScreensSection 
+              savedScreens={savedScreens}
+              loadSavedScreens={loadSavedScreens}
+            />
+          </div>
+
+          {/* Built-in Screens */}
           <div className="mb-12">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">Built-in Screens</h2>
+              <h2 className="text-2xl font-bold text-gray-900">🏗️ Built-in Screens</h2>
               <button
                 onClick={() => {
                   console.log('🔄 Manual refresh triggered');
@@ -476,15 +485,6 @@ const ScreenPreview = () => {
                 ))}
               </div>
             )}
-          </div>
-
-          {/* Custom Screens */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Custom Screens</h2>
-            <CustomScreensSection 
-              savedScreens={savedScreens}
-              loadSavedScreens={loadSavedScreens}
-            />
           </div>
         </div>
       </div>
