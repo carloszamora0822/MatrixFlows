@@ -158,7 +158,7 @@ class SchedulerService {
       console.log(`✅ Vestaboard API responded:`, vestaboardResult);
 
       // Calculate next step index (advance AFTER displaying current step)
-      const enabledSteps = workflow.steps.filter(s => s.isEnabled);
+      const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
       const nextStepIndex = (boardState.currentStepIndex + 1) % enabledSteps.length;
 
       // Update board state with NEXT step index for next update
