@@ -280,9 +280,11 @@ class ScreenEngine {
     try {
       const weather = await weatherClient.getWeather(config.locationOverride);
       
-      // Select template based on weather condition
-      const template = this.selectWeatherTemplate(weather.condition);
+      // Select template based on weather condition and time of day
+      const template = this.selectWeatherTemplate(weather.condition, weather.isNight);
       const matrix = JSON.parse(JSON.stringify(template));
+      
+      console.log(`🌤️  Weather: ${weather.condition}, ${weather.temperature}°F, ${weather.isNight ? '🌙 Night' : '☀️ Day'}`);
 
       // Replace temperature placeholders (36, 36 = "00")
       const tempCodes = this.numberToCodes(weather.temperature);
@@ -353,12 +355,13 @@ class ScreenEngine {
   }
 
   /**
-   * Select weather template based on condition
+   * Select weather template based on condition and time of day
    */
-  selectWeatherTemplate(condition) {
+  selectWeatherTemplate(condition, isNight = false) {
     const conditionLower = condition.toLowerCase();
     if (conditionLower.includes('clear') || conditionLower.includes('sun')) {
-      return templates.weatherSunny;
+      // Use stars at night, sun during day
+      return isNight ? templates.weatherClearNight : templates.weatherSunny;
     }
     // Default to cloudy for rain, clouds, etc.
     return templates.weatherCloudy;
