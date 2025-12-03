@@ -157,11 +157,11 @@ class SchedulerService {
       const vestaboardResult = await vestaboardClient.postMessage(apiKey, matrix);
       console.log(`✅ Vestaboard API responded:`, vestaboardResult);
 
-      // Calculate next step index (advance AFTER displaying current step)
+      // Always reset to beginning (step 0) for next update
       const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
-      const nextStepIndex = (boardState.currentStepIndex + 1) % enabledSteps.length;
+      const nextStepIndex = 0; // Always start from beginning on next trigger
 
-      // Update board state with NEXT step index for next update
+      // Update board state - reset to step 0 for next update
       boardState.currentWorkflowId = workflow.workflowId;
       boardState.currentStepIndex = nextStepIndex;
       boardState.lastMatrix = matrix;
