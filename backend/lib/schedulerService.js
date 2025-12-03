@@ -31,7 +31,8 @@ class SchedulerService {
       const results = [];
       for (const board of boards) {
         try {
-          const result = await this.processBoard(board);
+          // Check if it's time to run the workflow based on interval
+          const result = await this.checkAndRunWorkflow(board);
           results.push(result);
         } catch (error) {
           console.error(`❌ Error processing board ${board.boardId}:`, error);
@@ -59,6 +60,91 @@ class SchedulerService {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  /**
+   * Check if it's time to run workflow and run complete workflow if so
+   * @param {object} board - Vestaboard document
+   */
+  async checkAndRunWorkflow(board) {
+    console.log(`\n🎯 Checking board: ${board.name} (${board.boardId})`);
+
+    try {
+      // Get or create board state
+      let boardState = await BoardState.findOne({
+        orgId: ORG_CONFIG.ID,
+        boardId: board.boardId
+      });
+
+      if (!boardState) {
+        console.log('📝 Creating new board state');
+        boardState = new BoardState({
+          orgId: ORG_CONFIG.ID,
+          boardId: board.boardId,
+          currentStepIndex: 0
+        });
+        await boardState.save();
+      }
+
+      // Check if board has a workflow assigned
+      if (!board.defaultWorkflowId) {
+        console.log('⚠️  No workflow assigned to this board');
+        return { boardId: board.boardId, success: true, skipped: true, reason: 'No workflow assigned' };
+      }
+      
+      // Get active workflow based on schedule
+      const workflow = await workflowService.getActiveWorkflow(board);
+      
+      if (!workflow) {
+        console.log('⚠️  Workflow not scheduled to run at this time');
+        return { boardId: board.boardId, success: true, skipped: true, reason: 'Outside schedule window' };
+      }
+
+      // ⏰ INTERVAL SCHEDULING: Check if it's time to run the workflow
+      const intervalMinutes = workflow.schedule?.updateIntervalMinutes || 30;
+      console.log(`⏱️  Workflow interval: ${intervalMinutes} minutes`);
+      
+      // Check if it's time to update based on aligned clock times
+      const shouldUpdate = intervalScheduler.shouldUpdateNow(
+        workflow,
+        boardState.lastUpdateAt,
+        new Date()
+      );
+      
+      if (!shouldUpdate) {
+        const currentTime = new Date();
+        const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+        const nextTrigger = intervalScheduler.getNextAlignedTime(currentMinutes, intervalMinutes);
+        console.log(`⏸️  Not time to run yet. Next trigger at ${intervalScheduler.formatTime(nextTrigger)}`);
+        return { 
+          boardId: board.boardId, 
+          success: true, 
+          skipped: true,
+          reason: `Waiting for next ${intervalMinutes}-minute interval`,
+          nextTrigger: intervalScheduler.formatTime(nextTrigger)
+        };
+      }
+      
+      console.log(`✅ Interval trigger activated - running COMPLETE workflow now!`);
+
+      // Run the complete workflow (all steps in sequence)
+      const result = await this.runCompleteWorkflow(board.boardId);
+
+      // Update board state
+      boardState.lastUpdateAt = new Date();
+      boardState.lastUpdateSuccess = true;
+      boardState.lastError = null;
+      boardState.cycleCount += 1;
+      await boardState.save();
+
+      console.log(`✅ Workflow complete for ${board.name} (cycle ${boardState.cycleCount})`);
+
+      return result;
+
+    } catch (error) {
+      console.error(`❌ Error checking/running workflow:`, error);
+      throw error;
     }
   }
 
@@ -157,11 +243,11 @@ class SchedulerService {
       const vestaboardResult = await vestaboardClient.postMessage(apiKey, matrix);
       console.log(`✅ Vestaboard API responded:`, vestaboardResult);
 
-      // Always reset to beginning (step 0) for next update
+      // Calculate next step index (advance AFTER displaying current step)
       const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
-      const nextStepIndex = 0; // Always start from beginning on next trigger
+      const nextStepIndex = (boardState.currentStepIndex + 1) % enabledSteps.length;
 
-      // Update board state - reset to step 0 for next update
+      // Update board state with NEXT step index for next update
       boardState.currentWorkflowId = workflow.workflowId;
       boardState.currentStepIndex = nextStepIndex;
       boardState.lastMatrix = matrix;
@@ -208,15 +294,12 @@ class SchedulerService {
   }
 
   /**
-   * Manually trigger an update for a specific board
-   * Bypasses interval scheduling - runs immediately!
+   * Run through entire workflow - all steps in sequence
+   * Each step displays for its configured displaySeconds
    * @param {string} boardId
-   * @param {boolean} resetToStart - Reset currentStepIndex to 0 (start from beginning)
    */
-  async triggerBoardUpdate(boardId, resetToStart = false) {
-    console.log(`🎯 Manual trigger for board: ${boardId}`);
-    console.log(`🚀 This is a MANUAL trigger - bypassing interval check!`);
-    if (resetToStart) console.log(`🔄 RESET TO START - Starting from first step in workflow`);
+  async runCompleteWorkflow(boardId) {
+    console.log(`\n� Starting complete workflow run for board: ${boardId}`);
     
     const Vestaboard = require('../models/Vestaboard');
     const board = await Vestaboard.findOne({
@@ -229,23 +312,71 @@ class SchedulerService {
       throw new Error(`Board ${boardId} not found or inactive`);
     }
 
-    // If resetToStart, reset the board state to step 0
-    if (resetToStart) {
-      const BoardState = require('../models/BoardState');
-      let boardState = await BoardState.findOne({
-        orgId: ORG_CONFIG.ID,
-        boardId: board.boardId
-      });
+    // Get workflow
+    const workflow = await workflowService.getActiveWorkflow(board);
+    if (!workflow) {
+      throw new Error('No active workflow for this board');
+    }
 
-      if (boardState) {
-        boardState.currentStepIndex = 0;
-        await boardState.save();
-        console.log(`✅ Board state reset to step 0`);
+    // Get all enabled steps in order
+    const enabledSteps = workflow.steps
+      .filter(s => s.isEnabled)
+      .sort((a, b) => a.order - b.order);
+
+    if (enabledSteps.length === 0) {
+      throw new Error('No enabled steps in workflow');
+    }
+
+    console.log(`📋 Running through ${enabledSteps.length} steps...`);
+
+    // Run through each step
+    for (let i = 0; i < enabledSteps.length; i++) {
+      const step = enabledSteps[i];
+      console.log(`\n📺 Step ${i + 1}/${enabledSteps.length}: ${step.screenType}`);
+      console.log(`⏱️  Display time: ${step.displaySeconds} seconds`);
+
+      // Render the screen
+      const matrix = await screenEngine.render(step.screenType, step.screenConfig);
+
+      // Get API key
+      const apiKey = board.vestaboardWriteKey || process.env.VESTABOARD_API_KEY;
+      if (!apiKey) {
+        throw new Error('No Vestaboard API key configured!');
+      }
+
+      // Post to Vestaboard
+      console.log(`📤 Posting to Vestaboard...`);
+      await vestaboardClient.postMessage(apiKey, matrix);
+      console.log(`✅ Posted step ${i + 1}`);
+
+      // Wait for displaySeconds before next step (except last step)
+      if (i < enabledSteps.length - 1) {
+        const waitMs = step.displaySeconds * 1000;
+        console.log(`⏳ Waiting ${step.displaySeconds} seconds before next step...`);
+        await new Promise(resolve => setTimeout(resolve, waitMs));
       }
     }
 
-    // Pass forceUpdate=true to bypass interval scheduling
-    return await this.processBoard(board, true);
+    console.log(`\n🎉 Complete workflow finished! All ${enabledSteps.length} steps displayed.`);
+    
+    return {
+      boardId: board.boardId,
+      success: true,
+      stepsRun: enabledSteps.length,
+      message: 'Complete workflow executed'
+    };
+  }
+
+  /**
+   * Manually trigger an update for a specific board
+   * Runs the complete workflow (all steps in sequence)
+   * @param {string} boardId
+   */
+  async triggerBoardUpdate(boardId) {
+    console.log(`🎯 Manual trigger for board: ${boardId}`);
+    console.log(`🚀 Running COMPLETE workflow - all steps in sequence!`);
+    
+    return await this.runCompleteWorkflow(boardId);
   }
 }
 
