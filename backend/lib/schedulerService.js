@@ -211,10 +211,12 @@ class SchedulerService {
    * Manually trigger an update for a specific board
    * Bypasses interval scheduling - runs immediately!
    * @param {string} boardId
+   * @param {boolean} resetToStart - Reset currentStepIndex to 0 (start from beginning)
    */
-  async triggerBoardUpdate(boardId) {
+  async triggerBoardUpdate(boardId, resetToStart = false) {
     console.log(`🎯 Manual trigger for board: ${boardId}`);
     console.log(`🚀 This is a MANUAL trigger - bypassing interval check!`);
+    if (resetToStart) console.log(`🔄 RESET TO START - Starting from first step in workflow`);
     
     const Vestaboard = require('../models/Vestaboard');
     const board = await Vestaboard.findOne({
@@ -225,6 +227,21 @@ class SchedulerService {
 
     if (!board) {
       throw new Error(`Board ${boardId} not found or inactive`);
+    }
+
+    // If resetToStart, reset the board state to step 0
+    if (resetToStart) {
+      const BoardState = require('../models/BoardState');
+      let boardState = await BoardState.findOne({
+        orgId: ORG_CONFIG.ID,
+        boardId: board.boardId
+      });
+
+      if (boardState) {
+        boardState.currentStepIndex = 0;
+        await boardState.save();
+        console.log(`✅ Board state reset to step 0`);
+      }
     }
 
     // Pass forceUpdate=true to bypass interval scheduling

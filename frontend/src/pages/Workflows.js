@@ -410,8 +410,8 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
             let triggeredCount = 0;
             for (const board of boardsUsingWorkflow) {
               try {
-                console.log(`Triggering board: ${board.name} (${board.boardId})`);
-                const triggerRes = await fetch(`/api/workflows/trigger?boardId=${board.boardId}`, {
+                console.log(`Triggering board: ${board.name} (${board.boardId}) - Starting from beginning`);
+                const triggerRes = await fetch(`/api/workflows/trigger?boardId=${board.boardId}&resetToStart=true`, {
                   method: 'POST',
                   credentials: 'include'
                 });

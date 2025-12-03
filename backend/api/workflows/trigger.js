@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    const { boardId } = req.query;
+    const { boardId, resetToStart } = req.query;
     
     if (!boardId) {
       return res.status(400).json({
@@ -33,9 +33,10 @@ module.exports = async (req, res) => {
       });
     }
 
-    console.log(`🎯 Manual trigger requested for board ${boardId}`);
+    const shouldResetToStart = resetToStart === 'true';
+    console.log(`🎯 Manual trigger requested for board ${boardId}${shouldResetToStart ? ' - RESET TO START' : ''}`);
     
-    const result = await schedulerService.triggerBoardUpdate(boardId);
+    const result = await schedulerService.triggerBoardUpdate(boardId, shouldResetToStart);
 
     return res.status(200).json({
       success: true,
