@@ -10,4 +10,25 @@ export const getApiUrl = (path) => {
   return path;
 };
 
+// Global fetch wrapper that automatically uses the correct API URL
+export const apiFetch = (path, options = {}) => {
+  const url = getApiUrl(path);
+  
+  // Add authorization header if token exists
+  const token = localStorage.getItem('authToken');
+  const headers = {
+    ...options.headers,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return fetch(url, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+};
+
 export default API_BASE_URL;
