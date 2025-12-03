@@ -11,6 +11,7 @@ import Events from './pages/data/Events';
 import Pilots from './pages/data/Pilots';
 import Recognition from './pages/data/Recognition';
 import Workflows from './pages/Workflows';
+import Boards from './pages/Boards';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -145,6 +146,14 @@ const AppRoutes = () => {
         } 
       />
 
+      <Route 
+        path="/boards" 
+        element={
+          <ProtectedRoute>
+            <Boards />
+          </ProtectedRoute>
+        } 
+      />
 
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
