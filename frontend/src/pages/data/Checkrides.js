@@ -7,15 +7,25 @@ import { useScreenPreview } from '../../hooks/useScreenPreview';
 const Checkrides = () => {
   const navigate = useNavigate();
   const [checkrides, setCheckrides] = useState([]);
-  const [formData, setFormData] = useState({ time: '', callsign: '', type: 'PPL', destination: '', date: '' });
+  const [formData, setFormData] = useState({ time: '', name: '', callsign: '', type: 'PPL', date: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [borderColor1, setBorderColor1] = useState('red');
   
   const { matrix, generatePreview } = useScreenPreview();
 
   useEffect(() => {
     fetchCheckrides();
+    generatePreview('CHECKRIDES', { borderColor1 });
   }, []);
+
+  // Auto-generate preview when form data changes
+  useEffect(() => {
+    if (formData.time || formData.name || formData.callsign || formData.type || formData.date) {
+      generatePreview('CHECKRIDES', { borderColor1 });
+    }
+  }, [formData, borderColor1]);
 
   const fetchCheckrides = async () => {
     try {
@@ -35,11 +45,16 @@ const Checkrides = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/checkrides', {
-        method: 'POST',
+      const url = editingId ? `/api/checkrides?id=${editingId}` : '/api/checkrides';
+      const method = editingId ? 'PUT' : 'POST';
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          borderColor1
+        })
       });
 
       const data = await response.json();
@@ -50,14 +65,35 @@ const Checkrides = () => {
         return;
       }
 
-      setFormData({ time: '', callsign: '', type: 'PPL', destination: '', date: '' });
-      fetchCheckrides();
-      generatePreview('CHECKRIDES');
+      setFormData({ time: '', name: '', callsign: '', type: 'PPL', date: '' });
+      setEditingId(null);
+      await fetchCheckrides();
+      generatePreview('CHECKRIDES', { borderColor1 });
     } catch (error) {
       setErrors({ general: 'Network error occurred' });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (checkride) => {
+    setFormData({
+      time: checkride.time,
+      name: checkride.name,
+      callsign: checkride.callsign,
+      type: checkride.type,
+      date: checkride.date
+    });
+    setEditingId(checkride._id);
+    setBorderColor1(checkride.borderColor1 || 'red');
+    generatePreview('CHECKRIDES', { borderColor1: checkride.borderColor1 || 'red' });
+  };
+
+  const handleCancelEdit = () => {
+    setFormData({ time: '', name: '', callsign: '', type: 'PPL', date: '' });
+    setEditingId(null);
+    setErrors({});
+    setBorderColor1('red');
   };
 
   const handleDelete = async (id) => {
@@ -67,7 +103,10 @@ const Checkrides = () => {
         method: 'DELETE',
         credentials: 'include'
       });
-      if (response.ok) fetchCheckrides();
+      if (response.ok) {
+        await fetchCheckrides();
+        generatePreview('CHECKRIDES');
+      }
     } catch (error) {
       console.error('Failed to delete:', error);
     }
@@ -96,7 +135,7 @@ const Checkrides = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Form */}
             <div className="card">
-              <h3 className="text-lg font-semibold mb-4">Add Checkride</h3>
+              <h3 className="text-lg font-semibold mb-4">{editingId ? '✏️ Edit Checkride' : '➕ Add Checkride'}</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <input
@@ -107,6 +146,16 @@ const Checkrides = () => {
                     placeholder="Time (HH:MM)"
                   />
                   {errors.time && <p className="mt-1 text-sm text-red-600">{errors.time}</p>}
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className={`input-field ${errors.name ? 'input-error' : ''}`}
+                    placeholder="Person Name"
+                  />
+                  {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                 </div>
                 <div>
                   <input
@@ -136,16 +185,6 @@ const Checkrides = () => {
                 <div>
                   <input
                     type="text"
-                    value={formData.destination}
-                    onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                    className={`input-field ${errors.destination ? 'input-error' : ''}`}
-                    placeholder="Destination (KVBT)"
-                  />
-                  {errors.destination && <p className="mt-1 text-sm text-red-600">{errors.destination}</p>}
-                </div>
-                <div>
-                  <input
-                    type="text"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     className={`input-field ${errors.date ? 'input-error' : ''}`}
@@ -153,9 +192,39 @@ const Checkrides = () => {
                   />
                   {errors.date && <p className="mt-1 text-sm text-red-600">{errors.date}</p>}
                 </div>
-                <button type="submit" disabled={loading} className="btn-primary w-full">
-                  {loading ? 'Adding...' : 'Add Checkride'}
-                </button>
+
+                {/* Color Picker - Only show when editing */}
+                {editingId && (
+                  <div className="pt-4 border-t">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Border Color:</label>
+                    <div className="grid grid-cols-7 gap-2">
+                      {['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'white'].map(color => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setBorderColor1(color)}
+                          className={`w-10 h-10 rounded border-2 ${borderColor1 === color ? 'border-gray-900 ring-2 ring-blue-500' : 'border-gray-300'}`}
+                          style={{
+                            backgroundColor: color === 'white' ? '#f3f4f6' : color,
+                            backgroundImage: color === 'white' ? 'repeating-linear-gradient(45deg, #e5e7eb 0, #e5e7eb 2px, #f3f4f6 2px, #f3f4f6 4px)' : 'none'
+                          }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button type="submit" disabled={loading} className="btn-primary flex-1">
+                    {loading ? 'Saving...' : (editingId ? 'Update' : 'Add')}
+                  </button>
+                  {editingId && (
+                    <button type="button" onClick={handleCancelEdit} className="btn-secondary">
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
 
@@ -167,14 +236,21 @@ const Checkrides = () => {
               ) : (
                 <div className="space-y-2">
                   {checkrides.map((c) => (
-                    <div key={c.id} className="p-3 bg-gray-50 rounded">
+                    <div key={c._id} className={`p-3 rounded ${editingId === c._id ? 'bg-blue-100 border-2 border-blue-500' : 'bg-gray-50'}`}>
                       <div className="flex justify-between items-start mb-1">
-                        <p className="font-medium">{c.callsign}</p>
-                        <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:text-red-800 text-sm">
-                          Delete
-                        </button>
+                        <div>
+                          <p className="font-medium">{c.name}</p>
+                          <p className="text-sm text-gray-600">{c.callsign} - {c.type}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEdit(c)} className="text-blue-600 hover:text-blue-800 text-sm font-semibold">
+                            ✏️ Edit
+                          </button>
+                          <button onClick={() => handleDelete(c._id)} className="text-red-600 hover:text-red-800 text-sm font-semibold">
+                            🗑️ Delete
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600">{c.type} - {c.destination}</p>
                       <p className="text-sm text-gray-600">{c.date} at {c.time}</p>
                     </div>
                   ))}

@@ -10,12 +10,22 @@ const Recognition = () => {
   const [formData, setFormData] = useState({ firstName: '', lastName: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [borderColor1, setBorderColor1] = useState('yellow');
+  const [borderColor2, setBorderColor2] = useState('orange');
   
   const { matrix, generatePreview } = useScreenPreview();
 
   useEffect(() => {
     fetchRecognitions();
+    generatePreview('EMPLOYEE_RECOGNITION', { borderColor1, borderColor2 });
   }, []);
+
+  useEffect(() => {
+    if (formData.firstName || formData.lastName) {
+      generatePreview('EMPLOYEE_RECOGNITION', { borderColor1, borderColor2 });
+    }
+  }, [formData, borderColor1, borderColor2]);
 
   const fetchRecognitions = async () => {
     try {
@@ -35,11 +45,17 @@ const Recognition = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/recognitions', {
-        method: 'POST',
+      const url = editingId ? `/api/recognitions?id=${editingId}` : '/api/recognitions';
+      const method = editingId ? 'PUT' : 'POST';
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          borderColor1,
+          borderColor2
+        })
       });
 
       const data = await response.json();
@@ -51,7 +67,8 @@ const Recognition = () => {
       }
 
       setFormData({ firstName: '', lastName: '' });
-      fetchRecognitions();
+      setEditingId(null);
+      await fetchRecognitions();
       generatePreview('EMPLOYEE_RECOGNITION');
     } catch (error) {
       setErrors({ general: 'Network error occurred' });
@@ -75,9 +92,30 @@ const Recognition = () => {
     }
   };
 
+  const handleEdit = (recognition) => {
+    setFormData({
+      firstName: recognition.firstName,
+      lastName: recognition.lastName
+    });
+    setEditingId(recognition._id);
+    // Load colors from the recognition being edited
+    setBorderColor1(recognition.borderColor1 || 'yellow');
+    setBorderColor2(recognition.borderColor2 || 'orange');
+    generatePreview('EMPLOYEE_RECOGNITION', { 
+      borderColor1: recognition.borderColor1 || 'yellow', 
+      borderColor2: recognition.borderColor2 || 'orange' 
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setFormData({ firstName: '', lastName: '' });
+    setEditingId(null);
+    setErrors({});
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this recognition?')) return;
-    try {
+    try{
       const response = await fetch(`/api/recognitions?id=${id}`, {
         method: 'DELETE',
         credentials: 'include'
@@ -111,7 +149,7 @@ const Recognition = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Form */}
             <div className="card">
-              <h3 className="text-lg font-semibold mb-4">Add Recognition</h3>
+              <h3 className="text-lg font-semibold mb-4">{editingId ? '✏️ Edit Recognition' : '➕ Add Recognition'}</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <input
@@ -133,9 +171,59 @@ const Recognition = () => {
                   />
                   {errors.lastName && <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>}
                 </div>
-                <button type="submit" disabled={loading} className="btn-primary w-full">
-                  {loading ? 'Adding...' : 'Add Recognition'}
-                </button>
+                
+                {/* Color Pickers - Only show when editing */}
+                {editingId && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Color 1:</label>
+                      <div className="grid grid-cols-7 gap-2">
+                        {['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'white'].map(color => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setBorderColor1(color)}
+                            className={`w-10 h-10 rounded border-2 ${borderColor1 === color ? 'border-gray-900 ring-2 ring-blue-500' : 'border-gray-300'}`}
+                            style={{
+                              backgroundColor: color === 'white' ? '#f3f4f6' : color,
+                              backgroundImage: color === 'white' ? 'repeating-linear-gradient(45deg, #e5e7eb 0, #e5e7eb 2px, #f3f4f6 2px, #f3f4f6 4px)' : 'none'
+                            }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Color 2:</label>
+                      <div className="grid grid-cols-7 gap-2">
+                        {['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'white'].map(color => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setBorderColor2(color)}
+                            className={`w-10 h-10 rounded border-2 ${borderColor2 === color ? 'border-gray-900 ring-2 ring-blue-500' : 'border-gray-300'}`}
+                            style={{
+                              backgroundColor: color === 'white' ? '#f3f4f6' : color,
+                              backgroundImage: color === 'white' ? 'repeating-linear-gradient(45deg, #e5e7eb 0, #e5e7eb 2px, #f3f4f6 2px, #f3f4f6 4px)' : 'none'
+                            }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button type="submit" disabled={loading} className="btn-primary flex-1">
+                    {loading ? 'Saving...' : (editingId ? 'Update' : 'Add')}
+                  </button>
+                  {editingId && (
+                    <button type="button" onClick={handleCancelEdit} className="btn-secondary">
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
               <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
                 <p className="text-sm text-yellow-800">
@@ -152,7 +240,7 @@ const Recognition = () => {
               ) : (
                 <div className="space-y-2">
                   {recognitions.map((r) => (
-                    <div key={r.id} className={`p-3 rounded ${r.isCurrent ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'}`}>
+                    <div key={r._id} className={`p-3 rounded ${editingId === r._id ? 'bg-blue-100 border-2 border-blue-500' : r.isCurrent ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="font-medium">{r.firstName} {r.lastName}</p>
@@ -162,13 +250,18 @@ const Recognition = () => {
                             </span>
                           )}
                         </div>
-                        <button onClick={() => handleDelete(r.id)} className="text-red-600 hover:text-red-800 text-sm">
-                          Delete
-                        </button>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEdit(r)} className="text-blue-600 hover:text-blue-800 text-sm font-semibold">
+                            ✏️ Edit
+                          </button>
+                          <button onClick={() => handleDelete(r._id)} className="text-red-600 hover:text-red-800 text-sm font-semibold">
+                            🗑️ Delete
+                          </button>
+                        </div>
                       </div>
                       {!r.isCurrent && (
                         <button
-                          onClick={() => handleSetCurrent(r.id)}
+                          onClick={() => handleSetCurrent(r._id)}
                           className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                         >
                           Set as Current

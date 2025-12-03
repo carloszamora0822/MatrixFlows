@@ -239,32 +239,63 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  {isEditMode ? 'Assigned to boards' : 'Select boards to assign'}
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Assign to Boards
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {boards.map((board) => (
-                    <button
-                      key={board.boardId || board._id}
-                      onClick={() => {
-                        const boardId = board.boardId || board._id;
-                        setSelectedBoards(prev =>
-                          prev.includes(boardId)
-                            ? prev.filter(id => id !== boardId)
-                            : [...prev, boardId]
-                        );
-                      }}
-                      className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                        selectedBoards.includes(board.boardId || board._id)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {board.name}
-                    </button>
-                  ))}
+                <div className="space-y-2">
+                  {boards.filter(b => b.isActive).map((board) => {
+                    const boardId = board.boardId || board._id;
+                    const isSelected = selectedBoards.includes(boardId);
+                    const isAssignedToOther = board.defaultWorkflowId && board.defaultWorkflowId !== initialWorkflow?.workflowId;
+                    const canSelect = !isAssignedToOther;
+                    
+                    return (
+                      <label
+                        key={boardId}
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                          isSelected ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200'
+                        } ${canSelect ? 'cursor-pointer hover:shadow-md' : 'opacity-60 cursor-not-allowed'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (!canSelect) return;
+                            const boardId = board.boardId || board._id;
+                            setSelectedBoards(prev =>
+                              e.target.checked
+                                ? [...prev, boardId]
+                                : prev.filter(id => id !== boardId)
+                            );
+                          }}
+                          disabled={!canSelect}
+                          className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{board.name}</div>
+                          {isAssignedToOther && (
+                            <div className="text-xs text-orange-600 mt-1">
+                              ⚠️ Already assigned to another workflow
+                            </div>
+                          )}
+                          {isSelected && (
+                            <div className="text-xs text-green-700 mt-1">
+                              ✓ Will be assigned to this workflow
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                  {boards.filter(b => b.isActive).length === 0 && (
+                    <div className="text-sm text-gray-500 italic p-3 bg-gray-50 rounded">
+                      No active boards available
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Workflow will run on selected boards</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 Multiple boards can use the same workflow - they'll update simultaneously
+                </p>
               </div>
             </div>
           </div>

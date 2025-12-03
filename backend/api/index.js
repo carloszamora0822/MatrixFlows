@@ -86,6 +86,9 @@ app.use('/api/custom-screens', require('./custom-screens/index'));
 // Cron routes (for scheduled updates)
 app.use('/api/cron/update', require('./cron/update'));
 
+// Dashboard routes
+app.use('/api/dashboard', require('./dashboard/index'));
+
 // Root endpoint
 app.get('/api', (req, res) => {
   res.json({

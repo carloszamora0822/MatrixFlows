@@ -19,27 +19,50 @@ class SchedulerService {
       // This unblocks workflows once pin time period ends
       await pinScreenService.cleanupExpiredPinnedWorkflows();
       
-      const boards = await workflowService.getAllBoards();
+      const allBoards = await workflowService.getAllBoards();
+      
+      // FILTER: Only process ACTIVE boards
+      const boards = allBoards.filter(board => board.isActive === true);
       
       if (boards.length === 0) {
         console.log('⚠️  No active boards found');
+        if (allBoards.length > 0) {
+          console.log(`ℹ️  ${allBoards.length} inactive board(s) skipped`);
+        }
         return { success: true, boardsProcessed: 0 };
       }
 
-      console.log(`📋 Found ${boards.length} active board(s)`);
+      console.log(`📋 Found ${boards.length} active board(s) (${allBoards.length - boards.length} inactive)`);
+      
+      // GROUP BOARDS BY WORKFLOW - workflows run once, post to all boards
+      const workflowGroups = {};
+      for (const board of boards) {
+        if (board.defaultWorkflowId) {
+          if (!workflowGroups[board.defaultWorkflowId]) {
+            workflowGroups[board.defaultWorkflowId] = [];
+          }
+          workflowGroups[board.defaultWorkflowId].push(board);
+        }
+      }
+
+      console.log(`🎯 Found ${Object.keys(workflowGroups).length} unique workflow(s) across ${boards.length} board(s)`);
       
       const results = [];
-      for (const board of boards) {
+      
+      // Process each workflow once, posting to all its boards
+      for (const [workflowId, workflowBoards] of Object.entries(workflowGroups)) {
         try {
-          // Check if it's time to run the workflow based on interval
-          const result = await this.checkAndRunWorkflow(board);
-          results.push(result);
+          console.log(`\n📺 Processing workflow ${workflowId} → ${workflowBoards.length} board(s)`);
+          const result = await this.checkAndRunWorkflowForBoards(workflowBoards);
+          results.push(...result);
         } catch (error) {
-          console.error(`❌ Error processing board ${board.boardId}:`, error);
-          results.push({
-            boardId: board.boardId,
-            success: false,
-            error: error.message
+          console.error(`❌ Error processing workflow ${workflowId}:`, error);
+          workflowBoards.forEach(board => {
+            results.push({
+              boardId: board.boardId,
+              success: false,
+              error: error.message
+            });
           });
         }
       }
@@ -60,6 +83,135 @@ class SchedulerService {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  /**
+   * Check if it's time to run workflow for multiple boards and run once for all
+   * @param {Array} boards - Array of Vestaboard documents with same workflow
+   */
+  async checkAndRunWorkflowForBoards(boards) {
+    if (!boards || boards.length === 0) return [];
+    
+    // Use first board to check workflow timing (all boards share same workflow)
+    const primaryBoard = boards[0];
+    console.log(`\n🎯 Checking workflow for ${boards.length} board(s): ${boards.map(b => b.name).join(', ')}`);
+
+    try {
+      // Get active workflow based on schedule (using primary board)
+      const workflow = await workflowService.getActiveWorkflow(primaryBoard);
+      
+      if (!workflow) {
+        console.log('⚠️  Workflow not scheduled to run at this time');
+        return boards.map(board => ({
+          boardId: board.boardId,
+          success: true,
+          skipped: true,
+          reason: 'Workflow not active at this time'
+        }));
+      }
+
+      // Check interval timing using primary board's state
+      let primaryBoardState = await BoardState.findOne({
+        orgId: ORG_CONFIG.ID,
+        boardId: primaryBoard.boardId
+      });
+
+      if (!primaryBoardState) {
+        primaryBoardState = new BoardState({
+          orgId: ORG_CONFIG.ID,
+          boardId: primaryBoard.boardId,
+          currentStepIndex: 0
+        });
+        await primaryBoardState.save();
+      }
+
+      const shouldRun = intervalScheduler.shouldUpdateNow(
+        workflow,
+        primaryBoardState.lastUpdateAt
+      );
+
+      if (!shouldRun) {
+        console.log('⏳ Not time to run yet (interval not reached)');
+        return boards.map(board => ({
+          boardId: board.boardId,
+          success: true,
+          skipped: true,
+          reason: 'Interval not reached'
+        }));
+      }
+
+      console.log(`✅ Interval trigger activated - running workflow for ALL ${boards.length} board(s)!`);
+
+      // Run the workflow ONCE and get the screens
+      const screens = await this.runCompleteWorkflowGetScreens(primaryBoard.boardId, workflow);
+      
+      if (!screens || screens.length === 0) {
+        console.log('⚠️  No screens generated from workflow');
+        return boards.map(board => ({
+          boardId: board.boardId,
+          success: false,
+          error: 'No screens generated'
+        }));
+      }
+
+      // Post the SAME screens to ALL boards simultaneously
+      const results = await Promise.all(boards.map(async (board) => {
+        try {
+          console.log(`📤 Posting to board: ${board.name}`);
+          
+          // Get or create board state
+          let boardState = await BoardState.findOne({
+            orgId: ORG_CONFIG.ID,
+            boardId: board.boardId
+          });
+
+          if (!boardState) {
+            boardState = new BoardState({
+              orgId: ORG_CONFIG.ID,
+              boardId: board.boardId,
+              currentStepIndex: 0
+            });
+          }
+
+          // Post all screens to this board
+          for (const screen of screens) {
+            await vestaboardClient.postMessage(board.vestaboardWriteKey, screen.matrix);
+            await new Promise(resolve => setTimeout(resolve, screen.displaySeconds * 1000));
+          }
+
+          // Update board state
+          boardState.lastMatrix = screens[screens.length - 1].matrix;
+          boardState.lastUpdateAt = new Date();
+          boardState.lastUpdateSuccess = true;
+          boardState.currentWorkflowId = workflow.workflowId;
+          boardState.cycleCount = (boardState.cycleCount || 0) + 1;
+          await boardState.save();
+
+          return {
+            boardId: board.boardId,
+            success: true,
+            screensDisplayed: screens.length
+          };
+        } catch (error) {
+          console.error(`❌ Error posting to board ${board.name}:`, error);
+          return {
+            boardId: board.boardId,
+            success: false,
+            error: error.message
+          };
+        }
+      }));
+
+      return results;
+
+    } catch (error) {
+      console.error(`❌ Error in checkAndRunWorkflowForBoards:`, error);
+      return boards.map(board => ({
+        boardId: board.boardId,
+        success: false,
+        error: error.message
+      }));
     }
   }
 
@@ -294,6 +446,53 @@ class SchedulerService {
   }
 
   /**
+   * Run complete workflow and return screens (without posting)
+   * Used for synchronous multi-board updates
+   * @param {string} boardId
+   * @param {object} workflow
+   */
+  async runCompleteWorkflowGetScreens(boardId, workflow) {
+    console.log(`\n🎬 Generating screens for workflow: ${workflow.name}`);
+    
+    const screens = [];
+    const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
+    
+    if (enabledSteps.length === 0) {
+      console.log('⚠️  No enabled steps in workflow');
+      return [];
+    }
+
+    console.log(`📋 Workflow has ${enabledSteps.length} enabled step(s)`);
+
+    for (let i = 0; i < enabledSteps.length; i++) {
+      const step = enabledSteps[i];
+      console.log(`\n📺 Step ${i + 1}/${enabledSteps.length}: ${step.screenType}`);
+      
+      try {
+        const matrix = await screenEngine.render(step.screenType, step.screenConfig);
+        
+        if (!matrix) {
+          console.log(`⚠️  Step ${i + 1} returned null - skipping`);
+          continue;
+        }
+
+        screens.push({
+          matrix,
+          displaySeconds: step.displaySeconds || 300,
+          screenType: step.screenType
+        });
+        
+        console.log(`✅ Screen ${i + 1} generated successfully`);
+      } catch (error) {
+        console.error(`❌ Error rendering step ${i + 1}:`, error);
+      }
+    }
+
+    console.log(`✅ Generated ${screens.length} screen(s) from workflow`);
+    return screens;
+  }
+
+  /**
    * Run through entire workflow - all steps in sequence
    * Each step displays for its configured displaySeconds
    * @param {string} boardId
@@ -330,6 +529,7 @@ class SchedulerService {
     console.log(`📋 Running through ${enabledSteps.length} steps...`);
 
     // Run through each step
+    let stepsDisplayed = 0;
     for (let i = 0; i < enabledSteps.length; i++) {
       const step = enabledSteps[i];
       console.log(`\n📺 Step ${i + 1}/${enabledSteps.length}: ${step.screenType}`);
@@ -337,6 +537,12 @@ class SchedulerService {
 
       // Render the screen
       const matrix = await screenEngine.render(step.screenType, step.screenConfig);
+
+      // Skip if no data (null returned)
+      if (!matrix) {
+        console.log(`⏭️  Skipping step - no data available for ${step.screenType}`);
+        continue;
+      }
 
       // Get API key
       const apiKey = board.vestaboardWriteKey || process.env.VESTABOARD_API_KEY;
@@ -348,6 +554,7 @@ class SchedulerService {
       console.log(`📤 Posting to Vestaboard...`);
       await vestaboardClient.postMessage(apiKey, matrix);
       console.log(`✅ Posted step ${i + 1}`);
+      stepsDisplayed++;
 
       // Wait for displaySeconds before next step (except last step)
       if (i < enabledSteps.length - 1) {
@@ -357,13 +564,19 @@ class SchedulerService {
       }
     }
 
-    console.log(`\n🎉 Complete workflow finished! All ${enabledSteps.length} steps displayed.`);
+    console.log(`\n🎉 Complete workflow finished! ${stepsDisplayed}/${enabledSteps.length} steps displayed.`);
+    
+    if (stepsDisplayed === 0) {
+      console.warn('⚠️ WARNING: No screens were displayed - all screens had missing data!');
+    }
     
     return {
       boardId: board.boardId,
       success: true,
-      stepsRun: enabledSteps.length,
-      message: 'Complete workflow executed'
+      stepsRun: stepsDisplayed,
+      totalSteps: enabledSteps.length,
+      skippedSteps: enabledSteps.length - stepsDisplayed,
+      message: `Workflow executed: ${stepsDisplayed}/${enabledSteps.length} screens displayed`
     };
   }
 

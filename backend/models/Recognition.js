@@ -34,6 +34,14 @@ const recognitionSchema = new mongoose.Schema({
     type: String,
     match: /^(0[1-9]|1[0-2])\/\d{4}$/
   },
+  borderColor1: {
+    type: String,
+    default: 'yellow'
+  },
+  borderColor2: {
+    type: String,
+    default: 'orange'
+  },
   createdBy: {
     type: String,
     ref: 'User'

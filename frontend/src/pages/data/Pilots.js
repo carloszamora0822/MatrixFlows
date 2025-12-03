@@ -10,12 +10,20 @@ const Pilots = () => {
   const [formData, setFormData] = useState({ name: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   
   const { matrix, generatePreview } = useScreenPreview();
 
   useEffect(() => {
     fetchPilots();
+    generatePreview('NEWEST_PILOT');
   }, []);
+
+  useEffect(() => {
+    if (formData.name) {
+      generatePreview('NEWEST_PILOT');
+    }
+  }, [formData]);
 
   const fetchPilots = async () => {
     try {
@@ -35,8 +43,10 @@ const Pilots = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/pilots', {
-        method: 'POST',
+      const url = editingId ? `/api/pilots?id=${editingId}` : '/api/pilots';
+      const method = editingId ? 'PUT' : 'POST';
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(formData),
@@ -51,7 +61,8 @@ const Pilots = () => {
       }
 
       setFormData({ name: '' });
-      fetchPilots();
+      setEditingId(null);
+      await fetchPilots();
       generatePreview('NEWEST_PILOT');
     } catch (error) {
       setErrors({ general: 'Network error occurred' });
@@ -73,6 +84,18 @@ const Pilots = () => {
     } catch (error) {
       console.error('Failed to set current:', error);
     }
+  };
+
+  const handleEdit = (pilot) => {
+    setFormData({ name: pilot.name });
+    setEditingId(pilot._id);
+    generatePreview('NEWEST_PILOT');
+  };
+
+  const handleCancelEdit = () => {
+    setFormData({ name: '' });
+    setEditingId(null);
+    setErrors({});
   };
 
   const handleDelete = async (id) => {
@@ -111,7 +134,7 @@ const Pilots = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Form */}
             <div className="card">
-              <h3 className="text-lg font-semibold mb-4">Add Pilot</h3>
+              <h3 className="text-lg font-semibold mb-4">{editingId ? '✏️ Edit Pilot' : '➕ Add Pilot'}</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <input
@@ -123,9 +146,16 @@ const Pilots = () => {
                   />
                   {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                 </div>
-                <button type="submit" disabled={loading} className="btn-primary w-full">
-                  {loading ? 'Adding...' : 'Add Pilot'}
-                </button>
+                <div className="flex gap-2">
+                  <button type="submit" disabled={loading} className="btn-primary flex-1">
+                    {loading ? 'Saving...' : (editingId ? 'Update' : 'Add')}
+                  </button>
+                  {editingId && (
+                    <button type="button" onClick={handleCancelEdit} className="btn-secondary">
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
               <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-800">
@@ -142,7 +172,7 @@ const Pilots = () => {
               ) : (
                 <div className="space-y-2">
                   {pilots.map((p) => (
-                    <div key={p.id} className={`p-3 rounded ${p.isCurrent ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                    <div key={p._id} className={`p-3 rounded ${editingId === p._id ? 'bg-blue-100 border-2 border-blue-500' : p.isCurrent ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="font-medium">{p.name}</p>
@@ -152,13 +182,18 @@ const Pilots = () => {
                             </span>
                           )}
                         </div>
-                        <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:text-red-800 text-sm">
-                          Delete
-                        </button>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEdit(p)} className="text-blue-600 hover:text-blue-800 text-sm font-semibold">
+                            ✏️ Edit
+                          </button>
+                          <button onClick={() => handleDelete(p._id)} className="text-red-600 hover:text-red-800 text-sm font-semibold">
+                            🗑️ Delete
+                          </button>
+                        </div>
                       </div>
                       {!p.isCurrent && (
                         <button
-                          onClick={() => handleSetCurrent(p.id)}
+                          onClick={() => handleSetCurrent(p._id)}
                           className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                         >
                           Set as Current

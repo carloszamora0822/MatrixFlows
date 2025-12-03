@@ -10,13 +10,14 @@ const { ORG_CONFIG } = require('../../shared/constants');
 
 class DataService {
   /**
-   * Get latest birthday for display
+   * Get current birthday for display
    */
   async getLatestBirthday() {
     try {
       const birthday = await Birthday.findOne({ 
-        orgId: ORG_CONFIG.ID 
-      }).sort({ createdAt: -1 });
+        orgId: ORG_CONFIG.ID,
+        isCurrent: true
+      });
       
       return birthday || null;
     } catch (error) {

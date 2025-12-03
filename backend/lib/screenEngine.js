@@ -135,24 +135,42 @@ class ScreenEngine {
 
   /**
    * Render Birthday screen
+   * Prioritizes today's birthdays, falls back to current birthday
    */
   async renderBirthday(config) {
     const template = templates.birthday;
     const matrix = JSON.parse(JSON.stringify(template));
     
-    // Get birthday data
-    const birthday = await dataService.getLatestBirthday();
+    // Check if there's a birthday TODAY
+    const today = new Date();
+    const todayStr = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+    
+    const Birthday = require('../models/Birthday');
+    const { ORG_CONFIG } = require('../../shared/constants');
+    
+    // First, try to find today's birthday
+    let birthday = await Birthday.findOne({
+      orgId: ORG_CONFIG.ID,
+      date: todayStr
+    });
+    
+    // If no birthday today, use the current birthday
     if (!birthday) {
-      return this.renderErrorScreen('No birthday data found');
+      birthday = await dataService.getLatestBirthday();
+    }
+    
+    if (!birthday) {
+      console.warn('⚠️ BIRTHDAY screen has no data assigned. Please set a current birthday.');
+      return null; // Skip this screen in workflow
     }
 
     // Apply placeholders with proper text alignment
-    const row1Text = this.centerText('VBT WISHES', 1, 20);
+    const row1Text = this.centerText('OZ1 WISHES', 1, 20);
     const row2Text = this.centerText(birthday.firstName.toUpperCase(), 1, 20);
     const row3Text = this.centerText('A HAPPY BIRTHDAY!', 1, 20);
     const row4Text = this.centerText(birthday.date, 1, 20);
 
-    // Insert into matrix (preserving red border)
+    // Insert into matrix (preserving colorful border)
     for (let i = 0; i < row1Text.length; i++) matrix[1][i + 1] = row1Text[i];
     for (let i = 0; i < row2Text.length; i++) matrix[2][i + 1] = row2Text[i];
     for (let i = 0; i < row3Text.length; i++) matrix[3][i + 1] = row3Text[i];
@@ -162,49 +180,76 @@ class ScreenEngine {
   }
 
   /**
-   * Render Checkrides screen - shows upcoming checkrides one per row
-   * Format: Date Time Description (fits in 20 cells)
+   * Render Checkrides screen - shows TODAY's checkrides only
+   * Format: [####] [CALLSIGN] [TYPE]
    */
   async renderCheckrides(config) {
     const matrix = new Array(6).fill(null).map(() => new Array(22).fill(0));
     
-    // Get checkride data
-    const checkrides = await dataService.getUpcomingCheckrides();
-    if (!checkrides || checkrides.length === 0) {
-      return this.renderErrorScreen('No checkride data found');
+    // Get checkride data (sorted chronologically)
+    const allCheckrides = await dataService.getUpcomingCheckrides();
+    if (!allCheckrides || allCheckrides.length === 0) {
+      console.warn('⚠️ CHECKRIDES screen has no data assigned. Please add checkrides.');
+      return null; // Skip this screen in workflow
     }
 
-    // Row 0: Header with colored borders
+    // Filter to only show TODAY's checkrides
+    const today = new Date();
+    const todayStr = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+    const todaysCheckrides = allCheckrides.filter(c => c.date === todayStr);
+    
+    if (todaysCheckrides.length === 0) {
+      console.warn('⚠️ CHECKRIDES screen has no checkrides for today.');
+      return null; // Skip this screen in workflow
+    }
+
+    // Get custom border color
+    const colorMap = {
+      red: 63, orange: 64, yellow: 65, green: 66,
+      blue: 67, purple: 68, white: 69
+    };
+    const borderColor = colorMap[config.borderColor1] || 63; // Default red
+
+    // Row 0: Header "CHECKRIDES" - horizontal colored border, centered
     const headerText = 'CHECKRIDES';
     const headerCodes = this.textToCodes(headerText);
     const headerStart = Math.floor((22 - headerCodes.length) / 2);
-    matrix[0][0] = 63; // Red border
-    matrix[0][21] = 63;
-    for (let i = 0; i < headerCodes.length && (headerStart + i) < 21; i++) {
+    
+    // Fill entire top row with colored border
+    for (let i = 0; i < 22; i++) {
+      matrix[0][i] = borderColor;
+    }
+    // Overlay centered text
+    for (let i = 0; i < headerCodes.length && (headerStart + i) < 22; i++) {
       matrix[0][headerStart + i] = headerCodes[i];
     }
 
-    // Rows 1-5: Display up to 5 checkrides (one per row)
-    const maxCheckrides = Math.min(checkrides.length, 5);
+    // Rows 1-5: Display up to 5 of today's checkrides
+    // Format: [####] [NAME  ] [TYPE] [CALLSIGN]
+    const maxCheckrides = Math.min(todaysCheckrides.length, 5);
     for (let row = 0; row < maxCheckrides; row++) {
-      const checkride = checkrides[row];
+      const checkride = todaysCheckrides[row];
       
-      // Format: "MM/DD HH:MM CALLSIGN TYPE" (fit in 20 cells with borders)
-      const dateStr = checkride.date.substring(5); // Get MM/DD
-      const timeStr = checkride.time;
-      const callsign = checkride.callsign.substring(0, 6); // Limit callsign
-      const type = checkride.type.substring(0, 4); // Limit type
+      // Parse time to get just number (e.g., "14:30" -> "1430")
+      const timeNum = checkride.time.replace(':', '').padStart(4, ' ');
       
-      // Build line text (max 20 chars to fit between borders)
-      const lineText = `${dateStr} ${timeStr} ${callsign} ${type}`.substring(0, 20);
+      // Format name (6 chars max, padded for consistent spacing)
+      const name = checkride.name.substring(0, 6).padEnd(6, ' ');
+      
+      // Format type (3 chars: IFR, PPL, etc)
+      const type = checkride.type.substring(0, 3).padEnd(3, ' ');
+      
+      // Format callsign (6 chars max)
+      const callsign = checkride.callsign.substring(0, 6).padEnd(6, ' ');
+      
+      // Build line: "1430 JOHN   PPL N123AB"
+      const lineText = `${timeNum} ${name} ${type} ${callsign}`;
       const lineCodes = this.textToCodes(lineText);
       
-      // Add colored borders and text
-      matrix[row + 1][0] = 63; // Red border left
-      for (let col = 0; col < lineCodes.length && col < 20; col++) {
-        matrix[row + 1][col + 1] = lineCodes[col];
+      // No vertical borders - just text
+      for (let col = 0; col < lineCodes.length && col < 22; col++) {
+        matrix[row + 1][col] = lineCodes[col];
       }
-      matrix[row + 1][21] = 63; // Red border right
     }
 
     return matrix;
@@ -212,47 +257,59 @@ class ScreenEngine {
 
   /**
    * Render Upcoming Events screen - shows upcoming events one per row
-   * Format: Date Time Description (fits in 20 cells)
+   * Format: MM/DD [space] [16 char description]
    */
   async renderUpcomingEvents(config) {
     const matrix = new Array(6).fill(null).map(() => new Array(22).fill(0));
     
-    // Get event data
+    // Get event data (sorted chronologically, limit to 5)
     const events = await dataService.getUpcomingEvents();
     if (!events || events.length === 0) {
-      return this.renderErrorScreen('No event data found');
+      console.warn('⚠️ UPCOMING_EVENTS screen has no data assigned. Please add events.');
+      return null; // Skip this screen in workflow
     }
 
-    // Row 0: Header with colored borders
+    // Get custom border color
+    const colorMap = {
+      red: 63, orange: 64, yellow: 65, green: 66,
+      blue: 67, purple: 68, white: 69
+    };
+    const borderColor = colorMap[config.borderColor1] || 66; // Default green
+
+    // Row 0: Header "UPCOMING EVENTS" - horizontal colored border, centered
     const headerText = 'UPCOMING EVENTS';
     const headerCodes = this.textToCodes(headerText);
     const headerStart = Math.floor((22 - headerCodes.length) / 2);
-    matrix[0][0] = 66; // Green border
-    matrix[0][21] = 66;
-    for (let i = 0; i < headerCodes.length && (headerStart + i) < 21; i++) {
+    
+    // Fill entire top row with colored border
+    for (let i = 0; i < 22; i++) {
+      matrix[0][i] = borderColor;
+    }
+    // Overlay centered text
+    for (let i = 0; i < headerCodes.length && (headerStart + i) < 22; i++) {
       matrix[0][headerStart + i] = headerCodes[i];
     }
 
-    // Rows 1-5: Display up to 5 events (one per row)
+    // Rows 1-5: Display up to 5 events
+    // Format: "MM/DD DESCRIPTION TEXT"
     const maxEvents = Math.min(events.length, 5);
     for (let row = 0; row < maxEvents; row++) {
       const event = events[row];
       
-      // Format: "MM/DD HH:MM DESCRIPTION" (fit in 20 cells with borders)
-      const dateStr = event.date.substring(5); // Get MM/DD
-      const timeStr = event.time;
-      const desc = event.description.substring(0, 10); // Limit description
+      // Format date as MM/DD (5 chars)
+      const dateStr = event.date; // Already in MM/DD format
       
-      // Build line text (max 20 chars to fit between borders)
-      const lineText = `${dateStr} ${timeStr} ${desc}`.substring(0, 20);
+      // Format description (16 chars max to fit: 5 for date + 1 space + 16 desc = 22 total)
+      const desc = event.description.substring(0, 16).padEnd(16, ' ');
+      
+      // Build line: "MM/DD DESCRIPTION..."
+      const lineText = `${dateStr} ${desc}`;
       const lineCodes = this.textToCodes(lineText);
       
-      // Add colored borders and text
-      matrix[row + 1][0] = 66; // Green border left
-      for (let col = 0; col < lineCodes.length && col < 20; col++) {
-        matrix[row + 1][col + 1] = lineCodes[col];
+      // No vertical borders - just text
+      for (let col = 0; col < lineCodes.length && col < 22; col++) {
+        matrix[row + 1][col] = lineCodes[col];
       }
-      matrix[row + 1][21] = 66; // Green border right
     }
 
     return matrix;
@@ -268,7 +325,8 @@ class ScreenEngine {
     // Get newest pilot data
     const pilot = await dataService.getNewestPilot();
     if (!pilot) {
-      return this.renderErrorScreen('No newest pilot data found');
+      console.warn('⚠️ NEWEST_PILOT screen has no data assigned. Please set a current pilot.');
+      return null; // Skip this screen in workflow
     }
 
     const row1Text = this.centerText('CONGRATULATIONS', 4, 17);
@@ -293,7 +351,27 @@ class ScreenEngine {
     // Get recognition data
     const recognition = await dataService.getCurrentRecognition();
     if (!recognition) {
-      return this.renderErrorScreen('No recognition data found');
+      console.warn('⚠️ EMPLOYEE_RECOGNITION screen has no data assigned. Please set a current recognition.');
+      return null; // Skip this screen in workflow
+    }
+
+    // Get custom border colors from config OR from the recognition itself
+    const colorMap = {
+      red: 63, orange: 64, yellow: 65, green: 66,
+      blue: 67, purple: 68, white: 69
+    };
+    const color1 = colorMap[config.borderColor1 || recognition.borderColor1] || 65; // Default yellow
+    const color2 = colorMap[config.borderColor2 || recognition.borderColor2] || 64; // Default orange
+
+    // Apply alternating colored border
+    for (let col = 0; col < 22; col++) {
+      matrix[0][col] = col % 2 === 0 ? color1 : color2;
+      matrix[5][col] = col % 2 === 0 ? color1 : color2;
+    }
+    
+    for (let row = 1; row < 5; row++) {
+      matrix[row][0] = row % 2 === 0 ? color1 : color2;
+      matrix[row][21] = row % 2 === 0 ? color1 : color2;
     }
 
     const fullName = `${recognition.firstName} ${recognition.lastName}`.toUpperCase();
@@ -563,23 +641,28 @@ class ScreenEngine {
         matrix[row][21] = row % 2 === 0 ? color1 : color2;
       }
       
-      // Word wrap text into available space (18 chars wide, 4 rows)
+      // Support manual line breaks with backslash
+      // Split by backslash first, then word wrap each segment
       const availableWidth = 18;
-      const words = message.split(' ');
+      const segments = message.split('\\');
       const lines = [];
-      let currentLine = '';
       
-      for (const word of words) {
-        const testLine = currentLine ? `${currentLine} ${word}` : word;
-        if (testLine.length <= availableWidth) {
-          currentLine = testLine;
-        } else {
-          if (currentLine) lines.push(currentLine);
-          // If word is too long, don't break it, just use what fits
-          currentLine = word;
+      for (const segment of segments) {
+        const words = segment.trim().split(' ');
+        let currentLine = '';
+        
+        for (const word of words) {
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          if (testLine.length <= availableWidth) {
+            currentLine = testLine;
+          } else {
+            if (currentLine) lines.push(currentLine);
+            // If word is too long, don't break it, just use what fits
+            currentLine = word;
+          }
         }
+        if (currentLine) lines.push(currentLine);
       }
-      if (currentLine) lines.push(currentLine);
       
       // Center vertically and horizontally
       const displayLines = lines.slice(0, 4);

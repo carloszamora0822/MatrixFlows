@@ -33,6 +33,28 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Check if board is active
+    const Vestaboard = require('../../models/Vestaboard');
+    const board = await Vestaboard.findOne({ boardId });
+    
+    if (!board) {
+      return res.status(404).json({
+        error: {
+          code: ERROR_CODES.NOT_FOUND,
+          message: 'Board not found'
+        }
+      });
+    }
+    
+    if (!board.isActive) {
+      return res.status(400).json({
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'Board is inactive. Activate the board before triggering updates.'
+        }
+      });
+    }
+
     console.log(`🎯 Manual trigger requested for board ${boardId} - Running complete workflow`);
     
     const result = await schedulerService.triggerBoardUpdate(boardId);

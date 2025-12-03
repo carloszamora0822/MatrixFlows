@@ -19,6 +19,12 @@ const checkrideSchema = new mongoose.Schema({
     required: true,
     match: /^([01][0-9]|2[0-3]):[0-5][0-9]$/
   },
+  name: {
+    type: String,
+    required: true,
+    maxlength: 20,
+    trim: true
+  },
   callsign: {
     type: String,
     required: true,
@@ -32,17 +38,14 @@ const checkrideSchema = new mongoose.Schema({
     enum: ['PPL', 'IFR', 'COMMERCIAL', 'CFI', 'CFII', 'MEI'],
     uppercase: true
   },
-  destination: {
-    type: String,
-    required: true,
-    maxlength: 10,
-    trim: true,
-    uppercase: true
-  },
   date: {
     type: String,
     required: true,
     match: /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])$/
+  },
+  borderColor1: {
+    type: String,
+    default: 'red'
   },
   createdBy: {
     type: String,

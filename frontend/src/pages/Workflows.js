@@ -248,13 +248,46 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this workflow?')) return;
+  const handleDelete = async (workflowId) => {
+    if (!window.confirm('Delete this workflow? This cannot be undone.')) return;
+    
     try {
-      const res = await fetch(`/api/workflows?id=${id}`, { method: 'DELETE', credentials: 'include' });
-      if (res.ok) fetchData();
+      const res = await fetch(`/api/workflows?id=${workflowId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (res.ok) {
+        await fetchData();
+      }
     } catch (error) {
-      console.error('Failed to delete:', error);
+      console.error('Failed to delete workflow:', error);
+    }
+  };
+
+  const handleToggleActive = async (workflow) => {
+    try {
+      const res = await fetch(`/api/workflows?id=${workflow.workflowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: workflow.name,
+          schedule: workflow.schedule,
+          steps: workflow.steps,
+          isActive: !workflow.isActive
+        })
+      });
+      
+      if (res.ok) {
+        await fetchData();
+      } else {
+        const data = await res.json();
+        alert(`Failed to toggle workflow: ${data.error?.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to toggle workflow:', error);
+      alert('Failed to update workflow status');
     }
   };
 
@@ -284,7 +317,10 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
         screenType: 'CUSTOM_MESSAGE',
         screenConfig: {
           customScreenId: screen.screenId, // ✅ Reference to library (source of truth)
-          name: screen.name // Store name for display in workflow editor
+          name: screen.name, // Store name for display in workflow editor
+          hasExpiration: false, // Can override screen library expiration
+          expiresAt: null, // Workflow-specific expiration
+          expiresAtTime: null
         },
         displaySeconds: 20,
         displayValue: 20,
@@ -446,9 +482,42 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                 placeholder="e.g., Morning Rotation, Weekend Display" 
                 required 
               />
-              <p className="text-sm text-gray-600 mt-2">
-                💡 Assign this workflow to one or more boards in the Boards tab
-              </p>
+            </div>
+
+            {/* Board Assignment - Read Only */}
+            <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-5">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-bold text-gray-700">📺 Assigned to Boards</label>
+                {editingId && (
+                  <span className="text-xs text-gray-600">
+                    {boards.filter(b => b.isActive && b.defaultWorkflowId === editingId).length} board(s)
+                  </span>
+                )}
+              </div>
+              
+              {editingId ? (
+                <>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {boards.filter(b => b.isActive && b.defaultWorkflowId === editingId).map(board => (
+                      <span key={board.boardId} className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700">
+                        📺 {board.name}
+                      </span>
+                    ))}
+                    {boards.filter(b => b.isActive && b.defaultWorkflowId === editingId).length === 0 && (
+                      <span className="text-sm text-gray-500 italic">No boards assigned</span>
+                    )}
+                  </div>
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-gray-700">
+                      💡 To assign or unassign boards, go to the <a href="/boards" className="text-blue-600 hover:underline font-semibold">Boards page</a>
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <p className="text-sm text-orange-800 font-medium">💡 Save the workflow first, then assign boards in the Boards page</p>
+                </div>
+              )}
             </div>
 
             <div>
@@ -649,8 +718,8 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
             let scheduleStr = '24/7';
             let isActive = false;
             
-            // Check if workflow is assigned to any board
-            const isAssignedToBoard = boards.some(board => board.defaultWorkflowId === workflow.workflowId);
+            // Check if workflow is assigned to any ACTIVE board
+            const isAssignedToBoard = boards.some(board => board.isActive && board.defaultWorkflowId === workflow.workflowId);
             
             // Check if this is a pinned workflow
             const isPinnedWorkflow = workflow.name?.startsWith('Pinned -');
@@ -662,11 +731,32 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
               w.isActive
             );
             
-            if (schedule.type === 'dailyWindow') {
-              const days = schedule.daysOfWeek?.length === 7 ? 'Daily' : 
-                           schedule.daysOfWeek?.length === 5 && schedule.daysOfWeek.includes(1) ? 'Weekdays' :
-                           `${schedule.daysOfWeek?.length || 0} days`;
-              scheduleStr = `${days} ${schedule.startTimeLocal || '00:00'} - ${schedule.endTimeLocal || '23:59'}`;
+            if (schedule.type === 'dailyWindow' || schedule.type === 'timeWindow') {
+              // Check if it's truly 24/7 (all 7 days, 00:00-23:59)
+              const isAll7Days = schedule.daysOfWeek?.length === 7;
+              const isFullDay = (schedule.startTimeLocal === '00:00' || !schedule.startTimeLocal) && 
+                               (schedule.endTimeLocal === '23:59' || !schedule.endTimeLocal);
+              
+              if (isAll7Days && isFullDay) {
+                scheduleStr = '24/7';
+              } else {
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                let daysStr = '';
+                
+                if (schedule.daysOfWeek?.length === 7) {
+                  daysStr = 'Daily';
+                } else if (schedule.daysOfWeek?.length === 5 && schedule.daysOfWeek.includes(1) && schedule.daysOfWeek.includes(5)) {
+                  daysStr = 'Weekdays';
+                } else if (schedule.daysOfWeek?.length === 2 && schedule.daysOfWeek.includes(0) && schedule.daysOfWeek.includes(6)) {
+                  daysStr = 'Weekends';
+                } else if (schedule.daysOfWeek?.length) {
+                  daysStr = schedule.daysOfWeek.map(d => dayNames[d]).join(', ');
+                } else {
+                  daysStr = 'No days';
+                }
+                
+                scheduleStr = `${daysStr} ${schedule.startTimeLocal || '00:00'}-${schedule.endTimeLocal || '23:59'}`;
+              }
               
               // Check if current time falls within schedule
               const now = new Date();
@@ -677,8 +767,8 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
               const isTimeActive = currentTime >= (schedule.startTimeLocal || '00:00') && 
                                    currentTime <= (schedule.endTimeLocal || '23:59');
               
-              // Regular workflows are active if schedule matches AND no pin is blocking AND assigned to a board
-              isActive = !isPinnedWorkflow && isDayActive && isTimeActive && !hasActivePinnedWorkflow && isAssignedToBoard;
+              // Regular workflows are active if schedule matches AND no pin is blocking AND assigned to a board AND workflow.isActive is true
+              isActive = !isPinnedWorkflow && isDayActive && isTimeActive && !hasActivePinnedWorkflow && isAssignedToBoard && workflow.isActive !== false;
             } else if (schedule.type === 'specificDateRange') {
               const now = new Date();
               const currentDate = now.toISOString().split('T')[0];
@@ -688,12 +778,13 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                         schedule.startDate <= currentDate &&
                         schedule.endDate >= currentDate &&
                         (!schedule.startTimeLocal || currentTime >= schedule.startTimeLocal) &&
-                        (!schedule.endTimeLocal || currentTime <= schedule.endTimeLocal);
+                        (!schedule.endTimeLocal || currentTime <= schedule.endTimeLocal) &&
+                        workflow.isActive !== false;
               
               scheduleStr = `${schedule.startDate} - ${schedule.endDate}`;
             } else {
-              // Always running, but blocked if pinned workflow exists AND must be assigned to a board
-              isActive = !hasActivePinnedWorkflow && isAssignedToBoard;
+              // Always running, but blocked if pinned workflow exists AND must be assigned to a board AND workflow.isActive is true
+              isActive = !hasActivePinnedWorkflow && isAssignedToBoard && workflow.isActive !== false;
             }
             
             return (
@@ -708,10 +799,54 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                 {/* Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h4 className="font-bold text-xl text-gray-900">{workflow.name}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-xl text-gray-900">{workflow.name}</h4>
+                      {workflow.isActive === false && (
+                        <span className="px-2 py-1 bg-gray-200 text-gray-600 text-xs font-semibold rounded">
+                          OFF
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600 mt-1">
                       {enabledSteps.length} steps • ⏱️ Triggers every {workflow.schedule?.updateIntervalMinutes || 30} min • 📅 {scheduleStr}
                     </p>
+                    {(() => {
+                      const assignedBoards = boards.filter(board => board.isActive && board.defaultWorkflowId === workflow.workflowId);
+                      const inactiveBoards = boards.filter(board => !board.isActive && board.defaultWorkflowId === workflow.workflowId);
+                      
+                      if (assignedBoards.length > 0) {
+                        return (
+                          <div className="mt-2">
+                            <div className="text-xs text-gray-600">
+                              📺 {assignedBoards.map(b => b.name).join(', ')}
+                              {inactiveBoards.length > 0 && ` (+${inactiveBoards.length} inactive)`}
+                            </div>
+                          </div>
+                        );
+                      } else if (inactiveBoards.length > 0) {
+                        return (
+                          <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-300">
+                            <p className="text-xs text-gray-600 mb-1">
+                              ⚠️ {inactiveBoards.length} inactive board(s) assigned
+                            </p>
+                            <a href="/boards" className="text-xs text-blue-600 hover:underline font-medium">
+                              → Manage in Boards page
+                            </a>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="mt-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                            <p className="text-xs text-orange-700 font-medium mb-1">
+                              ⚠️ No boards assigned to this workflow
+                            </p>
+                            <a href="/boards" className="text-xs text-blue-600 hover:underline font-medium">
+                              → Go to Boards page to assign workflows
+                            </a>
+                          </div>
+                        );
+                      }
+                    })()}
                     {isActive && (() => {
                       const now = new Date();
                       const interval = (workflow.schedule?.updateIntervalMinutes || 30) * 60 * 1000;
@@ -735,7 +870,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                       <>
                         <button 
                           onClick={async () => {
-                            // Save reordered workflow with updated durations
+                            // Save reordered workflow with updated durations and expiration
                             const reorderedSteps = enabledSteps.map((step, idx) => ({
                               ...step,
                               order: idx,
@@ -743,6 +878,30 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                             }));
                             
                             try {
+                              // First, update any custom screens that have been modified
+                              for (const step of reorderedSteps) {
+                                if (step.screenType === 'CUSTOM_MESSAGE' && step.screenConfig?.customScreenId) {
+                                  // Check if screen content was modified (message, colors, etc.)
+                                  const originalScreen = savedScreens.find(s => s.screenId === step.screenConfig.customScreenId);
+                                  if (originalScreen && step.screenConfig.message && step.screenConfig.message !== originalScreen.message) {
+                                    // Update the custom screen in the library
+                                    await fetch(`/api/custom-screens?id=${step.screenConfig.customScreenId}`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      credentials: 'include',
+                                      body: JSON.stringify({
+                                        name: step.screenConfig.name || originalScreen.name,
+                                        message: step.screenConfig.message,
+                                        borderColor1: step.screenConfig.borderColor1 || originalScreen.borderColor1,
+                                        borderColor2: step.screenConfig.borderColor2 || originalScreen.borderColor2,
+                                        expiresAt: originalScreen.expiresAt
+                                      })
+                                    });
+                                  }
+                                }
+                              }
+                              
+                              // Then save the workflow
                               const res = await fetch(`/api/workflows?id=${workflow.workflowId}`, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
@@ -755,12 +914,13 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                               });
                               
                               if (res.ok) {
-                                alert('✅ Workflow order and timing saved!');
+                                alert('✅ Workflow saved!');
                                 setEditingWorkflowId(null);
                                 setStepDurations({});
-                                fetchData();
+                                await fetchData();
                               }
                             } catch (error) {
+                              console.error('Save error:', error);
                               alert('❌ Failed to save');
                             }
                           }}
@@ -777,6 +937,25 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                       </>
                     ) : (
                       <>
+                        {/* Workflow Active/Inactive Toggle */}
+                        <div className="flex items-center space-x-2">
+                          <span className={`text-sm font-semibold ${workflow.isActive !== false ? 'text-green-600' : 'text-gray-500'}`}>
+                            {workflow.isActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                          <button
+                            onClick={() => handleToggleActive(workflow)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                              workflow.isActive !== false ? 'bg-green-600' : 'bg-gray-300'
+                            }`}
+                            title={workflow.isActive !== false ? 'Click to disable workflow - stops all automatic updates' : 'Click to enable workflow - resumes automatic updates'}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                workflow.isActive !== false ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
                         <button 
                           onClick={() => navigate(`/workflow-editor/${workflow.workflowId}`)} 
                           className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm font-semibold"
@@ -1014,6 +1193,114 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                             );
                           })()}
                         </div>
+
+                        {/* Color Customization - For Checkrides, Events, Recognition */}
+                        {(step.screenType === 'CHECKRIDES' || step.screenType === 'UPCOMING_EVENTS' || step.screenType === 'EMPLOYEE_RECOGNITION') && isEditing && (
+                          <div className="flex justify-center my-3 w-full">
+                            <div className="bg-purple-50 border-2 border-purple-400 px-4 py-3 rounded-lg w-full max-w-md">
+                              <p className="text-sm font-semibold text-gray-700 mb-3">🎨 Border Colors</p>
+                              <div className={`grid ${step.screenType === 'EMPLOYEE_RECOGNITION' ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                                    {step.screenType === 'EMPLOYEE_RECOGNITION' ? 'Color 1' : 'Border Color'}
+                                  </label>
+                                  <select
+                                    value={step.screenConfig?.borderColor1 || (step.screenType === 'CHECKRIDES' ? 'red' : step.screenType === 'UPCOMING_EVENTS' ? 'green' : 'yellow')}
+                                    onChange={(e) => {
+                                      if (!step.screenConfig) step.screenConfig = {};
+                                      step.screenConfig.borderColor1 = e.target.value;
+                                    }}
+                                    className="w-full px-2 py-1 border-2 border-gray-200 rounded text-sm"
+                                  >
+                                    <option value="red">🔴 Red</option>
+                                    <option value="orange">🟠 Orange</option>
+                                    <option value="yellow">🟡 Yellow</option>
+                                    <option value="green">🟢 Green</option>
+                                    <option value="blue">🔵 Blue</option>
+                                    <option value="purple">🟣 Purple</option>
+                                    <option value="white">⚪ White</option>
+                                  </select>
+                                </div>
+                                {step.screenType === 'EMPLOYEE_RECOGNITION' && (
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-600 mb-1">Color 2</label>
+                                    <select
+                                      value={step.screenConfig?.borderColor2 || 'orange'}
+                                      onChange={(e) => {
+                                        if (!step.screenConfig) step.screenConfig = {};
+                                        step.screenConfig.borderColor2 = e.target.value;
+                                      }}
+                                      className="w-full px-2 py-1 border-2 border-gray-200 rounded text-sm"
+                                    >
+                                      <option value="red">🔴 Red</option>
+                                      <option value="orange">🟠 Orange</option>
+                                      <option value="yellow">🟡 Yellow</option>
+                                      <option value="green">🟢 Green</option>
+                                      <option value="blue">🔵 Blue</option>
+                                      <option value="purple">🟣 Purple</option>
+                                      <option value="white">⚪ White</option>
+                                    </select>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Expiration Settings - Only for CUSTOM_MESSAGE screens */}
+                        {step.screenType === 'CUSTOM_MESSAGE' && isEditing && (
+                          <div className="flex justify-center my-3 w-full">
+                            <div className="bg-orange-50 border-2 border-orange-400 px-4 py-3 rounded-lg w-full max-w-md">
+                              <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                <input
+                                  type="checkbox"
+                                  checked={step.screenConfig?.hasExpiration || false}
+                                  onChange={(e) => {
+                                    // Update step config directly
+                                    step.screenConfig = {
+                                      ...step.screenConfig,
+                                      hasExpiration: e.target.checked,
+                                      expiresAt: e.target.checked ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null,
+                                      expiresAtTime: e.target.checked ? '23:59' : null
+                                    };
+                                  }}
+                                  className="w-4 h-4 text-orange-500 border-2 border-gray-300 rounded"
+                                />
+                                <span className="text-sm font-semibold text-gray-700">⏱️ This screen expires?</span>
+                              </label>
+                              {step.screenConfig?.hasExpiration && (
+                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                                    <input
+                                      type="date"
+                                      value={step.screenConfig?.expiresAt || ''}
+                                      onChange={(e) => {
+                                        // Update step config directly
+                                        step.screenConfig.expiresAt = e.target.value;
+                                      }}
+                                      min={new Date().toISOString().split('T')[0]}
+                                      className="w-full px-2 py-1 border-2 border-gray-200 rounded text-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-600 mb-1">Time</label>
+                                    <input
+                                      type="time"
+                                      value={step.screenConfig?.expiresAtTime || ''}
+                                      onChange={(e) => {
+                                        // Update step config directly
+                                        step.screenConfig.expiresAtTime = e.target.value;
+                                      }}
+                                      className="w-full px-2 py-1 border-2 border-gray-200 rounded text-sm"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                              <p className="text-xs text-gray-500 mt-1">Screen will be removed from workflow after this date/time</p>
+                            </div>
+                          </div>
+                        )}
                         
                         {idx < enabledSteps.length - 1 && (
                           <div className="flex justify-center my-2">

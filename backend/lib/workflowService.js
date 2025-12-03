@@ -81,7 +81,7 @@ class WorkflowService {
       return true;
     }
 
-    if (schedule.type === 'dailyWindow') {
+    if (schedule.type === 'dailyWindow' || schedule.type === 'timeWindow') {
       return this.isInDailyWindow(schedule, now);
     }
 

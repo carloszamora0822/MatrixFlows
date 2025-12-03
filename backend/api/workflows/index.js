@@ -74,25 +74,42 @@ const updateWorkflow = async (req, res) => {
   });
 
   const { id } = req.query;
-  const { name, steps, schedule, isDefault } = req.body;
+  const { name, steps, schedule, isDefault, isActive } = req.body;
   
   if (!id) {
     return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Workflow ID required' } });
   }
   
-  if (!name || !steps || steps.length === 0) {
-    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Name and steps required' } });
+  // Build update data - only include fields that are provided
+  const updateData = {};
+  
+  if (name !== undefined) {
+    updateData.name = name.trim();
+  }
+  
+  if (steps !== undefined) {
+    if (!Array.isArray(steps) || steps.length === 0) {
+      return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Steps must be a non-empty array' } });
+    }
+    updateData.steps = steps;
+  }
+  
+  if (schedule !== undefined) {
+    updateData.schedule = schedule;
+  }
+  
+  if (isDefault !== undefined) {
+    updateData.isDefault = isDefault;
+  }
+  
+  // Only update isActive if it's explicitly provided
+  if (isActive !== undefined) {
+    updateData.isActive = isActive;
   }
 
   const updated = await Workflow.findOneAndUpdate(
     { workflowId: id, orgId: ORG_CONFIG.ID },
-    {
-      name: name.trim(),
-      steps,
-      schedule: schedule || { type: 'always' },
-      isDefault: isDefault || false,
-      isActive: true
-    },
+    updateData,
     { new: true }
   );
 

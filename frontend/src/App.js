@@ -12,6 +12,7 @@ import Pilots from './pages/data/Pilots';
 import Recognition from './pages/data/Recognition';
 import Workflows from './pages/Workflows';
 import Boards from './pages/Boards';
+import EditBoard from './pages/EditBoard';
 import CustomScreenEditor from './pages/CustomScreenEditor';
 import WorkflowEditorPage from './pages/WorkflowEditorPage';
 import CreateWorkflowPage from './pages/CreateWorkflowPage';
@@ -154,6 +155,24 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Boards />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/boards/new" 
+        element={
+          <ProtectedRoute>
+            <EditBoard />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/boards/edit/:boardId" 
+        element={
+          <ProtectedRoute>
+            <EditBoard />
           </ProtectedRoute>
         } 
       />

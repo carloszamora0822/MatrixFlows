@@ -16,6 +16,8 @@ module.exports = async (req, res) => {
         return await getPilots(req, res);
       case 'POST':
         return await createPilot(req, res);
+      case 'PUT':
+        return await updatePilot(req, res);
       case 'PATCH':
         return await setCurrentPilot(req, res);
       case 'DELETE':
@@ -57,6 +59,39 @@ const createPilot = async (req, res) => {
   res.status(201).json(newPilot);
 };
 
+const updatePilot = async (req, res) => {
+  await new Promise((resolve, reject) => {
+    requireEditor(req, res, (err) => err ? reject(err) : resolve());
+  });
+
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'ID is required' } });
+  }
+
+  const { name, isCurrent } = req.body;
+  const validation = validatePilotInput({ name });
+  if (!validation.isValid) {
+    return res.status(400).json(createValidationError(validation.errors));
+  }
+
+  const updatedPilot = await Pilot.findOneAndUpdate(
+    { _id: id, orgId: ORG_CONFIG.ID },
+    {
+      name: name.trim(),
+      isCurrent: isCurrent || false
+    },
+    { new: true }
+  );
+
+  if (!updatedPilot) {
+    return res.status(404).json({ error: { code: ERROR_CODES.NOT_FOUND, message: 'Pilot not found' } });
+  }
+
+  console.log(`✅ Pilot updated: ${updatedPilot.name} by ${req.user.email}`);
+  res.status(200).json(updatedPilot);
+};
+
 const setCurrentPilot = async (req, res) => {
   await new Promise((resolve, reject) => {
     requireEditor(req, res, (err) => err ? reject(err) : resolve());
@@ -67,11 +102,18 @@ const setCurrentPilot = async (req, res) => {
     return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'ID is required' } });
   }
 
-  const pilot = await Pilot.findOne({ id, orgId: ORG_CONFIG.ID });
+  const pilot = await Pilot.findOne({ _id: id, orgId: ORG_CONFIG.ID });
   if (!pilot) {
     return res.status(404).json({ error: { code: ERROR_CODES.NOT_FOUND, message: 'Pilot not found' } });
   }
 
+  // Unset all other pilots as current
+  await Pilot.updateMany(
+    { orgId: ORG_CONFIG.ID, isCurrent: true },
+    { $set: { isCurrent: false } }
+  );
+
+  // Set this pilot as current
   pilot.isCurrent = true;
   await pilot.save();
   
@@ -89,7 +131,7 @@ const deletePilot = async (req, res) => {
     return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'ID is required' } });
   }
 
-  await Pilot.deleteOne({ id, orgId: ORG_CONFIG.ID });
+  await Pilot.deleteOne({ _id: id, orgId: ORG_CONFIG.ID });
   console.log(`✅ Pilot deleted: ${id} by ${req.user.email}`);
   res.status(200).json({ message: 'Pilot deleted successfully', id });
 };

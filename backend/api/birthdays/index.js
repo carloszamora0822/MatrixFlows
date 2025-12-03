@@ -26,6 +26,12 @@ module.exports = async (req, res) => {
         return await getBirthdays(req, res);
       case 'POST':
         return await createBirthday(req, res);
+      case 'PUT':
+        return await updateBirthday(req, res);
+      case 'PATCH':
+        return await setCurrentBirthday(req, res);
+      case 'DELETE':
+        return await deleteBirthday(req, res);
       default:
         return res.status(405).json({
           error: {
@@ -89,4 +95,90 @@ const createBirthday = async (req, res) => {
   console.log(`✅ Birthday created: ${newBirthday.firstName} on ${newBirthday.date} by ${req.user.email}`);
 
   res.status(201).json(newBirthday);
+};
+
+/**
+ * Update existing birthday
+ */
+const updateBirthday = async (req, res) => {
+  await new Promise((resolve, reject) => {
+    requireEditor(req, res, (err) => err ? reject(err) : resolve());
+  });
+
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'ID is required' } });
+  }
+
+  const { firstName, date } = req.body;
+  const validation = validateBirthdayInput({ firstName, date });
+  if (!validation.isValid) {
+    return res.status(400).json(createValidationError(validation.errors));
+  }
+
+  const updatedBirthday = await Birthday.findOneAndUpdate(
+    { _id: id, orgId: ORG_CONFIG.ID },
+    {
+      firstName: firstName.trim(),
+      date: date.trim()
+    },
+    { new: true }
+  );
+
+  if (!updatedBirthday) {
+    return res.status(404).json({ error: { code: ERROR_CODES.NOT_FOUND, message: 'Birthday not found' } });
+  }
+
+  console.log(`✅ Birthday updated: ${updatedBirthday.firstName} by ${req.user.email}`);
+  res.status(200).json(updatedBirthday);
+};
+
+/**
+ * Set current birthday (for display)
+ */
+const setCurrentBirthday = async (req, res) => {
+  await new Promise((resolve, reject) => {
+    requireEditor(req, res, (err) => err ? reject(err) : resolve());
+  });
+
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'ID is required' } });
+  }
+
+  const birthday = await Birthday.findOne({ _id: id, orgId: ORG_CONFIG.ID });
+  if (!birthday) {
+    return res.status(404).json({ error: { code: ERROR_CODES.NOT_FOUND, message: 'Birthday not found' } });
+  }
+
+  // Unset all other birthdays as current
+  await Birthday.updateMany(
+    { orgId: ORG_CONFIG.ID, isCurrent: true },
+    { $set: { isCurrent: false } }
+  );
+
+  // Set this birthday as current
+  birthday.isCurrent = true;
+  await birthday.save();
+  
+  console.log(`✅ Birthday set as current: ${birthday.firstName} by ${req.user.email}`);
+  res.status(200).json(birthday);
+};
+
+/**
+ * Delete birthday
+ */
+const deleteBirthday = async (req, res) => {
+  await new Promise((resolve, reject) => {
+    requireEditor(req, res, (err) => err ? reject(err) : resolve());
+  });
+
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'ID is required' } });
+  }
+
+  await Birthday.deleteOne({ _id: id, orgId: ORG_CONFIG.ID });
+  console.log(`✅ Birthday deleted: ${id} by ${req.user.email}`);
+  res.status(200).json({ message: 'Birthday deleted successfully', id });
 };

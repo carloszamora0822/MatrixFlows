@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 
 const Boards = () => {
+  const navigate = useNavigate();
   const [boards, setBoards] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', locationLabel: '', vestaboardWriteKey: '', defaultWorkflowId: '' });
-  const [formLoading, setFormLoading] = useState(false);
-  const [editingBoard, setEditingBoard] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -35,32 +33,6 @@ const Boards = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormLoading(true);
-    try {
-      const url = editingBoard ? `/api/boards?id=${editingBoard}` : '/api/boards';
-      const method = editingBoard ? 'PUT' : 'POST';
-      
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(form)
-      });
-      if (res.ok) {
-        alert(editingBoard ? '✅ Board updated successfully!' : '✅ Board added successfully!');
-        setForm({ name: '', locationLabel: '', vestaboardWriteKey: '', defaultWorkflowId: '' });
-        setEditingBoard(null);
-        setShowForm(false);
-        fetchData();
-      }
-    } catch (error) {
-      console.error('Failed to save board:', error);
-    } finally {
-      setFormLoading(false);
-    }
-  };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this board?')) return;
@@ -116,59 +88,14 @@ const Boards = () => {
           {/* Add Board Button */}
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-semibold text-gray-800">Registered Boards</h3>
-            <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
-              {showForm ? 'Cancel' : '+ Add Board'}
+            <button 
+              onClick={() => navigate('/boards/new')} 
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow-lg hover:shadow-xl transition-all"
+            >
+              + Add Board
             </button>
           </div>
 
-          {/* Add/Edit Form */}
-          {showForm && (
-            <div className="bg-white p-6 rounded-lg mb-6 shadow-lg border border-gray-200">
-              <h4 className="font-semibold mb-4 text-blue-600">{editingBoard ? '✏️ Edit Board' : 'Add New Board'}</h4>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <input 
-                  type="text" 
-                  value={form.name} 
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                  placeholder="Board Name (e.g., Office Lobby)" 
-                  required 
-                />
-                <input 
-                  type="text" 
-                  value={form.locationLabel} 
-                  onChange={(e) => setForm({ ...form, locationLabel: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                  placeholder="Location (optional)" 
-                />
-                <input 
-                  type="text" 
-                  value={form.vestaboardWriteKey} 
-                  onChange={(e) => setForm({ ...form, vestaboardWriteKey: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                  placeholder="Vestaboard Read/Write API Key" 
-                  required 
-                />
-                <div>
-                  <label className="font-medium text-gray-700 block mb-2">Assigned Workflow</label>
-                  <select 
-                    value={form.defaultWorkflowId} 
-                    onChange={(e) => setForm({ ...form, defaultWorkflowId: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">No workflow (assign later)</option>
-                    {workflows.map(w => <option key={w.workflowId} value={w.workflowId}>{w.name}</option>)}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">💡 You can assign the same workflow to multiple boards!</p>
-                </div>
-                <button type="submit" disabled={formLoading} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50">
-                  {formLoading ? (editingBoard ? 'Updating...' : 'Adding...') : (editingBoard ? '💾 Update Board' : 'Add Board')}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* Boards List */}
           {boards.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg border-2 border-gray-200 shadow">
               <div className="text-6xl mb-4">📺</div>
@@ -214,16 +141,10 @@ const Boards = () => {
                           </button>
                         </div>
                         
-                        <button onClick={() => {
-                          setEditingBoard(board.boardId);
-                          setForm({
-                            name: board.name,
-                            locationLabel: board.locationLabel || '',
-                            vestaboardWriteKey: board.vestaboardWriteKey,
-                            defaultWorkflowId: board.defaultWorkflowId || ''
-                          });
-                          setShowForm(true);
-                        }} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                        <button 
+                          onClick={() => navigate(`/boards/edit/${board.boardId}`)} 
+                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                        >
                           ✏️ Edit
                         </button>
                         <button onClick={() => handleDelete(board.boardId)}

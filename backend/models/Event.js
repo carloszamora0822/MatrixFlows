@@ -27,8 +27,12 @@ const eventSchema = new mongoose.Schema({
   description: {
     type: String,
     required: true,
-    trim: true,
-    maxlength: 100
+    maxlength: 200,
+    trim: true
+  },
+  borderColor1: {
+    type: String,
+    default: 'green'
   },
   createdBy: {
     type: String,

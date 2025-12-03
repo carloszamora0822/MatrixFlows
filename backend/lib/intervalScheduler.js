@@ -26,15 +26,28 @@ function shouldUpdateNow(workflow, lastUpdateAt, currentTime = new Date()) {
     return isAlignedTime(currentMinutes, intervalMinutes);
   }
   
-  // Get last update time in minutes since midnight
+  // Check if last update was on a different day
+  const now = new Date();
+  const lastUpdateDate = new Date(lastUpdateAt);
+  const isSameDay = now.toDateString() === lastUpdateDate.toDateString();
+  
+  if (!isSameDay) {
+    // Last update was yesterday or earlier - definitely time to update
+    console.log(`⏰ Last update was on a different day - triggering now`);
+    return true;
+  }
+  
+  // Get last update time in minutes since midnight (same day)
   const lastUpdateMinutes = lastUpdateAt.getHours() * 60 + lastUpdateAt.getMinutes();
   
   // Calculate next aligned trigger time after last update
   const nextTriggerMinutes = getNextAlignedTime(lastUpdateMinutes, intervalMinutes);
   
+  console.log(`🔍 Interval check: current=${formatTime(currentMinutes)} (${currentMinutes}), last=${formatTime(lastUpdateMinutes)} (${lastUpdateMinutes}), next=${formatTime(nextTriggerMinutes)} (${nextTriggerMinutes})`);
+  
   // Update if current time has reached or passed the next trigger time
-  // AND current time is aligned to the interval
-  if (currentMinutes >= nextTriggerMinutes && isAlignedTime(currentMinutes, intervalMinutes)) {
+  // We don't require exact alignment because scheduler might run at :35 seconds
+  if (currentMinutes >= nextTriggerMinutes) {
     console.log(`⏰ Interval trigger: Last update at ${formatTime(lastUpdateMinutes)}, next trigger at ${formatTime(nextTriggerMinutes)}, current time ${formatTime(currentMinutes)}`);
     return true;
   }

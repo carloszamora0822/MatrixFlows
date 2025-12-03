@@ -17,7 +17,14 @@ const Birthdays = () => {
 
   useEffect(() => {
     fetchBirthdays();
+    generatePreview('BIRTHDAY');
   }, []);
+
+  useEffect(() => {
+    if (formData.firstName || formData.date) {
+      generatePreview('BIRTHDAY');
+    }
+  }, [formData]);
 
   const fetchBirthdays = async () => {
     try {
@@ -89,13 +96,28 @@ const Birthdays = () => {
     setErrors({});
   };
 
+  const handleSetCurrent = async (id) => {
+    try {
+      const response = await fetch(`/api/birthdays?id=${id}`, {
+        method: 'PATCH',
+        credentials: 'include'
+      });
+      if (response.ok) {
+        fetchBirthdays();
+        generatePreview('BIRTHDAY');
+      }
+    } catch (error) {
+      console.error('Failed to set current:', error);
+    }
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this birthday?')) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/birthdays/${id}`, {
+      const response = await fetch(`/api/birthdays?id=${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -234,31 +256,65 @@ const Birthdays = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {birthdays.map((birthday) => (
-                    <div
-                      key={birthday.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <div>
-                        <h3 className="font-medium text-gray-900">{birthday.firstName}</h3>
-                        <p className="text-sm text-gray-600">{birthday.date}</p>
+                  {birthdays.map((birthday) => {
+                    const today = new Date();
+                    const todayStr = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+                    const isToday = birthday.date === todayStr;
+                    
+                    return (
+                      <div
+                        key={birthday._id}
+                        className={`p-4 rounded-lg transition-all ${
+                          editingId === birthday._id 
+                            ? 'bg-blue-100 border-2 border-blue-500' 
+                            : isToday
+                              ? 'bg-gradient-to-r from-pink-100 via-purple-100 to-pink-100 border-4 border-pink-400 shadow-lg animate-pulse'
+                              : birthday.isCurrent
+                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300'
+                                : 'bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-orange-200 hover:border-orange-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium text-gray-900">{birthday.firstName}</h3>
+                              {isToday && <span className="text-2xl">🎉🎂</span>}
+                              {birthday.isCurrent && (
+                                <span className="inline-block px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded">
+                                  Currently Displayed
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-sm ${isToday ? 'text-pink-700 font-semibold' : 'text-gray-600'}`}>
+                              {birthday.date} {isToday && '• TODAY!'}
+                            </p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEdit(birthday)}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(birthday._id)}
+                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        </div>
+                        {!birthday.isCurrent && (
+                          <button
+                            onClick={() => handleSetCurrent(birthday._id)}
+                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            Set as Current
+                          </button>
+                        )}
                       </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEdit(birthday)}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(birthday.id)}
-                          className="text-red-600 hover:text-red-800 text-sm font-medium"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

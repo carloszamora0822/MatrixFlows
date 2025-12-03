@@ -212,7 +212,7 @@ const CustomScreenEditor = () => {
                 {/* Custom Message */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Your Message
+                    Your Message (Use \ for new line)
                   </label>
                   <textarea
                     value={formData.customMessage}

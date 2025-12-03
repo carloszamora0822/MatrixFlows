@@ -1,214 +1,206 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import Layout from '../components/layout/Layout';
+import MatrixPreview from '../components/ui/MatrixPreview';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState(null);
+  const [activity, setActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const quickActions = [
-    {
-      title: 'Screen Preview',
-      description: 'Test screen rendering engine',
-      icon: (
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-        </svg>
-      ),
-      href: '/preview',
-      color: 'bg-purple-600 hover:bg-purple-700'
-    },
-    {
-      title: 'Boards',
-      description: 'Manage Vestaboard displays',
-      icon: (
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z" />
-        </svg>
-      ),
-      href: '/boards',
-      color: 'bg-blue-600 hover:bg-blue-700'
-    },
-    {
-      title: 'Data Management',
-      description: 'Manage birthdays, events, and more',
-      icon: (
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-      href: '/data',
-      color: 'bg-green-600 hover:bg-green-700'
-    },
-    {
-      title: 'Workflows',
-      description: 'Configure display workflows',
-      icon: (
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-        </svg>
-      ),
-      href: '/workflows',
-      color: 'bg-purple-600 hover:bg-purple-700'
-    },
-    {
-      title: 'Pin Screen',
-      description: 'Temporarily override displays',
-      icon: (
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-        </svg>
-      ),
-      href: '/pin',
-      color: 'bg-orange-600 hover:bg-orange-700'
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const [statsRes, activityRes] = await Promise.all([
+        fetch('/api/dashboard/stats', { credentials: 'include' }),
+        fetch('/api/dashboard/activity', { credentials: 'include' })
+      ]);
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
+      }
+
+      if (activityRes.ok) {
+        const activityData = await activityRes.json();
+        setActivity(activityData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const stats = [
-    { name: 'Active Boards', value: '2', change: '+0', changeType: 'neutral' },
-    { name: 'Running Workflows', value: '3', change: '+1', changeType: 'positive' },
-    { name: 'Data Entries', value: '24', change: '+4', changeType: 'positive' },
-    { name: 'System Uptime', value: '99.9%', change: '+0.1%', changeType: 'positive' }
-  ];
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+              <p className="mt-4 text-gray-600">Loading dashboard...</p>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Welcome back, {user?.email?.split('@')[0]}!
-            </h1>
-            <p className="mt-2 text-gray-600">
-              Manage your VBT Vestaboard displays and workflows
-            </p>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-            {stats.map((stat) => (
-              <div key={stat.name} className="card">
-                <div className="flex items-center">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-500 truncate">{stat.name}</p>
-                    <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-                  </div>
-                  <div className={`text-sm ${
-                    stat.changeType === 'positive' ? 'text-green-600' : 
-                    stat.changeType === 'negative' ? 'text-red-600' : 'text-gray-500'
-                  }`}>
-                    {stat.change}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* User Information Card */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            <div className="lg:col-span-1">
-              <div className="card">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Account Information</h2>
-                <dl className="space-y-4">
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Email</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{user?.email}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Role</dt>
-                    <dd className="mt-1">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                        user?.role === 'admin' ? 'bg-red-100 text-red-800' :
-                        user?.role === 'editor' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {user?.role}
-                      </span>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Organization</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{user?.orgId}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Last Login</dt>
-                    <dd className="mt-1 text-sm text-gray-900">
-                      {user?.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'N/A'}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-            </div>
-
-            {/* System Status */}
-            <div className="lg:col-span-2">
-              <div className="card">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">System Status</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Database Connection</span>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></span>
-                      Connected
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">External APIs</span>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></span>
-                      Operational
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Scheduler Service</span>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></span>
-                      Running
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Today at OZ1</h1>
+            <p className="text-sm text-gray-600">Manage your Vestaboard displays and workflows</p>
           </div>
 
           {/* Quick Actions */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {quickActions.map((action) => (
-                <a
-                  key={action.title}
-                  href={action.href}
-                  className="group relative card hover:shadow-lg transition-shadow duration-200"
-                >
-                  <div className="flex items-center">
-                    <div className={`flex-shrink-0 p-3 rounded-lg text-white ${action.color} group-hover:scale-110 transition-transform duration-200`}>
-                      {action.icon}
+          <div className="grid grid-cols-2 gap-4 mb-8 max-w-2xl">
+            <a href="/workflows" className="btn-primary text-center py-4 flex items-center justify-center gap-2">
+              <span className="text-lg">+</span>
+              <span>Create Workflow</span>
+            </a>
+            <a href="/preview" className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg text-center py-4 flex items-center justify-center gap-2 transition-colors">
+              <span className="text-lg">+</span>
+              <span>New Custom Screen</span>
+            </a>
+          </div>
+
+          {/* Main Grid - Boards & Workflows */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Available Boards */}
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Available Boards</h2>
+              {stats?.boards && stats.boards.length > 0 ? (
+                <div className="space-y-4">
+                  {stats.boards.map((board) => (
+                    <div key={board._id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{board.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {board.defaultWorkflowId ? (
+                              <span className="text-gray-700">Assigned: {board.defaultWorkflowId.name}</span>
+                            ) : (
+                              <span className="text-orange-600">No workflow assigned</span>
+                            )}
+                          </div>
+                          {board.lastUpdateAt && (
+                            <div className="text-xs text-gray-400 mt-1">
+                              Last updated: {new Date(board.lastUpdateAt).toLocaleTimeString()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Vestaboard Preview */}
+                      {board.lastMatrix ? (
+                        <div className="mt-3 flex justify-center">
+                          <div style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}>
+                            <MatrixPreview matrix={board.lastMatrix} />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-400 italic mt-2">No screen displayed yet</div>
+                      )}
                     </div>
-                    <div className="ml-4">
-                      <h3 className="text-lg font-medium text-gray-900 group-hover:text-gray-700">
-                        {action.title}
-                      </h3>
-                      <p className="text-sm text-gray-500">{action.description}</p>
-                    </div>
-                  </div>
-                </a>
-              ))}
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No boards configured</p>
+              )}
+            </div>
+
+            {/* Workflows Overview */}
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Active Workflows</h2>
+              {stats?.workflows && stats.workflows.length > 0 ? (
+                <div className="space-y-2">
+                  {stats.workflows.map((workflow) => (
+                    <a key={workflow.workflowId} href={`/workflows`} className="block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{workflow.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {workflow.schedule?.type === 'dailyWindow' ? (
+                              <span>{workflow.schedule.daysOfWeek?.length || 0} days • {workflow.schedule.startTimeLocal || '00:00'}-{workflow.schedule.endTimeLocal || '23:59'}</span>
+                            ) : (
+                              <span>24/7</span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">Active</span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No active workflows</p>
+              )}
             </div>
           </div>
 
-          {/* Recent Activity Placeholder */}
+          {/* This Week */}
           <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
-            <div className="text-center py-8">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No recent activity</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Activity will appear here as you use the system.
-              </p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">This Week</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Birthdays */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">🎂 Birthdays</h3>
+                {stats?.thisWeekBirthdays && stats.thisWeekBirthdays.length > 0 ? (
+                  <div className="space-y-2">
+                    {stats.thisWeekBirthdays.map((birthday, idx) => (
+                      <div key={idx} className="text-sm text-gray-600">
+                        {birthday.firstName} – {birthday.date}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">None this week</p>
+                )}
+              </div>
+
+              {/* Checkrides */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">✈️ Checkrides</h3>
+                {stats?.todaysCheckrides && stats.todaysCheckrides.length > 0 ? (
+                  <div className="space-y-2">
+                    {stats.todaysCheckrides.map((cr, idx) => (
+                      <div key={idx} className="text-sm text-gray-600">
+                        {cr.callsign} – {cr.time}
+                        <div className="text-xs text-gray-500">{cr.name} • {cr.type}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">None today</p>
+                )}
+              </div>
+
+              {/* Events */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">📅 Events</h3>
+                {stats?.upcomingEvents && stats.upcomingEvents.length > 0 ? (
+                  <div className="space-y-2">
+                    {stats.upcomingEvents.map((event, idx) => (
+                      <div key={idx} className="text-sm text-gray-600">
+                        {event.description}
+                        <div className="text-xs text-gray-500">{event.date} at {event.time}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">None upcoming</p>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -6,22 +6,41 @@ const { ERROR_CODES, ORG_CONFIG } = require('../../../shared/constants');
 
 /**
  * Cron endpoint to trigger board updates
- * POST /api/cron/update
+ * POST /api/cron/update?secret=YOUR_CRON_SECRET
  * 
- * This endpoint should be called by a cron service (e.g., Vercel Cron, external scheduler)
- * to update all Vestaboards based on their active workflows
+ * POWER AUTOMATE SETUP:
+ * 1. Create a "Recurrence" trigger set to run every 1 minute
+ * 2. Add an "HTTP" action with:
+ *    - Method: POST
+ *    - URI: https://your-domain.com/api/cron/update?secret=YOUR_CRON_SECRET
+ *    - Headers: (none needed, secret is in URL)
+ * 3. That's it! The backend handles all timing logic.
+ * 
+ * SECURITY:
+ * - Uses CRON_SECRET environment variable for authentication
+ * - No user authentication needed (this is a system endpoint)
+ * - Secret can be passed as query param or X-Cron-Secret header
+ * 
+ * WHAT IT DOES:
+ * - Cleans up expired screens
+ * - Groups boards by workflow
+ * - Runs each workflow once, posts to all assigned boards simultaneously
+ * - Respects workflow schedules and intervals
+ * - Only processes active boards
  */
 module.exports = async (req, res) => {
+  const startTime = Date.now();
+  
   try {
     await connectDB();
 
     // Verify cron secret for security (skip in development)
-    if (process.env.NODE_ENV === 'production') {
-      const cronSecret = req.headers['x-cron-secret'] || req.query.secret;
-      const expectedSecret = process.env.CRON_SECRET;
+    const cronSecret = req.headers['x-cron-secret'] || req.query.secret;
+    const expectedSecret = process.env.CRON_SECRET || 'dev-secret-change-in-production';
 
-      if (!expectedSecret) {
-        console.error('❌ CRON_SECRET not configured');
+    if (process.env.NODE_ENV === 'production') {
+      if (!process.env.CRON_SECRET) {
+        console.error('❌ CRON_SECRET not configured in production!');
         return res.status(500).json({
           error: {
             code: ERROR_CODES.INTERNAL_ERROR,
@@ -40,7 +59,7 @@ module.exports = async (req, res) => {
         });
       }
     } else {
-      console.log('⚠️  Development mode - skipping cron secret check');
+      console.log('⚠️  Development mode - using default secret');
     }
 
     console.log('\n🕐 Cron job triggered at', new Date().toISOString());
@@ -66,16 +85,30 @@ module.exports = async (req, res) => {
       // Remove expired screens from workflows
       const workflows = await Workflow.find({ orgId: ORG_CONFIG.ID });
       let workflowsUpdated = 0;
+      const expiredScreenIds = expiredScreens.map(s => s.screenId);
 
       for (const workflow of workflows) {
-        const expiredMessages = expiredScreens.map(s => s.message);
         const originalLength = workflow.steps.length;
         
         // Filter out steps with expired custom screens
         workflow.steps = workflow.steps.filter(step => {
-          if (step.screenType === 'CUSTOM_MESSAGE' && step.screenConfig?.message) {
-            return !expiredMessages.includes(step.screenConfig.message);
+          // Check if screen expired from library
+          if (step.screenType === 'CUSTOM_MESSAGE' && step.screenConfig?.customScreenId) {
+            if (expiredScreenIds.includes(step.screenConfig.customScreenId)) {
+              console.log(`🗑️  Removing library-expired screen from workflow: ${workflow.name}`);
+              return false;
+            }
           }
+          
+          // Check if screen has workflow-specific expiration
+          if (step.screenType === 'CUSTOM_MESSAGE' && step.screenConfig?.hasExpiration && step.screenConfig?.expiresAt) {
+            const expiresDateTime = new Date(`${step.screenConfig.expiresAt}T${step.screenConfig.expiresAtTime || '23:59'}:00.000Z`);
+            if (expiresDateTime <= now) {
+              console.log(`🗑️  Removing workflow-expired screen from workflow: ${workflow.name}`);
+              return false;
+            }
+          }
+          
           return true;
         });
 
@@ -83,27 +116,30 @@ module.exports = async (req, res) => {
         workflow.steps = workflow.steps.map((s, i) => ({ ...s, order: i }));
 
         if (workflow.steps.length < originalLength) {
+          console.log(`✅ Removed ${originalLength - workflow.steps.length} expired screen(s) from workflow: ${workflow.name}`);
           await workflow.save();
           workflowsUpdated++;
         }
       }
 
-      if (workflowsUpdated > 0) {
-        console.log(`✅ Updated ${workflowsUpdated} workflows (removed expired screens)`);
-      }
+      console.log(`✅ Updated ${workflowsUpdated} workflows (removed expired screens)`);
     }
 
     // Process all boards
     const result = await schedulerService.processAllBoards();
+    
+    const duration = Date.now() - startTime;
+    console.log(`✅ Cron job completed in ${duration}ms`);
 
     return res.status(200).json({
       success: result.success,
       timestamp: new Date().toISOString(),
+      duration: `${duration}ms`,
       boardsProcessed: result.boardsProcessed,
       successCount: result.successCount,
-      expiredScreensDeleted: expiredScreens.length,
+      expiredScreensDeleted: expiredScreens.length || 0,
       workflowsUpdated: expiredScreens.length > 0 ? workflowsUpdated : 0,
-      results: result.results
+      message: `Processed ${result.boardsProcessed} boards in ${duration}ms`
     });
 
   } catch (error) {

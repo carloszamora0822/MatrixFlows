@@ -205,7 +205,7 @@ const validateBirthdayInput = ({ firstName, date }) => {
 /**
  * Validate checkride input
  */
-const validateCheckrideInput = ({ time, callsign, type, destination, date }) => {
+const validateCheckrideInput = ({ time, name, callsign, type, date }) => {
   const errors = {};
 
   // Time validation (HH:MM format)
@@ -213,6 +213,13 @@ const validateCheckrideInput = ({ time, callsign, type, destination, date }) => 
     errors.time = 'Time is required';
   } else if (!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(time.trim())) {
     errors.time = 'Time must be in HH:MM format (24-hour)';
+  }
+
+  // Name validation
+  if (!name || !name.trim()) {
+    errors.name = 'Name is required';
+  } else if (name.trim().length > 20) {
+    errors.name = 'Name must be 20 characters or less';
   }
 
   // Callsign validation
@@ -228,13 +235,6 @@ const validateCheckrideInput = ({ time, callsign, type, destination, date }) => 
     errors.type = 'Type is required';
   } else if (!validTypes.includes(type.trim().toUpperCase())) {
     errors.type = `Type must be one of: ${validTypes.join(', ')}`;
-  }
-
-  // Destination validation
-  if (!destination || !destination.trim()) {
-    errors.destination = 'Destination is required';
-  } else if (destination.trim().length > 10) {
-    errors.destination = 'Destination must be 10 characters or less';
   }
 
   // Date validation (MM/DD format)
@@ -270,11 +270,11 @@ const validateEventInput = ({ date, time, description }) => {
     errors.time = 'Time must be in HH:MM format (24-hour)';
   }
 
-  // Description validation
+  // Description validation (16 char limit for Vestaboard display)
   if (!description || !description.trim()) {
     errors.description = 'Description is required';
-  } else if (description.trim().length > 100) {
-    errors.description = 'Description must be 100 characters or less';
+  } else if (description.trim().length > 16) {
+    errors.description = 'Description must be 16 characters or less';
   }
 
   return {

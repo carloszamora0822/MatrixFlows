@@ -10,12 +10,21 @@ const Events = () => {
   const [formData, setFormData] = useState({ date: '', time: '', description: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [borderColor1, setBorderColor1] = useState('green');
   
   const { matrix, generatePreview } = useScreenPreview();
 
   useEffect(() => {
     fetchEvents();
+    generatePreview('UPCOMING_EVENTS', { borderColor1 });
   }, []);
+
+  useEffect(() => {
+    if (formData.date || formData.time || formData.description) {
+      generatePreview('UPCOMING_EVENTS', { borderColor1 });
+    }
+  }, [formData, borderColor1]);
 
   const fetchEvents = async () => {
     try {
@@ -35,8 +44,10 @@ const Events = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/events', {
-        method: 'POST',
+      const url = editingId ? `/api/events?id=${editingId}` : '/api/events';
+      const method = editingId ? 'PUT' : 'POST';
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(formData),
@@ -51,13 +62,30 @@ const Events = () => {
       }
 
       setFormData({ date: '', time: '', description: '' });
-      fetchEvents();
+      setEditingId(null);
+      await fetchEvents();
       generatePreview('UPCOMING_EVENTS');
     } catch (error) {
       setErrors({ general: 'Network error occurred' });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (event) => {
+    setFormData({
+      date: event.date,
+      time: event.time,
+      description: event.description
+    });
+    setEditingId(event._id);
+    generatePreview('UPCOMING_EVENTS');
+  };
+
+  const handleCancelEdit = () => {
+    setFormData({ date: '', time: '', description: '' });
+    setEditingId(null);
+    setErrors({});
   };
 
   const handleDelete = async (id) => {
@@ -67,7 +95,10 @@ const Events = () => {
         method: 'DELETE',
         credentials: 'include'
       });
-      if (response.ok) fetchEvents();
+      if (response.ok) {
+        await fetchEvents();
+        generatePreview('UPCOMING_EVENTS');
+      }
     } catch (error) {
       console.error('Failed to delete:', error);
     }
@@ -96,7 +127,7 @@ const Events = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Form */}
             <div className="card">
-              <h3 className="text-lg font-semibold mb-4">Add Event</h3>
+              <h3 className="text-lg font-semibold mb-4">{editingId ? '✏️ Edit Event' : '➕ Add Event'}</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <input
@@ -119,18 +150,58 @@ const Events = () => {
                   {errors.time && <p className="mt-1 text-sm text-red-600">{errors.time}</p>}
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description (max 16 characters)
+                  </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value.slice(0, 16);
+                      setFormData({ ...formData, description: value });
+                    }}
                     className={`input-field ${errors.description ? 'input-error' : ''}`}
                     placeholder="Description"
                     rows="3"
+                    maxLength={16}
                   />
+                  <p className="mt-1 text-xs text-gray-500">
+                    {formData.description.length}/16 characters
+                  </p>
                   {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
                 </div>
-                <button type="submit" disabled={loading} className="btn-primary w-full">
-                  {loading ? 'Adding...' : 'Add Event'}
-                </button>
+
+                {/* Color Picker - Only show when editing */}
+                {editingId && (
+                  <div className="pt-4 border-t">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Border Color:</label>
+                    <div className="grid grid-cols-7 gap-2">
+                      {['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'white'].map(color => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setBorderColor1(color)}
+                          className={`w-10 h-10 rounded border-2 ${borderColor1 === color ? 'border-gray-900 ring-2 ring-blue-500' : 'border-gray-300'}`}
+                          style={{
+                            backgroundColor: color === 'white' ? '#f3f4f6' : color,
+                            backgroundImage: color === 'white' ? 'repeating-linear-gradient(45deg, #e5e7eb 0, #e5e7eb 2px, #f3f4f6 2px, #f3f4f6 4px)' : 'none'
+                          }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button type="submit" disabled={loading} className="btn-primary flex-1">
+                    {loading ? 'Saving...' : (editingId ? 'Update' : 'Add')}
+                  </button>
+                  {editingId && (
+                    <button type="button" onClick={handleCancelEdit} className="btn-secondary">
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
 
@@ -142,14 +213,21 @@ const Events = () => {
               ) : (
                 <div className="space-y-2">
                   {events.map((e) => (
-                    <div key={e.id} className="p-3 bg-gray-50 rounded">
-                      <div className="flex justify-between items-start mb-1">
-                        <p className="font-medium">{e.description}</p>
-                        <button onClick={() => handleDelete(e.id)} className="text-red-600 hover:text-red-800 text-sm">
-                          Delete
-                        </button>
+                    <div key={e._id} className={`p-3 rounded ${editingId === e._id ? 'bg-blue-100 border-2 border-blue-500' : 'bg-gray-50'}`}>
+                      <div className="flex justify-between items-start gap-3 mb-1">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium break-words">{e.description}</p>
+                          <p className="text-sm text-gray-600 mt-1">{e.date} at {e.time}</p>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
+                          <button onClick={() => handleEdit(e)} className="text-blue-600 hover:text-blue-800 text-sm font-semibold whitespace-nowrap">
+                            ✏️ Edit
+                          </button>
+                          <button onClick={() => handleDelete(e._id)} className="text-red-600 hover:text-red-800 text-sm font-semibold whitespace-nowrap">
+                            🗑️ Delete
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600">{e.date} at {e.time}</p>
                     </div>
                   ))}
                 </div>

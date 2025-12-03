@@ -16,6 +16,8 @@ module.exports = async (req, res) => {
         return await getEvents(req, res);
       case 'POST':
         return await createEvent(req, res);
+      case 'PUT':
+        return await updateEvent(req, res);
       case 'DELETE':
         return await deleteEvent(req, res);
       default:
@@ -56,6 +58,40 @@ const createEvent = async (req, res) => {
   res.status(201).json(newEvent);
 };
 
+const updateEvent = async (req, res) => {
+  await new Promise((resolve, reject) => {
+    requireEditor(req, res, (err) => err ? reject(err) : resolve());
+  });
+
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'ID is required' } });
+  }
+
+  const { date, time, description } = req.body;
+  const validation = validateEventInput({ date, time, description });
+  if (!validation.isValid) {
+    return res.status(400).json(createValidationError(validation.errors));
+  }
+
+  const updatedEvent = await Event.findOneAndUpdate(
+    { _id: id, orgId: ORG_CONFIG.ID },
+    {
+      date: date.trim(),
+      time: time.trim(),
+      description: description.trim()
+    },
+    { new: true }
+  );
+
+  if (!updatedEvent) {
+    return res.status(404).json({ error: { code: ERROR_CODES.NOT_FOUND, message: 'Event not found' } });
+  }
+
+  console.log(`✅ Event updated: ${updatedEvent.description} by ${req.user.email}`);
+  res.status(200).json(updatedEvent);
+};
+
 const deleteEvent = async (req, res) => {
   await new Promise((resolve, reject) => {
     requireEditor(req, res, (err) => err ? reject(err) : resolve());
@@ -66,7 +102,7 @@ const deleteEvent = async (req, res) => {
     return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'ID is required' } });
   }
 
-  await Event.deleteOne({ id, orgId: ORG_CONFIG.ID });
+  await Event.deleteOne({ _id: id, orgId: ORG_CONFIG.ID });
   console.log(`✅ Event deleted: ${id} by ${req.user.email}`);
   res.status(200).json({ message: 'Event deleted successfully', id });
 };
