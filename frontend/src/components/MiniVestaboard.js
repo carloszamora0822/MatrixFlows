@@ -86,17 +86,17 @@ const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, 
         if (onDrop) onDrop(e);
       }}
     >
-      {/* Step indicator */}
-      <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded-full font-bold text-sm shadow-lg">
-        {stepNumber}
-      </div>
-      
-      {/* Drag handle */}
+      {/* Drag handle - leftmost */}
       {draggable && (
-        <div className="absolute -left-10 top-4 flex items-center justify-center w-8 h-8 text-gray-400 hover:text-blue-500">
-          <span className="text-2xl">⋮⋮</span>
+        <div className="absolute -left-14 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-10 text-gray-400 hover:text-blue-500 transition-colors">
+          <span className="text-3xl leading-none">⋮⋮</span>
         </div>
       )}
+      
+      {/* Step indicator */}
+      <div className="absolute -left-6 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 bg-blue-500 text-white rounded-full font-bold text-xs shadow-lg">
+        {stepNumber}
+      </div>
       
       {/* Mini Vestaboard */}
       <div className={`bg-gray-900 p-2 rounded-lg shadow-xl border-2 ${isDragging ? 'border-blue-500' : 'border-gray-700'} ${draggable ? 'hover:border-blue-400' : ''}`} style={{ width: '330px' }}>
