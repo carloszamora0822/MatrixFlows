@@ -137,11 +137,6 @@ const LoginForm = () => {
             </button>
           </div>
 
-          <div className="text-center">
-            <p className="text-xs text-gray-500">
-              Default admin: admin@vbt.com / admin123
-            </p>
-          </div>
         </form>
       </div>
     </div>
