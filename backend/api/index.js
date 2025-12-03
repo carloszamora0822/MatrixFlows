@@ -19,6 +19,9 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy - required for Render and other hosting platforms
+app.set('trust proxy', 1);
+
 // Initialize database and create default data
 const initializeApp = async () => {
   try {
