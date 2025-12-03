@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import MatrixPreview from '../../components/ui/MatrixPreview';
 import { useScreenPreview } from '../../hooks/useScreenPreview';
 
 const Birthdays = () => {
+  const navigate = useNavigate();
   const [birthdays, setBirthdays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ firstName: '', date: '' });
@@ -116,6 +118,12 @@ const Birthdays = () => {
     <Layout>
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+          <button
+            onClick={() => navigate('/preview')}
+            className="mb-4 px-4 py-2 text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-2"
+          >
+            ← Back to Screen Library
+          </button>
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Birthday Management</h1>

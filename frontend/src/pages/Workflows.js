@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Layout from '../components/layout/Layout';
 import MiniVestaboard from '../components/MiniVestaboard';
@@ -74,6 +75,7 @@ const Workflows = () => {
 
 
 const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editingWorkflowId, setEditingWorkflowId] = useState(null);
@@ -395,15 +397,12 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold text-gray-800">Workflows</h3>
-        <button onClick={() => {
-          if (showForm) {
-            setShowForm(false);
-            setEditingId(null);
-          } else {
-            setShowForm(true);
-          }
-        }} className="btn-primary" disabled={boards.length === 0}>
-          {showForm ? 'Cancel' : '+ Create Workflow'}
+        <button 
+          onClick={() => navigate('/create-workflow')} 
+          className="btn-primary" 
+          disabled={boards.length === 0}
+        >
+          + Create Workflow
         </button>
       </div>
 
@@ -650,6 +649,9 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
             let scheduleStr = '24/7';
             let isActive = false;
             
+            // Check if workflow is assigned to any board
+            const isAssignedToBoard = boards.some(board => board.defaultWorkflowId === workflow.workflowId);
+            
             // Check if this is a pinned workflow
             const isPinnedWorkflow = workflow.name?.startsWith('Pinned -');
             
@@ -675,8 +677,8 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
               const isTimeActive = currentTime >= (schedule.startTimeLocal || '00:00') && 
                                    currentTime <= (schedule.endTimeLocal || '23:59');
               
-              // Regular workflows are active if schedule matches AND no pin is blocking
-              isActive = !isPinnedWorkflow && isDayActive && isTimeActive && !hasActivePinnedWorkflow;
+              // Regular workflows are active if schedule matches AND no pin is blocking AND assigned to a board
+              isActive = !isPinnedWorkflow && isDayActive && isTimeActive && !hasActivePinnedWorkflow && isAssignedToBoard;
             } else if (schedule.type === 'specificDateRange') {
               const now = new Date();
               const currentDate = now.toISOString().split('T')[0];
@@ -690,8 +692,8 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
               
               scheduleStr = `${schedule.startDate} - ${schedule.endDate}`;
             } else {
-              // Always running, but blocked if pinned workflow exists
-              isActive = !hasActivePinnedWorkflow;
+              // Always running, but blocked if pinned workflow exists AND must be assigned to a board
+              isActive = !hasActivePinnedWorkflow && isAssignedToBoard;
             }
             
             return (
@@ -708,8 +710,25 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                   <div>
                     <h4 className="font-bold text-xl text-gray-900">{workflow.name}</h4>
                     <p className="text-sm text-gray-600 mt-1">
-                      {enabledSteps.length} steps • {timeStr} cycle • 📅 {scheduleStr}
+                      {enabledSteps.length} steps • ⏱️ Triggers every {workflow.schedule?.updateIntervalMinutes || 30} min • 📅 {scheduleStr}
                     </p>
+                    {isActive && (() => {
+                      const now = new Date();
+                      const interval = (workflow.schedule?.updateIntervalMinutes || 30) * 60 * 1000;
+                      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                      const intervalMinutes = workflow.schedule?.updateIntervalMinutes || 30;
+                      const nextTriggerMinutes = Math.ceil(currentMinutes / intervalMinutes) * intervalMinutes;
+                      const nextTriggerTime = new Date(now);
+                      nextTriggerTime.setHours(Math.floor(nextTriggerMinutes / 60));
+                      nextTriggerTime.setMinutes(nextTriggerMinutes % 60);
+                      nextTriggerTime.setSeconds(0);
+                      
+                      return (
+                        <p className="text-xs text-green-700 mt-1 font-semibold">
+                          ⏰ Next trigger: {nextTriggerTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div className="flex space-x-2">
                     {editingWorkflowId === workflow.workflowId ? (
@@ -759,16 +778,16 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                     ) : (
                       <>
                         <button 
-                          onClick={() => setEditingWorkflowId(workflow.workflowId)} 
+                          onClick={() => navigate(`/workflow-editor/${workflow.workflowId}`)} 
                           className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm font-semibold"
                         >
                           ⚡ Edit Flow
                         </button>
-                        <button onClick={() => handleEdit(workflow)} className="px-3 py-1 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 text-sm">
-                          ⚙️ Settings
-                        </button>
-                        <button onClick={() => handleDelete(workflow.workflowId)} className="px-3 py-1 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 text-sm">
-                          🗑️ Delete
+                        <button 
+                          onClick={() => handleDelete(workflow.workflowId)} 
+                          className="w-8 h-8 flex items-center justify-center bg-red-100 hover:bg-red-200 border border-red-300 rounded text-sm transition-colors"
+                        >
+                          ❌
                         </button>
                       </>
                     )}
@@ -1004,11 +1023,6 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                       </div>
                     );
                   })}
-                  {enabledSteps.length > 1 && (
-                    <div className="flex items-center justify-center p-3 bg-green-50 border-2 border-green-400 rounded-lg">
-                      <span className="text-green-600 font-semibold">🔄 Loops back to step 1</span>
-                    </div>
-                  )}
                 </div>
               </div>
             );

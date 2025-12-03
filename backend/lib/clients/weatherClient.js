@@ -17,7 +17,9 @@ class WeatherClient {
     const cached = this.cache.get(cacheKey);
     
     if (cached) {
-      console.log(`✅ Weather cache hit for ${location} (40min TTL)`);
+      const cacheAge = Math.floor((Date.now() - new Date(cached.timestamp).getTime()) / 1000 / 60);
+      console.log(`✅ Weather cache hit for ${location} (cached ${cacheAge} min ago, 40min TTL)`);
+      console.log(`   ${cached.temperature}°F, ${cached.condition}, Wind ${cached.windSpeed} mph`);
       return cached;
     }
 
@@ -38,6 +40,13 @@ class WeatherClient {
       const sunset = response.data.sys.sunset;
       const isNight = currentTime < sunrise || currentTime > sunset;
 
+      // Log raw API response for debugging
+      console.log(`🌐 Raw API data for ${location}:`);
+      console.log(`   Temperature: ${response.data.main.temp}°F`);
+      console.log(`   Wind Speed: ${response.data.wind?.speed} mph (raw from API)`);
+      console.log(`   Condition: ${response.data.weather[0]?.main}`);
+      console.log(`   Description: ${response.data.weather[0]?.description}`);
+
       const weatherData = {
         location: response.data.name,
         temperature: Math.round(response.data.main.temp),
@@ -48,11 +57,13 @@ class WeatherClient {
         sunrise: sunrise,
         sunset: sunset,
         timestamp: new Date().toISOString(),
-        source: 'openweathermap.org'
+        source: 'openweathermap.org',
+        rawWindData: response.data.wind // Store raw wind data for debugging
       };
 
       this.cache.set(cacheKey, weatherData);
-      console.log(`✅ Fresh weather fetched and cached for ${location}: ${weatherData.temperature}°F, ${weatherData.condition}`);
+      console.log(`✅ Fresh weather fetched and cached for ${location}`);
+      console.log(`   Final data: ${weatherData.temperature}°F, ${weatherData.condition}, Wind ${weatherData.windSpeed} mph`);
       return weatherData;
 
     } catch (error) {

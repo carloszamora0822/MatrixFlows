@@ -85,11 +85,6 @@ const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, 
         </div>
       )}
       
-      {/* Step indicator */}
-      <div className="absolute -left-6 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 bg-blue-500 text-white rounded-full font-bold text-xs shadow-lg">
-        {stepNumber}
-      </div>
-
       {/* Mini Vestaboard - Just the board itself */}
       <div className={`inline-block p-4 bg-gray-900 rounded-lg shadow-lg border-2 ${isDragging ? 'border-blue-500' : 'border-gray-700'} ${draggable ? 'hover:border-blue-400' : ''}`}>
         <div className="grid grid-cols-22 gap-[1px]">

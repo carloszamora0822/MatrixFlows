@@ -111,11 +111,9 @@ const ScreenPreview = () => {
               <h2 className="text-2xl font-bold text-gray-900">🎨 Saved Custom Screens ({savedScreens.length})</h2>
               <button
                 onClick={() => navigate('/custom-screen/new')}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-pink-600 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2"
               >
-                <span className="text-xl">✨</span>
-                Create New
-                <span className="text-xl">✨</span>
+                + Create New
               </button>
             </div>
             

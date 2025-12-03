@@ -49,7 +49,7 @@ class MetarAnalyzer {
       // Check for hazardous weather conditions
       const hazards = [
         { pattern: /\+RA|\+SN|\+TSRA/, condition: 'Heavy precipitation', severity: 'UNSAFE' },
-        { pattern: /FZRA/, condition: 'Freezing rain', severity: 'UNSAFE' },
+        { pattern: /\sFZRA\s/, condition: 'Freezing rain', severity: 'UNSAFE' }, // Space boundaries to avoid FZRANO
         { pattern: /\+FC|FC/, condition: 'Funnel cloud/Tornado', severity: 'UNSAFE' },
         { pattern: /TS/, condition: 'Thunderstorm', severity: 'RISKY' },
         { pattern: /-RA|-SN/, condition: 'Light precipitation', severity: 'RISKY' },

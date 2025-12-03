@@ -15,28 +15,32 @@ module.exports = async (req, res) => {
   try {
     await connectDB();
 
-    // Verify cron secret for security
-    const cronSecret = req.headers['x-cron-secret'] || req.query.secret;
-    const expectedSecret = process.env.CRON_SECRET;
+    // Verify cron secret for security (skip in development)
+    if (process.env.NODE_ENV === 'production') {
+      const cronSecret = req.headers['x-cron-secret'] || req.query.secret;
+      const expectedSecret = process.env.CRON_SECRET;
 
-    if (!expectedSecret) {
-      console.error('❌ CRON_SECRET not configured');
-      return res.status(500).json({
-        error: {
-          code: ERROR_CODES.INTERNAL_ERROR,
-          message: 'Cron secret not configured'
-        }
-      });
-    }
+      if (!expectedSecret) {
+        console.error('❌ CRON_SECRET not configured');
+        return res.status(500).json({
+          error: {
+            code: ERROR_CODES.INTERNAL_ERROR,
+            message: 'Cron secret not configured'
+          }
+        });
+      }
 
-    if (cronSecret !== expectedSecret) {
-      console.error('❌ Invalid cron secret');
-      return res.status(401).json({
-        error: {
-          code: ERROR_CODES.UNAUTHORIZED,
-          message: 'Invalid cron secret'
-        }
-      });
+      if (cronSecret !== expectedSecret) {
+        console.error('❌ Invalid cron secret');
+        return res.status(401).json({
+          error: {
+            code: ERROR_CODES.UNAUTHORIZED,
+            message: 'Invalid cron secret'
+          }
+        });
+      }
+    } else {
+      console.log('⚠️  Development mode - skipping cron secret check');
     }
 
     console.log('\n🕐 Cron job triggered at', new Date().toISOString());

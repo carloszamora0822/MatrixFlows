@@ -13,6 +13,8 @@ import Recognition from './pages/data/Recognition';
 import Workflows from './pages/Workflows';
 import Boards from './pages/Boards';
 import CustomScreenEditor from './pages/CustomScreenEditor';
+import WorkflowEditorPage from './pages/WorkflowEditorPage';
+import CreateWorkflowPage from './pages/CreateWorkflowPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -170,6 +172,24 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <CustomScreenEditor />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/workflow-editor/:workflowId" 
+        element={
+          <ProtectedRoute>
+            <WorkflowEditorPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/create-workflow" 
+        element={
+          <ProtectedRoute>
+            <CreateWorkflowPage />
           </ProtectedRoute>
         } 
       />

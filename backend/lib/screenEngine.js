@@ -341,7 +341,7 @@ class ScreenEngine {
   }
 
   /**
-   * Render METAR screen with safety color coding
+   * Render METAR screen with safety color coding - FULL SCREEN with borders
    */
   async renderMetar(config) {
     try {
@@ -352,38 +352,50 @@ class ScreenEngine {
       const safety = metarAnalyzer.analyzeSafety(metar.rawText);
       const safetyColor = safety.color; // 66=Green, 65=Yellow, 63=Red
 
-      // Row 0: "METAR KVBT" centered with safety color border
+      // Row 0: TOP BORDER - full row with safety color
+      for (let col = 0; col < 22; col++) {
+        matrix[0][col] = safetyColor;
+      }
+      // Header text on top border
       const headerText = `METAR ${metar.stationId}`;
       const headerCodes = this.textToCodes(headerText);
       const startCol = Math.floor((22 - headerCodes.length) / 2);
-      
-      // Add colored borders on row 0
-      matrix[0][0] = safetyColor;
-      matrix[0][21] = safetyColor;
-      for (let i = 0; i < headerCodes.length && (startCol + i) < 21; i++) {
+      for (let i = 0; i < headerCodes.length; i++) {
         matrix[0][startCol + i] = headerCodes[i];
       }
 
-      // Rows 1-5: METAR data with colored left/right borders
+      // Rows 1-4: METAR data with colored left/right borders (use FULL width)
       // Remove "METAR KVBT" from the beginning since it's already in the header
       const metarTextWithoutHeader = metar.rawText.replace(/^METAR\s+\w+\s+/, '');
-      const metarLines = this.wrapTextToLines(metarTextWithoutHeader, 20, 5); // 20 chars to leave room for borders
+      const metarLines = this.wrapTextToLines(metarTextWithoutHeader, 20, 4); // 4 rows, 20 chars each
       
-      for (let row = 0; row < metarLines.length && row < 5; row++) {
+      for (let row = 0; row < 4; row++) {
         // Left border
         matrix[row + 1][0] = safetyColor;
         
-        // METAR text
-        const lineCodes = this.textToCodes(metarLines[row]);
-        for (let col = 0; col < lineCodes.length && col < 20; col++) {
-          matrix[row + 1][col + 1] = lineCodes[col];
+        // METAR text (or blank if no more lines)
+        if (row < metarLines.length) {
+          const lineCodes = this.textToCodes(metarLines[row]);
+          for (let col = 0; col < lineCodes.length && col < 20; col++) {
+            matrix[row + 1][col + 1] = lineCodes[col];
+          }
         }
         
         // Right border
         matrix[row + 1][21] = safetyColor;
       }
 
-      console.log(`✅ METAR rendered with ${safety.safety} status (${safetyColor})`);
+      // Row 5: BOTTOM BORDER - full row with safety color
+      for (let col = 0; col < 22; col++) {
+        matrix[5][col] = safetyColor;
+      }
+
+      console.log(`✅ METAR rendered with ${safety.safety} status (Color: ${safetyColor})`);
+      if (safety.details) {
+        console.log(`   Visibility: ${safety.details.visibility || 'N/A'}`);
+        console.log(`   Wind: ${safety.details.windSpeed || 'N/A'}`);
+        console.log(`   Conditions: ${safety.details.conditions || 'N/A'}`);
+      }
       return matrix;
 
     } catch (error) {
@@ -406,10 +418,11 @@ class ScreenEngine {
   }
 
   /**
-   * Convert number to character codes
+   * Convert number to character codes (zero-padded to 2 digits)
    */
   numberToCodes(number) {
-    return number.toString().split('').map(digit => this.charMap[digit] || 0);
+    const padded = number.toString().padStart(2, '0'); // Always 2 digits: "5" → "05"
+    return padded.split('').map(digit => this.charMap[digit] || 0);
   }
 
   /**

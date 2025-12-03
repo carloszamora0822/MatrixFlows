@@ -12,7 +12,9 @@ class MetarClient {
     const cached = this.cache.get(cacheKey);
     
     if (cached) {
-      console.log(`✅ METAR cache hit for ${stationId} (40min TTL)`);
+      const cacheAge = Math.floor((Date.now() - new Date(cached.timestamp).getTime()) / 1000 / 60);
+      console.log(`✅ METAR cache hit for ${stationId} (cached ${cacheAge} min ago, 40min TTL)`);
+      console.log(`   Data: ${cached.rawText.substring(0, 50)}...`);
       return cached;
     }
 
