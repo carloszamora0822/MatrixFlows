@@ -277,14 +277,12 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
       console.log('📝 Screen object keys:', Object.keys(screen));
 
       // Add the custom screen as a new step
+      // Store ONLY the customScreenId - screen library is the source of truth!
       const newStep = {
         screenType: 'CUSTOM_MESSAGE',
         screenConfig: {
-          name: screen.name, // Store the name for display
-          message: screen.message,
-          matrix: screen.matrix,
-          borderColor1: screen.borderColor1,
-          borderColor2: screen.borderColor2
+          customScreenId: screen.screenId, // ✅ Reference to library (source of truth)
+          name: screen.name // Store name for display in workflow editor
         },
         displaySeconds: 20,
         displayValue: 20,
@@ -293,7 +291,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
         order: workflow.steps.length
       };
 
-      console.log('📝 New step being added:', JSON.stringify(newStep.screenConfig, null, 2));
+      console.log('📝 New step being added with customScreenId:', screen.screenId);
 
       const updatedSteps = [...workflow.steps, newStep];
 

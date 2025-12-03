@@ -30,15 +30,7 @@ const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, 
 
   useEffect(() => {
     const fetchPreview = async () => {
-      // If screenConfig has a matrix, use it directly (for custom screens)
-      if (screenConfig?.matrix && Array.isArray(screenConfig.matrix)) {
-        console.log('🎨 Using pre-saved matrix from screenConfig');
-        setMatrix(screenConfig.matrix);
-        setLoading(false);
-        return;
-      }
-
-      // Otherwise fetch preview from backend
+      // Always fetch preview from backend (handles customScreenId lookup from library)
       try {
         const res = await fetch(`/api/screens/preview`, {
           method: 'POST',
@@ -58,7 +50,7 @@ const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, 
     };
 
     fetchPreview();
-  }, [screenType, screenConfig]);
+  }, [screenType, screenConfig?.customScreenId, screenConfig?.message]);
 
   if (loading) {
     return (

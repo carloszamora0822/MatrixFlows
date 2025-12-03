@@ -501,11 +501,26 @@ class ScreenEngine {
 
   /**
    * Render Custom Message screen
-   * Uses pre-generated matrix from Pin Screen feature
+   * Fetches from CustomScreen library (source of truth) or uses provided matrix
    */
   async renderCustomMessage(config) {
     try {
-      // If a pre-generated matrix is provided, use it
+      // If customScreenId is provided, fetch from library (SOURCE OF TRUTH!)
+      if (config.customScreenId) {
+        const CustomScreen = require('../models/CustomScreen');
+        const customScreen = await CustomScreen.findOne({ 
+          screenId: config.customScreenId 
+        });
+        
+        if (customScreen && customScreen.matrix) {
+          console.log(`✅ Using custom screen from library: ${customScreen.name}`);
+          return customScreen.matrix;
+        } else {
+          console.warn(`⚠️  Custom screen ${config.customScreenId} not found, generating fallback`);
+        }
+      }
+      
+      // If a pre-generated matrix is provided, use it (for pin screen)
       if (config.matrix && Array.isArray(config.matrix)) {
         console.log(`✅ Using pre-generated custom message matrix`);
         return config.matrix;

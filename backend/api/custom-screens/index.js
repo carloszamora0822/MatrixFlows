@@ -83,7 +83,7 @@ module.exports = async (req, res) => {
       return res.status(200).json(screens);
 
     } else if (req.method === 'PUT') {
-      // Update custom screen
+      // Update custom screen AND update it in all workflows
       const screenId = req.query.id;
       const { name, message, borderColor1, borderColor2, matrix, expiresAt } = req.body;
 
@@ -129,7 +129,8 @@ module.exports = async (req, res) => {
         });
       }
 
-      console.log(`✅ Custom screen "${name}" updated`);
+      console.log(`✅ Custom screen "${name}" updated in library`);
+      console.log(`✅ All workflows using this screen will automatically use the new version (library is source of truth)`);
 
       return res.status(200).json({
         screenId: updated.screenId,
@@ -162,14 +163,13 @@ module.exports = async (req, res) => {
       console.log(`✅ Custom screen ${screenId} deleted from library`);
 
       // Remove this screen from ALL workflows
-      const customScreenConfig = { customScreenId: screenId };
       const result = await Workflow.updateMany(
         { orgId: ORG_CONFIG.ID },
         { 
           $pull: { 
             steps: { 
-              'step.screenType': 'CUSTOM_MESSAGE',
-              'step.screenConfig.customScreenId': screenId
+              screenType: 'CUSTOM_MESSAGE',
+              'screenConfig.customScreenId': screenId
             }
           }
         }

@@ -4,11 +4,20 @@ const NodeCache = require('node-cache');
 class MetarClient {
   constructor() {
     this.baseURL = 'https://aviationweather.gov/api/data/metar';
+    this.cache = new NodeCache({ stdTTL: 40 * 60 }); // 40 minutes cache
   }
 
   async getMetar(stationId = 'KVBT') {
+    const cacheKey = `metar_${stationId}`;
+    const cached = this.cache.get(cacheKey);
+    
+    if (cached) {
+      console.log(`✅ METAR cache hit for ${stationId} (40min TTL)`);
+      return cached;
+    }
+
     try {
-      console.log(`🌐 Fetching fresh METAR for ${stationId} (no cache)`);
+      console.log(`🌐 Fetching fresh METAR for ${stationId} (cache miss)`);
       const response = await axios.get(`${this.baseURL}?ids=${stationId}`, {
         timeout: 10000,
         headers: {
@@ -27,11 +36,20 @@ class MetarClient {
         source: 'aviationweather.gov'
       };
 
-      console.log(`✅ Fresh METAR fetched for ${stationId}`);
+      this.cache.set(cacheKey, metarData);
+      console.log(`✅ Fresh METAR fetched and cached for ${stationId}`);
       return metarData;
 
     } catch (error) {
       console.error(`❌ METAR fetch error for ${stationId}:`, error.message);
+      
+      // Return stale cache if available (better than nothing)
+      const staleCache = this.cache.get(cacheKey, true);
+      if (staleCache) {
+        console.log(`⚠️  Using stale cache for ${stationId} due to error`);
+        return staleCache;
+      }
+      
       throw new Error(`Failed to fetch METAR for ${stationId}: ${error.message}`);
     }
   }

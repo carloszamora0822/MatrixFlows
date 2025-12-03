@@ -37,6 +37,9 @@ const CustomScreensSection = ({ savedScreens, loadSavedScreens }) => {
     });
     setPreviewMatrix(screen.matrix);
     setEditingScreenId(screen.screenId);
+    
+    // Scroll to top so user sees the form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const deleteScreen = async (screenId, screenName) => {
@@ -163,9 +166,10 @@ const CustomScreensSection = ({ savedScreens, loadSavedScreens }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* Left: Form */}
-      <form onSubmit={handleSaveScreen} className="space-y-6">
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left: Form */}
+        <form onSubmit={handleSaveScreen} className="space-y-6">
         <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
           <h2 className="text-xl font-bold text-gray-900">Create Custom Screen</h2>
           
@@ -292,65 +296,69 @@ const CustomScreensSection = ({ savedScreens, loadSavedScreens }) => {
           )}
         </div>
 
-        {/* Saved Screens Library */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">➕ Saved Custom Screens ({savedScreens.length})</h2>
-          {savedScreens.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              <div className="text-4xl mb-2">📚</div>
-              <p>No saved screens yet. Create and save a screen above!</p>
-            </div>
-          ) : (
-            <div className="overflow-y-auto max-h-[400px] border-2 border-gray-300 rounded-lg p-3">
-              <div className="grid grid-cols-1 gap-4">
-              {savedScreens.map((screen) => {
-                const expiresDate = new Date(screen.expiresAt);
-                const now = new Date();
-                const daysUntilExpire = Math.ceil((expiresDate - now) / (1000 * 60 * 60 * 24));
-                const expiresText = daysUntilExpire > 365 
-                  ? 'Never expires' 
-                  : daysUntilExpire > 1 
-                    ? `Expires in ${daysUntilExpire} days`
-                    : daysUntilExpire === 1 
-                      ? 'Expires tomorrow'
-                      : 'Expires today';
-                
-                return (
-                  <div 
-                    key={screen.screenId} 
-                    className={`border-2 rounded-lg p-4 transition-all ${
-                      editingScreenId === screen.screenId 
-                        ? 'border-orange-500 bg-orange-50' 
-                        : 'border-gray-200 hover:border-blue-400'
-                    }`}
-                  >
-                    <h3 className="font-semibold text-gray-900 mb-1">{screen.name}</h3>
-                    <p className="text-xs text-gray-600 truncate mb-2">{screen.message}</p>
-                    <p className="text-xs text-gray-500 italic mb-3">⏱️ {expiresText}</p>
-                    
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => loadScreenForEditing(screen)}
-                        className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        onClick={() => deleteScreen(screen.screenId, screen.name)}
-                        className="px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </div>
+
+    {/* Saved Custom Screens - Grid Display like Built-in Screens */}
+    {savedScreens.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">📚 Saved Custom Screens ({savedScreens.length})</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {savedScreens.map((screen) => {
+              const expiresDate = new Date(screen.expiresAt);
+              const now = new Date();
+              const daysUntilExpire = Math.ceil((expiresDate - now) / (1000 * 60 * 60 * 24));
+              const expiresText = daysUntilExpire > 365 
+                ? 'Never expires' 
+                : daysUntilExpire > 1 
+                  ? `Expires in ${daysUntilExpire} days`
+                  : daysUntilExpire === 1 
+                    ? 'Expires tomorrow'
+                    : 'Expires today';
+              
+              return (
+                <div 
+                  key={screen.screenId} 
+                  className={`bg-white rounded-xl shadow-lg p-6 transition-all ${
+                    editingScreenId === screen.screenId 
+                      ? 'ring-4 ring-orange-400' 
+                      : 'hover:shadow-xl'
+                  }`}
+                >
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">{screen.name}</h3>
+                  <p className="text-xs text-gray-500 italic mb-4 text-center">⏱️ {expiresText}</p>
+                  
+                  {/* Preview Matrix */}
+                  <div className="flex justify-center mb-4">
+                    {screen.matrix ? (
+                      <MatrixPreview matrix={screen.matrix} />
+                    ) : (
+                      <div className="text-gray-400 text-sm">Preview unavailable</div>
+                    )}
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => loadScreenForEditing(screen)}
+                      className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-semibold"
+                    >
+                      ✏️ Edit
+                    </button>
+                    <button
+                      onClick={() => deleteScreen(screen.screenId, screen.name)}
+                      className="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 font-semibold"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -361,13 +369,13 @@ const ScreenPreview = () => {
   const [lastRefresh, setLastRefresh] = useState(null);
 
   const screenTypes = [
-    { value: 'BIRTHDAY', label: '🎂 Birthday' },
-    { value: 'CHECKRIDES', label: '✈️ Checkrides' },
-    { value: 'UPCOMING_EVENTS', label: '📅 Events' },
-    { value: 'NEWEST_PILOT', label: '🎓 Newest Pilot' },
-    { value: 'EMPLOYEE_RECOGNITION', label: '⭐ Recognition' },
-    { value: 'WEATHER', label: '🌤️ Weather' },
-    { value: 'METAR', label: '🛩️ METAR' }
+    { value: 'BIRTHDAY', label: '🎂 Birthday', dataPath: '/data/birthdays' },
+    { value: 'CHECKRIDES', label: '✈️ Checkrides', dataPath: '/data/checkrides' },
+    { value: 'UPCOMING_EVENTS', label: '📅 Events', dataPath: '/data/events' },
+    { value: 'NEWEST_PILOT', label: '🎓 Newest Pilot', dataPath: '/data/pilots' },
+    { value: 'EMPLOYEE_RECOGNITION', label: '⭐ Recognition', dataPath: '/data/recognition' },
+    { value: 'WEATHER', label: '🌤️ Weather', dataPath: null },
+    { value: 'METAR', label: '🛩️ METAR', dataPath: null }
   ];
 
   useEffect(() => {
@@ -474,13 +482,23 @@ const ScreenPreview = () => {
                 {screenTypes.map((screen) => (
                   <div key={screen.value} className="bg-white rounded-xl shadow-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">{screen.label}</h3>
-                    <div className="flex justify-center">
+                    <div className="flex justify-center mb-4">
                       {screenPreviews[screen.value] ? (
                         <MatrixPreview matrix={screenPreviews[screen.value]} />
                       ) : (
                         <div className="text-gray-400 text-sm">Preview unavailable</div>
                       )}
                     </div>
+                    {screen.dataPath && (
+                      <div className="flex justify-center">
+                        <a
+                          href={screen.dataPath}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-sm"
+                        >
+                          ✏️ Edit Data
+                        </a>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

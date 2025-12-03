@@ -17,7 +17,6 @@ const Navigation = () => {
     { name: 'Screen Library', href: '/preview', current: location.pathname === '/preview' },
     { name: 'Workflows', href: '/workflows', current: location.pathname === '/workflows' },
     { name: 'Boards', href: '/boards', current: location.pathname === '/boards' },
-    { name: 'Data Management', href: '/data', current: location.pathname === '/data' },
   ];
 
   return (

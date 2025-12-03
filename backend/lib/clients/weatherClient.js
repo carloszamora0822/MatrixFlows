@@ -5,6 +5,7 @@ class WeatherClient {
   constructor() {
     this.apiKey = process.env.OPENWEATHER_API_KEY;
     this.baseURL = 'https://api.openweathermap.org/data/2.5/weather';
+    this.cache = new NodeCache({ stdTTL: 40 * 60 }); // 40 minutes cache
   }
 
   async getWeather(location = process.env.OPENWEATHER_LOCATION || 'Bentonville,US') {
@@ -12,8 +13,16 @@ class WeatherClient {
       throw new Error('OpenWeather API key not configured');
     }
 
+    const cacheKey = `weather_${location}`;
+    const cached = this.cache.get(cacheKey);
+    
+    if (cached) {
+      console.log(`✅ Weather cache hit for ${location} (40min TTL)`);
+      return cached;
+    }
+
     try {
-      console.log(`🌐 Fetching fresh weather for ${location} (no cache)`);
+      console.log(`🌐 Fetching fresh weather for ${location} (cache miss)`);
       const response = await axios.get(this.baseURL, {
         params: {
           q: location,
@@ -42,11 +51,20 @@ class WeatherClient {
         source: 'openweathermap.org'
       };
 
-      console.log(`✅ Fresh weather fetched for ${location}: ${weatherData.temperature}°F, ${weatherData.condition}`);
+      this.cache.set(cacheKey, weatherData);
+      console.log(`✅ Fresh weather fetched and cached for ${location}: ${weatherData.temperature}°F, ${weatherData.condition}`);
       return weatherData;
 
     } catch (error) {
       console.error(`❌ Weather fetch error for ${location}:`, error.message);
+      
+      // Return stale cache if available (better than nothing)
+      const staleCache = this.cache.get(cacheKey, true);
+      if (staleCache) {
+        console.log(`⚠️  Using stale cache for ${location} due to error`);
+        return staleCache;
+      }
+      
       throw new Error(`Failed to fetch weather for ${location}: ${error.message}`);
     }
   }
