@@ -64,36 +64,48 @@ const MatrixPreview = ({ matrix, className = '', title = 'Vestaboard Preview' })
     <div className={`inline-block ${className}`}>
       {/* Matrix Display - Just the board itself */}
       <div className="inline-block p-4 bg-gray-900 rounded-lg shadow-lg">
-        <div className="grid grid-cols-22 gap-0.5">
+        <div className="grid grid-cols-22 gap-[1px]">
           {matrix.map((row, rowIndex) =>
             row.map((cell, colIndex) => {
               const isColorCode = cell >= 63 && cell <= 70;
               const isTextCode = cell >= 1 && cell <= 62;
               
-              // Determine cell styling
-              let cellClass = 'w-4 h-4 flex items-center justify-center text-xs font-mono rounded-sm';
+              // Outer cell: Physical unit (2.68" tall x 1.43" wide = 1.87 ratio)
+              // Inner visible: Character display (1.04" tall x 0.82" wide)
+              // Inner is 38.8% height and 57.3% width of outer
+              const outerCellClass = 'w-4 flex items-center justify-center bg-gray-800 rounded-sm border border-gray-700';
+              const outerCellStyle = { height: 'calc(1rem * 1.87)' };
+              
+              let innerCellClass = 'rounded-sm flex items-center justify-center text-xs font-mono font-bold';
+              const innerCellStyle = { 
+                width: '57.3%',  // 0.82/1.43 = 57.3%
+                height: '38.8%'  // 1.04/2.68 = 38.8%
+              };
               let displayChar = '';
 
               if (isColorCode) {
                 // Color codes - display as solid color blocks
-                cellClass += ` ${CHAR_COLORS[cell]}`;
+                innerCellClass += ` ${CHAR_COLORS[cell]}`;
               } else if (isTextCode) {
                 // Text codes - display character on dark background
-                cellClass += ' bg-gray-800 text-white';
+                innerCellClass += ' bg-gray-800 text-white';
                 displayChar = CHAR_MAP_REVERSE[cell] || '?';
               } else {
                 // Blank (code 0) - display as black
-                cellClass += ' bg-black';
+                innerCellClass += ' bg-black';
               }
               
               return (
                 <div
                   key={`${rowIndex}-${colIndex}`}
-                  className={cellClass}
+                  className={outerCellClass}
+                  style={outerCellStyle}
                 >
-                  <span className="font-bold text-white">
-                    {displayChar}
-                  </span>
+                  <div className={innerCellClass} style={innerCellStyle}>
+                    <span className="text-white">
+                      {displayChar}
+                    </span>
+                  </div>
                 </div>
               );
             })

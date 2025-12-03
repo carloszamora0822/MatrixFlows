@@ -100,32 +100,45 @@ const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, 
 
       {/* Mini Vestaboard - Just the board itself */}
       <div className={`inline-block p-4 bg-gray-900 rounded-lg shadow-lg border-2 ${isDragging ? 'border-blue-500' : 'border-gray-700'} ${draggable ? 'hover:border-blue-400' : ''}`}>
-        <div className="grid grid-cols-22 gap-0.5">
+        <div className="grid grid-cols-22 gap-[1px]">
           {matrix && matrix.map((row, rowIdx) =>
             row.map((cell, colIdx) => {
               const isColorCode = cell >= 63 && cell <= 70;
               const isTextCode = cell >= 1 && cell <= 62;
               
-              let cellClass = 'w-4 h-4 flex items-center justify-center text-xs font-mono rounded-sm';
+              // Outer cell: Physical unit (2.68" tall x 1.43" wide = 1.87 ratio)
+              // Inner visible: Character display (1.04" tall x 0.82" wide)
+              // Inner is 38.8% height and 57.3% width of outer
+              const outerCellClass = 'w-4 flex items-center justify-center bg-gray-800 rounded-sm border border-gray-700';
+              const outerCellStyle = { height: 'calc(1rem * 1.87)' };
+              
+              let innerCellClass = 'rounded-sm flex items-center justify-center text-xs font-mono font-bold';
+              const innerCellStyle = { 
+                width: '57.3%',  // 0.82/1.43 = 57.3%
+                height: '38.8%'  // 1.04/2.68 = 38.8%
+              };
               let displayChar = '';
               
               if (isColorCode) {
-                cellClass += ` ${CHAR_COLORS[cell]}`;
+                innerCellClass += ` ${CHAR_COLORS[cell]}`;
               } else if (isTextCode) {
-                cellClass += ' bg-gray-800 text-white';
+                innerCellClass += ' bg-gray-800 text-white';
                 displayChar = CHAR_MAP_REVERSE[cell] || '?';
               } else {
-                cellClass += ' bg-black';
+                innerCellClass += ' bg-black';
               }
               
               return (
                 <div 
                   key={`${rowIdx}-${colIdx}`} 
-                  className={cellClass}
+                  className={outerCellClass}
+                  style={outerCellStyle}
                 >
-                  <span className="font-bold text-white">
-                    {displayChar}
-                  </span>
+                  <div className={innerCellClass} style={innerCellStyle}>
+                    <span className="text-white">
+                      {displayChar}
+                    </span>
+                  </div>
                 </div>
               );
             })
