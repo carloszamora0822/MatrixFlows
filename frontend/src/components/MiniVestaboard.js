@@ -88,25 +88,17 @@ const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, 
     >
       {/* Drag handle - leftmost */}
       {draggable && (
-        <div className="absolute -left-14 top-12 flex items-center justify-center w-6 h-10 text-gray-400 hover:text-blue-500 transition-colors">
+        <div className="absolute -left-14 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-10 text-gray-400 hover:text-blue-500 transition-colors">
           <span className="text-3xl leading-none">⋮⋮</span>
         </div>
       )}
       
       {/* Step indicator */}
-      <div className="absolute -left-6 top-12 flex items-center justify-center w-6 h-6 bg-blue-500 text-white rounded-full font-bold text-xs shadow-lg">
+      <div className="absolute -left-6 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 bg-blue-500 text-white rounded-full font-bold text-xs shadow-lg">
         {stepNumber}
       </div>
 
-      {/* Title */}
-      <div className="mb-3 text-center">
-        <h3 className="text-lg font-semibold text-gray-900">
-          Step {stepNumber}: {screenType.replace(/_/g, ' ')}
-        </h3>
-        <p className="text-sm text-gray-600">6×22 Character Matrix</p>
-      </div>
-      
-      {/* Mini Vestaboard */}
+      {/* Mini Vestaboard - Just the board itself */}
       <div className={`inline-block p-4 bg-gray-900 rounded-lg shadow-lg border-2 ${isDragging ? 'border-blue-500' : 'border-gray-700'} ${draggable ? 'hover:border-blue-400' : ''}`}>
         <div className="grid grid-cols-22 gap-0.5">
           {matrix && matrix.map((row, rowIdx) =>
@@ -130,7 +122,6 @@ const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, 
                 <div 
                   key={`${rowIdx}-${colIdx}`} 
                   className={cellClass}
-                  title={`[${rowIdx}][${colIdx}]: ${cell} ${displayChar ? `(${displayChar})` : ''}`}
                 >
                   <span className="font-bold text-white">
                     {displayChar}
@@ -139,54 +130,6 @@ const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, 
               );
             })
           )}
-        </div>
-      </div>
-
-      {/* Matrix Info */}
-      <div className="mt-3 text-center">
-        <div className="flex justify-center space-x-4 text-xs text-gray-500">
-          <span>Rows: 6</span>
-          <span>Columns: 22</span>
-          <span>Total Cells: 132</span>
-        </div>
-      </div>
-
-      {/* Color Legend */}
-      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-        <h4 className="text-sm font-medium text-gray-900 mb-2">Color Legend</h4>
-        <div className="grid grid-cols-4 gap-2 text-xs">
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-red-500 rounded"></div>
-            <span>Red (63)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-orange-500 rounded"></div>
-            <span>Orange (64)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-            <span>Yellow (65)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-green-500 rounded"></div>
-            <span>Green (66)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-blue-500 rounded"></div>
-            <span>Blue (67)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-purple-500 rounded"></div>
-            <span>Violet (68)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-white border border-gray-300 rounded"></div>
-            <span>White (69)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-black rounded"></div>
-            <span>Text/Blank</span>
-          </div>
         </div>
       </div>
 

@@ -62,13 +62,7 @@ const MatrixPreview = ({ matrix, className = '', title = 'Vestaboard Preview' })
 
   return (
     <div className={`inline-block ${className}`}>
-      {/* Title */}
-      <div className="mb-3 text-center">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-600">6×22 Character Matrix</p>
-      </div>
-
-      {/* Matrix Display */}
+      {/* Matrix Display - Just the board itself */}
       <div className="inline-block p-4 bg-gray-900 rounded-lg shadow-lg">
         <div className="grid grid-cols-22 gap-0.5">
           {matrix.map((row, rowIndex) =>
@@ -79,7 +73,6 @@ const MatrixPreview = ({ matrix, className = '', title = 'Vestaboard Preview' })
               // Determine cell styling
               let cellClass = 'w-4 h-4 flex items-center justify-center text-xs font-mono rounded-sm';
               let displayChar = '';
-              let textColor = '';
 
               if (isColorCode) {
                 // Color codes - display as solid color blocks
@@ -88,7 +81,6 @@ const MatrixPreview = ({ matrix, className = '', title = 'Vestaboard Preview' })
                 // Text codes - display character on dark background
                 cellClass += ' bg-gray-800 text-white';
                 displayChar = CHAR_MAP_REVERSE[cell] || '?';
-                textColor = 'text-white';
               } else {
                 // Blank (code 0) - display as black
                 cellClass += ' bg-black';
@@ -98,63 +90,14 @@ const MatrixPreview = ({ matrix, className = '', title = 'Vestaboard Preview' })
                 <div
                   key={`${rowIndex}-${colIndex}`}
                   className={cellClass}
-                  title={`[${rowIndex}][${colIndex}]: ${cell} ${displayChar ? `(${displayChar})` : ''}`}
                 >
-                  <span className={`font-bold ${textColor}`}>
+                  <span className="font-bold text-white">
                     {displayChar}
                   </span>
                 </div>
               );
             })
           )}
-        </div>
-      </div>
-
-      {/* Matrix Info */}
-      <div className="mt-3 text-center">
-        <div className="flex justify-center space-x-4 text-xs text-gray-500">
-          <span>Rows: 6</span>
-          <span>Columns: 22</span>
-          <span>Total Cells: 132</span>
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-        <h4 className="text-sm font-medium text-gray-900 mb-2">Color Legend</h4>
-        <div className="grid grid-cols-4 gap-2 text-xs">
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-red-500 rounded"></div>
-            <span>Red (63)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-orange-500 rounded"></div>
-            <span>Orange (64)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-            <span>Yellow (65)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-green-500 rounded"></div>
-            <span>Green (66)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-blue-500 rounded"></div>
-            <span>Blue (67)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-purple-500 rounded"></div>
-            <span>Violet (68)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-white border border-gray-300 rounded"></div>
-            <span>White (69)</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-black rounded"></div>
-            <span>Text/Blank</span>
-          </div>
         </div>
       </div>
     </div>
