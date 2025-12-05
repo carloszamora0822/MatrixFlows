@@ -24,7 +24,7 @@ const workflowStepSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 5,
-    max: 300,
+    max: 3600, // 1 hour max
     default: 15
   },
   isEnabled: {
@@ -37,7 +37,7 @@ const workflowScheduleSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['always', 'dailyWindow', 'specificDateRange'],
+    enum: ['always', 'dailyWindow', 'timeWindow', 'specificDateRange'],
     default: 'always'
   },
   startTimeLocal: String, // HH:MM format
