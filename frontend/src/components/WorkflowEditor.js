@@ -3,6 +3,9 @@ import MiniVestaboard from './MiniVestaboard';
 
 const WorkflowEditor = ({ workflow, onSave, onCancel, hideHeader = false, showButtons = false, onCreateWorkflow, onSaveAndTrigger }) => {
   const [steps, setSteps] = useState(workflow?.steps || []);
+  
+  // Track the display unit for each step (seconds, minutes, hours)
+  const [stepUnits, setStepUnits] = useState({});
 
   // Auto-sync steps to parent when they change (only when buttons are hidden)
   useEffect(() => {
@@ -191,6 +194,18 @@ const WorkflowEditor = ({ workflow, onSave, onCancel, hideHeader = false, showBu
     setSteps(newSteps);
   };
 
+  // Helper to get the current unit for a step
+  const getStepUnit = (index, step) => {
+    // Use stored unit if available, otherwise infer from displaySeconds
+    if (stepUnits[index]) {
+      return stepUnits[index];
+    }
+    // Infer unit from displaySeconds
+    if (step.displaySeconds >= 3600) return 'hours';
+    if (step.displaySeconds >= 60) return 'minutes';
+    return 'seconds';
+  };
+
   const handleDurationChange = (index, value, unit) => {
     const newSteps = [...steps];
     let seconds = parseInt(value);
@@ -201,6 +216,9 @@ const WorkflowEditor = ({ workflow, onSave, onCancel, hideHeader = false, showBu
     
     newSteps[index].displaySeconds = seconds;
     setSteps(newSteps);
+    
+    // Store the unit for this step
+    setStepUnits(prev => ({ ...prev, [index]: unit }));
   };
 
   const incrementDelay = (index, unit) => {
@@ -384,35 +402,27 @@ const WorkflowEditor = ({ workflow, onSave, onCancel, hideHeader = false, showBu
                         <div className="flex items-center gap-2 bg-blue-50 border-2 border-blue-200 rounded-lg px-2 py-1.5">
                           <input
                             type="number"
-                            value={
-                              step.displaySeconds >= 3600 
-                                ? Math.floor(step.displaySeconds / 3600)
-                                : step.displaySeconds >= 60
-                                ? Math.floor(step.displaySeconds / 60)
-                                : step.displaySeconds
-                            }
+                            value={(() => {
+                              const unit = getStepUnit(index, step);
+                              if (unit === 'hours') return Math.floor(step.displaySeconds / 3600);
+                              if (unit === 'minutes') return Math.floor(step.displaySeconds / 60);
+                              return step.displaySeconds;
+                            })()}
                             onChange={(e) => {
                               const value = parseInt(e.target.value) || 0;
-                              const unit = step.displaySeconds >= 3600 ? 'hours' 
-                                         : step.displaySeconds >= 60 ? 'minutes' 
-                                         : 'seconds';
+                              const unit = getStepUnit(index, step);
                               handleDurationChange(index, value, unit);
                             }}
                             min="1"
                             className="w-16 px-2 py-1 border border-blue-300 rounded text-center font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
                           />
                           <select
-                            value={
-                              step.displaySeconds >= 3600 ? 'hours'
-                              : step.displaySeconds >= 60 ? 'minutes'
-                              : 'seconds'
-                            }
+                            value={getStepUnit(index, step)}
                             onChange={(e) => {
-                              const currentValue = step.displaySeconds >= 3600 
-                                ? Math.floor(step.displaySeconds / 3600)
-                                : step.displaySeconds >= 60
-                                ? Math.floor(step.displaySeconds / 60)
-                                : step.displaySeconds;
+                              const currentUnit = getStepUnit(index, step);
+                              let currentValue = step.displaySeconds;
+                              if (currentUnit === 'hours') currentValue = Math.floor(currentValue / 3600);
+                              if (currentUnit === 'minutes') currentValue = Math.floor(currentValue / 60);
                               handleDurationChange(index, currentValue, e.target.value);
                             }}
                             className="px-2 py-1 border border-blue-300 rounded font-semibold text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
