@@ -77,6 +77,28 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
       return;
     }
 
+    // Validate workflow timing: total duration vs frequency
+    const totalDurationSeconds = updatedSteps.reduce((sum, step) => sum + (step.displaySeconds || 0), 0);
+    const frequencySeconds = (schedule.updateIntervalMinutes || 30) * 60;
+    
+    if (totalDurationSeconds > frequencySeconds) {
+      const totalMinutes = Math.ceil(totalDurationSeconds / 60);
+      const suggestedFrequency = Math.ceil(totalDurationSeconds / 60);
+      
+      const userConfirmed = window.confirm(
+        `⚠️ Warning: Workflow Duration Exceeds Frequency!\n\n` +
+        `Total duration: ${totalMinutes} minutes\n` +
+        `Update frequency: ${schedule.updateIntervalMinutes || 30} minutes\n\n` +
+        `Your workflow will take longer to complete than the time between updates.\n\n` +
+        `Suggested frequency: ${suggestedFrequency} minutes\n\n` +
+        `Do you want to continue anyway?`
+      );
+      
+      if (!userConfirmed) {
+        return;
+      }
+    }
+
     try {
       const url = isEditMode 
         ? `/api/workflows?id=${initialWorkflow.workflowId}`

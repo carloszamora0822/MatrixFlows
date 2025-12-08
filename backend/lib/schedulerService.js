@@ -143,6 +143,11 @@ class SchedulerService {
 
       console.log(`✅ Interval trigger activated - running workflow for ALL ${boards.length} board(s)!`);
 
+      // IMPORTANT: Update lastUpdateAt NOW (before running workflow) to prevent multiple simultaneous runs
+      // This marks the workflow as "running" so the next cron check won't trigger it again
+      primaryBoardState.lastUpdateAt = new Date();
+      await primaryBoardState.save();
+
       // Run the workflow ONCE and get the screens
       const screens = await this.runCompleteWorkflowGetScreens(primaryBoard.boardId, workflow);
       
@@ -174,17 +179,27 @@ class SchedulerService {
             });
           }
 
+          // Update lastUpdateAt NOW before posting to prevent race conditions
+          boardState.lastUpdateAt = new Date();
+          boardState.currentWorkflowId = workflow.workflowId;
+          await boardState.save();
+
           // Post all screens to this board
-          for (const screen of screens) {
+          for (let i = 0; i < screens.length; i++) {
+            const screen = screens[i];
             await vestaboardClient.postMessage(board.vestaboardWriteKey, screen.matrix);
-            await new Promise(resolve => setTimeout(resolve, screen.displaySeconds * 1000));
+            
+            // Wait before next screen (except for last screen)
+            if (i < screens.length - 1) {
+              const delayMs = screen.displaySeconds * 1000;
+              console.log(`⏳ Waiting ${screen.displaySeconds} seconds (${Math.floor(screen.displaySeconds / 60)}m ${screen.displaySeconds % 60}s) before next screen...`);
+              await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
           }
 
-          // Update board state
+          // Update board state after completion
           boardState.lastMatrix = screens[screens.length - 1].matrix;
-          boardState.lastUpdateAt = new Date();
           boardState.lastUpdateSuccess = true;
-          boardState.currentWorkflowId = workflow.workflowId;
           boardState.cycleCount = (boardState.cycleCount || 0) + 1;
           await boardState.save();
 
@@ -467,6 +482,7 @@ class SchedulerService {
     for (let i = 0; i < enabledSteps.length; i++) {
       const step = enabledSteps[i];
       console.log(`\n📺 Step ${i + 1}/${enabledSteps.length}: ${step.screenType}`);
+      console.log(`⏱️  Display duration: ${step.displaySeconds} seconds (${Math.floor(step.displaySeconds / 60)}m ${step.displaySeconds % 60}s)`);
       
       try {
         const matrix = await screenEngine.render(step.screenType, step.screenConfig);

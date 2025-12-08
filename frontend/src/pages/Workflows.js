@@ -868,6 +868,34 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                   <div className="flex space-x-2">
                     {editingWorkflowId === workflow.workflowId ? (
                       <>
+                        {/* Duration vs Frequency Warning */}
+                        {(() => {
+                          const currentTotalSeconds = enabledSteps.reduce((sum, step, idx) => {
+                            const stepKey = `${workflow.workflowId}-${idx}`;
+                            return sum + (stepDurations[stepKey] || step.displaySeconds || 0);
+                          }, 0);
+                          const currentTotalMinutes = Math.ceil(currentTotalSeconds / 60);
+                          const frequencyMinutes = workflow.schedule?.updateIntervalMinutes || 30;
+                          
+                          if (currentTotalSeconds > frequencyMinutes * 60) {
+                            return (
+                              <div className="w-full mb-4 p-4 bg-red-50 border-2 border-red-400 rounded-lg">
+                                <p className="text-red-800 font-bold text-sm mb-2">
+                                  ⚠️  Warning: Workflow Duration Exceeds Frequency!
+                                </p>
+                                <p className="text-red-700 text-xs mb-2">
+                                  Total duration: <strong>{currentTotalMinutes} minutes</strong> | 
+                                  Update frequency: <strong>{frequencyMinutes} minutes</strong>
+                                </p>
+                                <p className="text-red-700 text-xs">
+                                  Your workflow will take longer to complete than the time between updates. 
+                                  Please reduce screen delays or increase the frequency to at least <strong>{currentTotalMinutes} minutes</strong>.
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                         <button 
                           onClick={async () => {
                             // Save reordered workflow with updated durations and expiration

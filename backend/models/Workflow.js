@@ -24,7 +24,7 @@ const workflowStepSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 5,
-    max: 3600, // 1 hour max
+    max: 86400, // 24 hours max (1 day)
     default: 15
   },
   isEnabled: {

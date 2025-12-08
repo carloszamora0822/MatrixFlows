@@ -53,6 +53,28 @@ const createWorkflow = async (req, res) => {
     });
   }
 
+  // Validate workflow timing: total duration vs frequency
+  const totalDurationSeconds = steps.reduce((sum, step) => sum + (step.displaySeconds || 0), 0);
+  const frequencySeconds = (schedule?.updateIntervalMinutes || 30) * 60;
+  
+  if (totalDurationSeconds > frequencySeconds) {
+    const totalMinutes = Math.ceil(totalDurationSeconds / 60);
+    const suggestedFrequency = Math.ceil(totalDurationSeconds / 60);
+    console.warn(`⚠️  Workflow duration (${totalMinutes}min) exceeds frequency (${schedule?.updateIntervalMinutes || 30}min)`);
+    
+    return res.status(400).json({ 
+      error: { 
+        code: ERROR_CODES.VALIDATION_ERROR, 
+        message: `Workflow duration (${totalMinutes} minutes) exceeds update frequency (${schedule?.updateIntervalMinutes || 30} minutes). Please reduce screen delays or increase the frequency to at least ${suggestedFrequency} minutes.`,
+        details: { 
+          totalDurationMinutes: totalMinutes,
+          currentFrequencyMinutes: schedule?.updateIntervalMinutes || 30,
+          suggestedFrequencyMinutes: suggestedFrequency
+        }
+      } 
+    });
+  }
+
   const newWorkflow = new Workflow({
     name: name.trim(),
     steps,
