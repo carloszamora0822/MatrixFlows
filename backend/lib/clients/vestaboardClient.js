@@ -75,7 +75,12 @@ class VestaboardClient {
       };
 
     } catch (error) {
+      const errorTime = new Date();
       console.error(`❌ Vestaboard update failed:`, error.message);
+      
+      // Update tracker even on failure so timing logs are accurate
+      if (!global.lastVestaboardPost) global.lastVestaboardPost = {};
+      global.lastVestaboardPost[writeKey] = errorTime.getTime();
       
       if (error.response) {
         // 304 = Not Modified (board already displaying this content) - treat as success!
