@@ -21,7 +21,20 @@ class VestaboardClient {
     }
 
     try {
-      console.log(`📤 Posting to Vestaboard...`);
+      const postTime = new Date();
+      
+      // Check time since last post for this API key
+      if (global.lastVestaboardPost && global.lastVestaboardPost[writeKey]) {
+        const timeSinceLastPost = (postTime.getTime() - global.lastVestaboardPost[writeKey]) / 1000;
+        console.log(`📤 Posting to Vestaboard at ${postTime.toISOString()}`);
+        console.log(`⏱️  Time since last post: ${timeSinceLastPost.toFixed(1)}s`);
+        
+        if (timeSinceLastPost < 15) {
+          console.warn(`⚠️  WARNING: Only ${timeSinceLastPost.toFixed(1)}s since last post (minimum 15s recommended)`);
+        }
+      } else {
+        console.log(`📤 Posting to Vestaboard at ${postTime.toISOString()} (first post for this key)`);
+      }
       
       const response = await axios.post(
         `${this.baseURL}/`,
@@ -36,9 +49,12 @@ class VestaboardClient {
         }
       );
 
+      const responseTime = new Date();
+      const duration = responseTime.getTime() - postTime.getTime();
+      
       // Handle 304 Not Modified
       if (response.status === 304) {
-        console.log(`✅ Vestaboard already displaying this content (304 Not Modified)`);
+        console.log(`✅ Vestaboard 304 Not Modified (${duration}ms) at ${responseTime.toISOString()}`);
         return {
           success: true,
           status: 304,
@@ -46,7 +62,12 @@ class VestaboardClient {
         };
       }
       
-      console.log(`✅ Vestaboard update successful`);
+      console.log(`✅ Vestaboard update successful (${duration}ms) at ${responseTime.toISOString()}`);
+      
+      // Store last post time globally for rate limit tracking
+      if (!global.lastVestaboardPost) global.lastVestaboardPost = {};
+      global.lastVestaboardPost[writeKey] = responseTime.getTime();
+      
       return {
         success: true,
         status: response.status,
