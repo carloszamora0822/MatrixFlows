@@ -185,9 +185,9 @@ class SchedulerService {
         // Post THIS screen to ALL boards simultaneously
         const screenResults = await Promise.all(boards.map(async (board) => {
           try {
-            console.log(`  📤 ${board.name}`);
+            console.log(`  📤 ${board.name} [Workflow: ${workflow.name}]`);
             await vestaboardClient.postMessage(board.vestaboardWriteKey, screen.matrix);
-            console.log(`  ✅ ${board.name} posted`);
+            console.log(`  ✅ ${board.name} posted [Workflow: ${workflow.name}]`);
             
             return { boardId: board.boardId, success: true };
           } catch (error) {
