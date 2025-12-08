@@ -175,11 +175,39 @@ class SchedulerService {
         }
       }
 
-      // Post screens to all boards with delays
-      const results = await Promise.all(boards.map(async (board) => {
+      // Post screens to all boards - one screen at a time, all boards simultaneously
+      const results = [];
+      
+      for (let i = 0; i < screens.length; i++) {
+        const screen = screens[i];
+        console.log(`\n📺 Screen ${i + 1}/${screens.length}: ${screen.screenType}`);
+        
+        // Post THIS screen to ALL boards simultaneously
+        const screenResults = await Promise.all(boards.map(async (board) => {
+          try {
+            console.log(`  📤 ${board.name}`);
+            await vestaboardClient.postMessage(board.vestaboardWriteKey, screen.matrix);
+            console.log(`  ✅ ${board.name} posted`);
+            
+            return { boardId: board.boardId, success: true };
+          } catch (error) {
+            console.error(`  ❌ ${board.name} error:`, error.message);
+            return { boardId: board.boardId, success: false, error: error.message };
+          }
+        }));
+        
+        results.push(...screenResults);
+        
+        // Wait before next screen (except last)
+        if (i < screens.length - 1) {
+          console.log(`⏳ Waiting ${screen.displaySeconds}s before next screen...`);
+          await new Promise(resolve => setTimeout(resolve, screen.displaySeconds * 1000));
+        }
+      }
+      
+      // Update all board states after workflow completes
+      await Promise.all(boards.map(async (board) => {
         try {
-          console.log(`\n📤 Posting to: ${board.name}`);
-          
           let boardState = await BoardState.findOne({
             orgId: ORG_CONFIG.ID,
             boardId: board.boardId
@@ -193,45 +221,18 @@ class SchedulerService {
             });
           }
 
-          // Post each screen with delay
-          for (let i = 0; i < screens.length; i++) {
-            const screen = screens[i];
-            
-            console.log(`  📺 Screen ${i + 1}/${screens.length}: ${screen.screenType}`);
-            await vestaboardClient.postMessage(board.vestaboardWriteKey, screen.matrix);
-            console.log(`  ✅ Posted`);
-            
-            // Wait before next screen (except last)
-            if (i < screens.length - 1) {
-              console.log(`  ⏳ Waiting ${screen.displaySeconds}s...`);
-              await new Promise(resolve => setTimeout(resolve, screen.displaySeconds * 1000));
-            }
-          }
-
-          // Update board state
           boardState.lastMatrix = screens[screens.length - 1].matrix;
           boardState.lastUpdateAt = new Date();
           boardState.lastUpdateSuccess = true;
           boardState.currentWorkflowId = workflow.workflowId;
           boardState.cycleCount = (boardState.cycleCount || 0) + 1;
           await boardState.save();
-
-          console.log(`✅ ${board.name} complete`);
-
-          return {
-            boardId: board.boardId,
-            success: true,
-            screensDisplayed: screens.length
-          };
         } catch (error) {
-          console.error(`❌ ${board.name} error:`, error.message);
-          return {
-            boardId: board.boardId,
-            success: false,
-            error: error.message
-          };
+          console.error(`Failed to update state for ${board.name}:`, error.message);
         }
       }));
+      
+      console.log(`\n✅ All boards complete`);
 
       // Mark workflow as complete
       primaryBoardState.workflowRunning = false;
