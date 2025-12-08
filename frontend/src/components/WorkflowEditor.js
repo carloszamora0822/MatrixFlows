@@ -214,6 +214,11 @@ const WorkflowEditor = ({ workflow, onSave, onCancel, hideHeader = false, showBu
     if (unit === 'minutes') seconds = seconds * 60;
     if (unit === 'hours') seconds = seconds * 3600;
     
+    // Enforce minimum 15 seconds to avoid Vestaboard rate limiting
+    if (seconds < 15) {
+      seconds = 15;
+    }
+    
     newSteps[index].displaySeconds = seconds;
     setSteps(newSteps);
     
@@ -413,7 +418,7 @@ const WorkflowEditor = ({ workflow, onSave, onCancel, hideHeader = false, showBu
                               const unit = getStepUnit(index, step);
                               handleDurationChange(index, value, unit);
                             }}
-                            min="1"
+                            min={getStepUnit(index, step) === 'seconds' ? '15' : '1'}
                             className="w-16 px-2 py-1 border border-blue-300 rounded text-center font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
                           />
                           <select

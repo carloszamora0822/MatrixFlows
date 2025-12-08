@@ -23,7 +23,7 @@ const workflowStepSchema = new mongoose.Schema({
   displaySeconds: {
     type: Number,
     required: true,
-    min: 5,
+    min: 15, // Minimum 15 seconds to avoid Vestaboard rate limiting
     max: 86400, // 24 hours max (1 day)
     default: 15
   },

@@ -292,9 +292,14 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
   };
 
   const convertToSeconds = (value, unit) => {
-    if (unit === 'minutes') return value * 60;
-    if (unit === 'hours') return value * 3600;
-    return value; // seconds
+    let seconds = value;
+    if (unit === 'minutes') seconds = value * 60;
+    if (unit === 'hours') seconds = value * 3600;
+    
+    // Enforce minimum 15 seconds to avoid Vestaboard rate limiting
+    if (seconds < 15) seconds = 15;
+    
+    return seconds;
   };
 
   const addCustomScreenToWorkflow = async (screen, workflowId) => {
