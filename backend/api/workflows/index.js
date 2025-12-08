@@ -55,24 +55,19 @@ const createWorkflow = async (req, res) => {
 
   // Validate workflow timing: total duration vs frequency
   const totalDurationSeconds = steps.reduce((sum, step) => sum + (step.displaySeconds || 0), 0);
-  const frequencySeconds = (schedule?.updateIntervalMinutes || 30) * 60;
+  const totalDurationMinutes = Math.ceil(totalDurationSeconds / 60);
+  const frequencyMinutes = schedule?.updateIntervalMinutes || 30;
   
-  if (totalDurationSeconds > frequencySeconds) {
-    const totalMinutes = Math.ceil(totalDurationSeconds / 60);
-    const suggestedFrequency = Math.ceil(totalDurationSeconds / 60);
-    console.warn(`⚠️  Workflow duration (${totalMinutes}min) exceeds frequency (${schedule?.updateIntervalMinutes || 30}min)`);
+  // Add 1-minute buffer to prevent edge cases (frequency must be > duration, not =)
+  const minimumSafeFrequency = totalDurationMinutes + 1;
+  
+  if (frequencyMinutes <= totalDurationMinutes) {
+    console.warn(`⚠️  Frequency too low! Auto-adjusting from ${frequencyMinutes}min to ${minimumSafeFrequency}min`);
     
-    return res.status(400).json({ 
-      error: { 
-        code: ERROR_CODES.VALIDATION_ERROR, 
-        message: `Workflow duration (${totalMinutes} minutes) exceeds update frequency (${schedule?.updateIntervalMinutes || 30} minutes). Please reduce screen delays or increase the frequency to at least ${suggestedFrequency} minutes.`,
-        details: { 
-          totalDurationMinutes: totalMinutes,
-          currentFrequencyMinutes: schedule?.updateIntervalMinutes || 30,
-          suggestedFrequencyMinutes: suggestedFrequency
-        }
-      } 
-    });
+    // AUTO-ADJUST to safe value
+    schedule.updateIntervalMinutes = minimumSafeFrequency;
+    
+    console.log(`✅ Frequency auto-adjusted to ${minimumSafeFrequency} minutes (workflow duration: ${totalDurationMinutes}min + 1min buffer)`);
   }
 
   const newWorkflow = new Workflow({
@@ -127,6 +122,21 @@ const updateWorkflow = async (req, res) => {
   // Only update isActive if it's explicitly provided
   if (isActive !== undefined) {
     updateData.isActive = isActive;
+  }
+
+  // Validate and auto-adjust frequency if needed
+  if (updateData.steps && updateData.schedule) {
+    const totalDurationSeconds = updateData.steps.reduce((sum, step) => sum + (step.displaySeconds || 0), 0);
+    const totalDurationMinutes = Math.ceil(totalDurationSeconds / 60);
+    const frequencyMinutes = updateData.schedule.updateIntervalMinutes || 30;
+    
+    const minimumSafeFrequency = totalDurationMinutes + 1;
+    
+    if (frequencyMinutes <= totalDurationMinutes) {
+      console.warn(`⚠️  Frequency too low! Auto-adjusting from ${frequencyMinutes}min to ${minimumSafeFrequency}min`);
+      updateData.schedule.updateIntervalMinutes = minimumSafeFrequency;
+      console.log(`✅ Frequency auto-adjusted to ${minimumSafeFrequency} minutes`);
+    }
   }
 
   const updated = await Workflow.findOneAndUpdate(
