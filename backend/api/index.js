@@ -36,6 +36,16 @@ const initializeApp = async () => {
     // Create default admin user
     await User.createDefaultAdmin();
     
+    // Clear any stale workflowRunning flags from previous server instance
+    const BoardState = require('../models/BoardState');
+    const result = await BoardState.updateMany(
+      { workflowRunning: true },
+      { $set: { workflowRunning: false } }
+    );
+    if (result.modifiedCount > 0) {
+      console.log(`🔄 Cleared ${result.modifiedCount} stale workflow lock(s)`);
+    }
+    
     console.log('✅ Application initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize application:', error);
