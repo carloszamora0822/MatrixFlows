@@ -136,11 +136,22 @@ class SchedulerService {
         }));
       }
 
+      // CRITICAL: Ensure minimum 15 seconds since last post to avoid rate limiting
+      const timeSinceLastUpdate = (new Date() - new Date(primaryBoardState.lastUpdateAt)) / 1000;
+      if (timeSinceLastUpdate < 15) {
+        console.log(`⏳ Too soon! Only ${Math.floor(timeSinceLastUpdate)}s since last post (need 15s minimum)`);
+        return boards.map(board => ({
+          boardId: board.boardId,
+          success: true,
+          skipped: true,
+          reason: 'Rate limit buffer - waiting for 15s gap'
+        }));
+      }
+
       console.log(`✅ Interval trigger - running complete workflow for ${boards.length} board(s)`);
       console.log(`⚠️  WORKFLOW RUNNING - This will take time, next cron should skip...`);
 
-      // Mark workflow as running IMMEDIATELY
-      primaryBoardState.lastUpdateAt = new Date();
+      // Mark workflow as running IMMEDIATELY (but don't update lastUpdateAt yet)
       primaryBoardState.workflowRunning = true;
       await primaryBoardState.save();
 
@@ -197,6 +208,10 @@ class SchedulerService {
         }));
         
         results.push(...screenResults);
+        
+        // Update lastUpdateAt after posting to track actual post time
+        primaryBoardState.lastUpdateAt = new Date();
+        await primaryBoardState.save();
         
         // Wait before next screen (except last)
         if (i < screens.length - 1) {
