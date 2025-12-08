@@ -110,6 +110,17 @@ class SchedulerService {
         await primaryBoardState.save();
       }
 
+      // Check if workflow is already running
+      if (primaryBoardState.workflowRunning) {
+        console.log('🔄 Workflow already running - skipping this cron run');
+        return boards.map(board => ({
+          boardId: board.boardId,
+          success: true,
+          skipped: true,
+          reason: 'Workflow already in progress'
+        }));
+      }
+
       const shouldRun = intervalScheduler.shouldUpdateNow(
         workflow,
         primaryBoardState.lastUpdateAt
@@ -125,20 +136,50 @@ class SchedulerService {
         }));
       }
 
-      console.log(`✅ Interval trigger - posting NEXT screen for ${boards.length} board(s)`);
+      console.log(`✅ Interval trigger - running complete workflow for ${boards.length} board(s)`);
+      console.log(`⚠️  WORKFLOW RUNNING - This will take time, next cron should skip...`);
+
+      // Mark workflow as running IMMEDIATELY
+      primaryBoardState.lastUpdateAt = new Date();
+      primaryBoardState.workflowRunning = true;
+      await primaryBoardState.save();
 
       // Get enabled steps
       const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
       
       if (enabledSteps.length === 0) {
         console.log('⚠️  No enabled steps in workflow');
+        primaryBoardState.workflowRunning = false;
+        await primaryBoardState.save();
         return boards.map(board => ({ boardId: board.boardId, success: false, error: 'No enabled steps' }));
       }
 
-      // Post the SAME screen to ALL boards simultaneously
+      console.log(`📋 Workflow: ${enabledSteps.length} screens`);
+
+      // Generate all screens first
+      const screens = [];
+      for (let i = 0; i < enabledSteps.length; i++) {
+        const step = enabledSteps[i];
+        console.log(`\n🎨 Rendering ${i + 1}/${enabledSteps.length}: ${step.screenType}`);
+        
+        const matrix = await screenEngine.render(step.screenType, step.screenConfig);
+        if (matrix) {
+          screens.push({
+            matrix,
+            displaySeconds: step.displaySeconds,
+            screenType: step.screenType
+          });
+          console.log(`✅ Rendered (will display for ${step.displaySeconds}s)`);
+        } else {
+          console.log(`⚠️  Skipped - no data`);
+        }
+      }
+
+      // Post screens to all boards with delays
       const results = await Promise.all(boards.map(async (board) => {
         try {
-          // Get or create board state
+          console.log(`\n📤 Posting to: ${board.name}`);
+          
           let boardState = await BoardState.findOne({
             orgId: ORG_CONFIG.ID,
             boardId: board.boardId
@@ -152,48 +193,38 @@ class SchedulerService {
             });
           }
 
-          // Determine which step to show
-          const stepIndex = boardState.currentStepIndex || 0;
-          const step = enabledSteps[stepIndex];
-          
-          console.log(`\n📺 Board: ${board.name} | Step ${stepIndex + 1}/${enabledSteps.length}: ${step.screenType}`);
-          console.log(`⏱️  Display: ${step.displaySeconds}s (${Math.floor(step.displaySeconds / 60)}m ${step.displaySeconds % 60}s)`);
-          
-          // Render the screen
-          const matrix = await screenEngine.render(step.screenType, step.screenConfig);
-          
-          if (!matrix) {
-            console.log(`⚠️  Step returned null - skipping`);
-            return { boardId: board.boardId, success: false, error: 'Screen render failed' };
+          // Post each screen with delay
+          for (let i = 0; i < screens.length; i++) {
+            const screen = screens[i];
+            
+            console.log(`  📺 Screen ${i + 1}/${screens.length}: ${screen.screenType}`);
+            await vestaboardClient.postMessage(board.vestaboardWriteKey, screen.matrix);
+            console.log(`  ✅ Posted`);
+            
+            // Wait before next screen (except last)
+            if (i < screens.length - 1) {
+              console.log(`  ⏳ Waiting ${screen.displaySeconds}s...`);
+              await new Promise(resolve => setTimeout(resolve, screen.displaySeconds * 1000));
+            }
           }
 
-          // Post to Vestaboard
-          console.log(`📤 Posting to Vestaboard...`);
-          await vestaboardClient.postMessage(board.vestaboardWriteKey, matrix);
-          console.log(`✅ Posted successfully`);
-
-          // Calculate next step index
-          const nextStepIndex = (stepIndex + 1) % enabledSteps.length;
-          
           // Update board state
-          boardState.currentStepIndex = nextStepIndex;
-          boardState.lastMatrix = matrix;
+          boardState.lastMatrix = screens[screens.length - 1].matrix;
           boardState.lastUpdateAt = new Date();
           boardState.lastUpdateSuccess = true;
           boardState.currentWorkflowId = workflow.workflowId;
-          boardState.cycleCount = (boardState.cycleCount || 0) + (nextStepIndex === 0 ? 1 : 0); // Increment on cycle completion
+          boardState.cycleCount = (boardState.cycleCount || 0) + 1;
           await boardState.save();
 
-          console.log(`✅ Next screen will be ${nextStepIndex + 1}/${enabledSteps.length} in ${step.displaySeconds}s`);
+          console.log(`✅ ${board.name} complete`);
 
           return {
             boardId: board.boardId,
             success: true,
-            stepDisplayed: stepIndex + 1,
-            nextStep: nextStepIndex + 1
+            screensDisplayed: screens.length
           };
         } catch (error) {
-          console.error(`❌ Board ${board.name} error:`, error.message);
+          console.error(`❌ ${board.name} error:`, error.message);
           return {
             boardId: board.boardId,
             success: false,
@@ -201,6 +232,11 @@ class SchedulerService {
           };
         }
       }));
+
+      // Mark workflow as complete
+      primaryBoardState.workflowRunning = false;
+      await primaryBoardState.save();
+      console.log(`\n🎉 Workflow complete for all boards`);
 
       return results;
 
