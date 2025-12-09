@@ -189,7 +189,7 @@ class SchedulerService {
         boardStates.forEach(({ board, state }) => {
           const screenType = state?.currentScreenType || 'Unknown';
           const boardNextTrigger = state?.nextScheduledTrigger || nextTrigger;
-          console.log(`   ⏳ ${board.name}: Displaying ${screenType} | Next trigger ${boardNextTrigger.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`);
+          console.log(`   ⏳ ${board.name}: Displaying ${screenType} | Next trigger ${boardNextTrigger.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Chicago' })}`);
         });
         
         return boards.map(board => ({

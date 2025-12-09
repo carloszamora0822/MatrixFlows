@@ -908,7 +908,7 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
                       
                       return (
                         <p className="text-xs text-green-700 mt-1 font-semibold">
-                          ⏰ Next trigger: {nextTriggerTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                          ⏰ Next trigger: {nextTriggerTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Chicago' })}
                         </p>
                       );
                     })()}
