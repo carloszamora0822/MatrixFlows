@@ -6,6 +6,8 @@
  * NOT "30 minutes after last run" but aligned to clock times.
  */
 
+const moment = require('moment-timezone');
+
 /**
  * Check if workflow should update based on interval scheduling
  * @param {Object} workflow - Workflow with schedule.updateIntervalMinutes
@@ -17,8 +19,9 @@ function shouldUpdateNow(workflow, lastUpdateAt, currentTime = new Date()) {
   const schedule = workflow.schedule || {};
   const intervalMinutes = schedule.updateIntervalMinutes || 30; // Default to 30 if not set
   
-  // Get current time in minutes since midnight
-  const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+  // Convert to Central Time for consistency with workflow time windows
+  const currentCentral = moment(currentTime).tz('America/Chicago');
+  const currentMinutes = currentCentral.hours() * 60 + currentCentral.minutes();
   
   // Calculate the next aligned trigger time after last update
   if (!lastUpdateAt) {
@@ -26,10 +29,9 @@ function shouldUpdateNow(workflow, lastUpdateAt, currentTime = new Date()) {
     return isAlignedTime(currentMinutes, intervalMinutes);
   }
   
-  // Check if last update was on a different day
-  const now = new Date();
-  const lastUpdateDate = new Date(lastUpdateAt);
-  const isSameDay = now.toDateString() === lastUpdateDate.toDateString();
+  // Check if last update was on a different day (in Central Time)
+  const lastUpdateCentral = moment(lastUpdateAt).tz('America/Chicago');
+  const isSameDay = currentCentral.format('YYYY-MM-DD') === lastUpdateCentral.format('YYYY-MM-DD');
   
   if (!isSameDay) {
     // Last update was yesterday or earlier - definitely time to update
@@ -37,8 +39,8 @@ function shouldUpdateNow(workflow, lastUpdateAt, currentTime = new Date()) {
     return true;
   }
   
-  // Get last update time in minutes since midnight (same day)
-  const lastUpdateMinutes = lastUpdateAt.getHours() * 60 + lastUpdateAt.getMinutes();
+  // Get last update time in minutes since midnight (same day, Central Time)
+  const lastUpdateMinutes = lastUpdateCentral.hours() * 60 + lastUpdateCentral.minutes();
   
   // Calculate next aligned trigger time after last update
   const nextTriggerMinutes = getNextAlignedTime(lastUpdateMinutes, intervalMinutes);
