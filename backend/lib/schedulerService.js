@@ -215,8 +215,9 @@ class SchedulerService {
         
         // Wait before next screen (except last)
         if (i < screens.length - 1) {
-          console.log(`⏳ Waiting ${screen.displaySeconds}s before next screen...`);
-          await new Promise(resolve => setTimeout(resolve, screen.displaySeconds * 1000));
+          const delaySeconds = Math.max(screen.displaySeconds, 16); // Minimum 15s to avoid rate limiting
+          console.log(`⏳ Waiting ${delaySeconds}s before next screen (displaySeconds: ${screen.displaySeconds}s, minimum: 15s)...`);
+          await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
         }
       }
       

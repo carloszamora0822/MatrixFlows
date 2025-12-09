@@ -1,9 +1,9 @@
 /**
  * Interval Scheduler Service
  * 
- * Handles time-aligned interval scheduling for workflows.
- * Example: If interval is 30 minutes, triggers at 8:00, 8:30, 9:00, 9:30, etc.
- * NOT "30 minutes after last run" but aligned to clock times.
+ * Handles RELATIVE interval scheduling for workflows.
+ * Example: If interval is 60 minutes and last run was 6:18 PM, next run is 7:18 PM.
+ * This is "X minutes after last run", NOT aligned to midnight.
  */
 
 const moment = require('moment-timezone');
@@ -17,49 +17,37 @@ const moment = require('moment-timezone');
  */
 function shouldUpdateNow(workflow, lastUpdateAt, currentTime = new Date()) {
   const schedule = workflow.schedule || {};
-  const intervalMinutes = schedule.updateIntervalMinutes || 30; // Default to 30 if not set
+  const intervalMinutes = schedule.updateIntervalMinutes || 30;
   
-  // Convert to Central Time for consistency with workflow time windows
+  // Convert to Central Time
   const currentCentral = moment(currentTime).tz('America/Chicago');
-  const currentMinutes = currentCentral.hours() * 60 + currentCentral.minutes();
   
-  // Calculate the next aligned trigger time after last update
   if (!lastUpdateAt) {
-    // Never updated before - check if current time aligns with interval
-    return isAlignedTime(currentMinutes, intervalMinutes);
+    // Never updated before - trigger now if we're in the time window
+    console.log(`⏰ No previous update - triggering now`);
+    return true;
   }
   
-  // Check if last update was on a different day (in Central Time)
+  // Convert last update to Central Time
   const lastUpdateCentral = moment(lastUpdateAt).tz('America/Chicago');
-  const isSameDay = currentCentral.format('YYYY-MM-DD') === lastUpdateCentral.format('YYYY-MM-DD');
   
-  if (!isSameDay) {
-    // Last update was yesterday or earlier - definitely time to update
-    console.log(`⏰ Last update was on a different day - triggering now`);
+  // Calculate time elapsed since last update (in minutes)
+  const minutesElapsed = currentCentral.diff(lastUpdateCentral, 'minutes');
+  
+  console.log(`🔍 Interval check: last update ${lastUpdateCentral.format('YYYY-MM-DD HH:mm')}, current ${currentCentral.format('YYYY-MM-DD HH:mm')}, elapsed ${minutesElapsed}min, interval ${intervalMinutes}min`);
+  
+  // Trigger if enough time has passed
+  if (minutesElapsed >= intervalMinutes) {
+    console.log(`⏰ Interval reached: ${minutesElapsed}min >= ${intervalMinutes}min - triggering now`);
     return true;
   }
   
-  // Get last update time in minutes since midnight (same day, Central Time)
-  const lastUpdateMinutes = lastUpdateCentral.hours() * 60 + lastUpdateCentral.minutes();
-  
-  // Calculate next aligned trigger time after last update
-  const nextTriggerMinutes = getNextAlignedTime(lastUpdateMinutes, intervalMinutes);
-  
-  console.log(`🔍 Interval check: current=${formatTime(currentMinutes)} (${currentMinutes}), last=${formatTime(lastUpdateMinutes)} (${lastUpdateMinutes}), next=${formatTime(nextTriggerMinutes)} (${nextTriggerMinutes})`);
-  
-  // Update if current time has reached or passed the next trigger time
-  // We don't require exact alignment because scheduler might run at :35 seconds
-  if (currentMinutes >= nextTriggerMinutes) {
-    console.log(`⏰ Interval trigger: Last update at ${formatTime(lastUpdateMinutes)}, next trigger at ${formatTime(nextTriggerMinutes)}, current time ${formatTime(currentMinutes)}`);
-    return true;
-  }
-  
+  console.log(`⏳ Not time yet: ${minutesElapsed}min < ${intervalMinutes}min (${intervalMinutes - minutesElapsed}min remaining)`);
   return false;
 }
 
 /**
  * Check if a time (in minutes since midnight) is aligned to the interval
- * Example: For 30-min interval, only :00 and :30 are aligned
  * @param {number} minutes - Minutes since midnight (0-1439)
  * @param {number} intervalMinutes - Interval in minutes
  * @returns {boolean}
@@ -69,14 +57,17 @@ function isAlignedTime(minutes, intervalMinutes) {
 }
 
 /**
- * Get the next aligned time after a given time
- * @param {number} minutes - Current minutes since midnight
+ * Get the next trigger time based on last update
+ * @param {Date} lastUpdateAt - Last update time
  * @param {number} intervalMinutes - Interval in minutes
- * @returns {number} - Next aligned minutes since midnight
+ * @returns {Date} - Next trigger time
  */
-function getNextAlignedTime(minutes, intervalMinutes) {
-  // Round up to next interval boundary
-  return Math.ceil((minutes + 1) / intervalMinutes) * intervalMinutes;
+function getNextTriggerTime(lastUpdateAt, intervalMinutes) {
+  if (!lastUpdateAt) {
+    return new Date(); // Trigger now if never run
+  }
+  const lastUpdate = moment(lastUpdateAt).tz('America/Chicago');
+  return lastUpdate.add(intervalMinutes, 'minutes').toDate();
 }
 
 /**
@@ -121,7 +112,7 @@ function getTriggerTimes(startTime, endTime, intervalMinutes) {
 module.exports = {
   shouldUpdateNow,
   isAlignedTime,
-  getNextAlignedTime,
+  getNextTriggerTime,
   getTriggerTimes,
   formatTime
 };

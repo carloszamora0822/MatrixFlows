@@ -853,15 +853,21 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                       }
                     })()}
                     {isActive && (() => {
-                      const now = new Date();
-                      const interval = (workflow.schedule?.updateIntervalMinutes || 30) * 60 * 1000;
-                      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                      // Find a board assigned to this workflow to get last update time
+                      const assignedBoard = boards.find(b => b.defaultWorkflowId === workflow.workflowId);
+                      
+                      if (!assignedBoard || !assignedBoard.lastUpdateAt) {
+                        return (
+                          <p className="text-xs text-blue-700 mt-1 font-semibold">
+                            ⏰ Next trigger: Ready to run
+                          </p>
+                        );
+                      }
+                      
+                      // Calculate next trigger: lastUpdateAt + interval
+                      const lastUpdate = new Date(assignedBoard.lastUpdateAt);
                       const intervalMinutes = workflow.schedule?.updateIntervalMinutes || 30;
-                      const nextTriggerMinutes = Math.ceil(currentMinutes / intervalMinutes) * intervalMinutes;
-                      const nextTriggerTime = new Date(now);
-                      nextTriggerTime.setHours(Math.floor(nextTriggerMinutes / 60));
-                      nextTriggerTime.setMinutes(nextTriggerMinutes % 60);
-                      nextTriggerTime.setSeconds(0);
+                      const nextTriggerTime = new Date(lastUpdate.getTime() + intervalMinutes * 60 * 1000);
                       
                       return (
                         <p className="text-xs text-green-700 mt-1 font-semibold">
