@@ -163,7 +163,20 @@ const deleteWorkflow = async (req, res) => {
     return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Workflow ID required' } });
   }
 
+  // Delete the workflow
   await Workflow.deleteOne({ workflowId: id, orgId: ORG_CONFIG.ID });
+  
+  // Clean up board states that reference this workflow
+  const BoardState = require('../../models/BoardState');
+  const cleanupResult = await BoardState.updateMany(
+    { currentWorkflowId: id, orgId: ORG_CONFIG.ID },
+    { $unset: { currentWorkflowId: '', nextScheduledTrigger: '' } }
+  );
+  
   console.log(`✅ Workflow deleted: ${id} by ${req.user.email}`);
+  if (cleanupResult.modifiedCount > 0) {
+    console.log(`✅ Cleaned up ${cleanupResult.modifiedCount} board state(s)`);
+  }
+  
   res.status(200).json({ message: 'Workflow deleted', id });
 };

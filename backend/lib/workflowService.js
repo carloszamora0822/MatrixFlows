@@ -1,6 +1,9 @@
 const Workflow = require('../models/Workflow');
 const Vestaboard = require('../models/Vestaboard');
 const { ORG_CONFIG } = require('../../shared/constants');
+const moment = require('moment-timezone');
+
+const TIMEZONE = 'America/Chicago';
 
 class WorkflowService {
   /**
@@ -94,21 +97,20 @@ class WorkflowService {
    */
   isInDailyWindow(schedule, now) {
     try {
-      // Convert UTC to Central Time (UTC-6) for comparison
-      const centralOffset = -6 * 60; // -6 hours in minutes
-      const localTime = new Date(now.getTime() + (centralOffset * 60 * 1000));
+      // Convert to Central Time using moment-timezone (handles DST automatically)
+      const centralTime = moment(now).tz(TIMEZONE);
       
-      // Check day of week (using local time)
+      // Check day of week (using Central Time)
       if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0) {
-        const currentDay = localTime.getDay(); // 0=Sunday, 6=Saturday
+        const currentDay = centralTime.day(); // 0=Sunday, 6=Saturday
         if (!schedule.daysOfWeek.includes(currentDay)) {
           return false;
         }
       }
 
-      // Check time window (using local time)
+      // Check time window (using Central Time)
       if (schedule.startTimeLocal && schedule.endTimeLocal) {
-        const currentTime = `${String(localTime.getHours()).padStart(2, '0')}:${String(localTime.getMinutes()).padStart(2, '0')}`;
+        const currentTime = centralTime.format('HH:mm');
         
         if (currentTime < schedule.startTimeLocal || currentTime > schedule.endTimeLocal) {
           return false;

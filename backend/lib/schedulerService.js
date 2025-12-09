@@ -5,6 +5,9 @@ const vestaboardClient = require('./clients/vestaboardClient');
 const pinScreenService = require('./pinScreenService');
 const intervalScheduler = require('./intervalScheduler');
 const { ORG_CONFIG } = require('../../shared/constants');
+const moment = require('moment-timezone');
+
+const TIMEZONE = 'America/Chicago';
 
 class SchedulerService {
   /**
@@ -114,12 +117,12 @@ class SchedulerService {
       });
 
       if (!primaryBoardState) {
-        // Calculate initial nextScheduledTrigger for new workflow
-        const now = new Date();
+        // Calculate initial nextScheduledTrigger for new workflow using Central Time
+        const nowCentral = moment().tz(TIMEZONE);
         const intervalMinutes = workflow.schedule.updateIntervalMinutes;
-        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const currentMinutes = nowCentral.hours() * 60 + nowCentral.minutes();
         
-        // Check if we're in the time window NOW
+        // Check if we're in the time window NOW (in Central Time)
         let shouldTriggerNow = true;
         if (workflow.schedule.type === 'dailyWindow' && workflow.schedule.startTimeLocal && workflow.schedule.endTimeLocal) {
           const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
@@ -134,16 +137,21 @@ class SchedulerService {
         
         let initialNextTrigger;
         if (shouldTriggerNow) {
-          // In window - trigger on next cron run (within 1 minute)
-          initialNextTrigger = new Date(now.getTime() + 60000);
+          // In window - trigger IMMEDIATELY on next cron run (within 60 seconds)
+          initialNextTrigger = moment(nowCentral).toDate();
         } else {
           // Outside window - calculate next aligned trigger at start of next window
           const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
-          initialNextTrigger = new Date(now);
-          initialNextTrigger.setDate(initialNextTrigger.getDate() + 1);
-          initialNextTrigger.setHours(startHour, startMin, 0, 0);
+          initialNextTrigger = moment(nowCentral)
+            .add(1, 'day')
+            .hours(startHour)
+            .minutes(startMin)
+            .seconds(0)
+            .milliseconds(0)
+            .toDate();
         }
         
+        // Create board state for primary board
         primaryBoardState = new BoardState({
           orgId: ORG_CONFIG.ID,
           boardId: primaryBoard.boardId,
@@ -151,6 +159,25 @@ class SchedulerService {
           nextScheduledTrigger: initialNextTrigger
         });
         await primaryBoardState.save();
+        
+        // Create board states for ALL other boards sharing this workflow
+        const otherBoards = boards.filter(b => b.boardId !== primaryBoard.boardId);
+        await Promise.all(otherBoards.map(async (board) => {
+          const existingState = await BoardState.findOne({
+            orgId: ORG_CONFIG.ID,
+            boardId: board.boardId
+          });
+          
+          if (!existingState) {
+            const newState = new BoardState({
+              orgId: ORG_CONFIG.ID,
+              boardId: board.boardId,
+              currentStepIndex: 0,
+              nextScheduledTrigger: initialNextTrigger
+            });
+            await newState.save();
+          }
+        }));
       }
 
       // Check if workflow is already running
@@ -201,17 +228,22 @@ class SchedulerService {
       }
 
       // CRITICAL: Ensure minimum 15 seconds since last post to avoid rate limiting
-      const timeSinceLastUpdate = (new Date() - new Date(primaryBoardState.lastUpdateAt)) / 1000;
-      if (timeSinceLastUpdate < 15) {
-        boardStates.forEach(({ board }) => {
-          console.log(`   ⚠️  ${board.name}: Rate limit protection (${Math.floor(timeSinceLastUpdate)}s since last post)`);
-        });
-        return boards.map(board => ({
-          boardId: board.boardId,
-          success: true,
-          skipped: true,
-          reason: 'Rate limit protection'
-        }));
+      if (primaryBoardState.lastUpdateAt) {
+        const nowCentral = moment().tz(TIMEZONE);
+        const lastUpdateCentral = moment(primaryBoardState.lastUpdateAt).tz(TIMEZONE);
+        const timeSinceLastUpdate = nowCentral.diff(lastUpdateCentral, 'seconds');
+        
+        if (timeSinceLastUpdate < 15) {
+          boardStates.forEach(({ board }) => {
+            console.log(`   ⚠️  ${board.name}: Rate limit protection (${timeSinceLastUpdate}s since last post)`);
+          });
+          return boards.map(board => ({
+            boardId: board.boardId,
+            success: true,
+            skipped: true,
+            reason: 'Rate limit protection'
+          }));
+        }
       }
 
       // Show boards starting
@@ -309,30 +341,30 @@ class SchedulerService {
         }
       }
       
-      // Calculate next trigger time aligned to interval boundaries
-      const currentTime = new Date();
+      // Calculate next trigger time aligned to interval boundaries using Central Time
+      const currentTimeCentral = moment().tz(TIMEZONE);
       const intervalMinutes = workflow.schedule.updateIntervalMinutes;
-      const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+      const currentMinutes = currentTimeCentral.hours() * 60 + currentTimeCentral.minutes();
       
       // Round UP to next interval boundary (add 1 to ensure we go to NEXT boundary, not current)
       let nextTriggerMinutes = Math.ceil((currentMinutes + 1) / intervalMinutes) * intervalMinutes;
-      let nextTrigger = new Date(currentTime);
-      nextTrigger.setHours(Math.floor(nextTriggerMinutes / 60));
-      nextTrigger.setMinutes(nextTriggerMinutes % 60);
-      nextTrigger.setSeconds(0);
-      nextTrigger.setMilliseconds(0);
+      
+      // Create next trigger time in Central Time
+      let nextTriggerCentral = moment(currentTimeCentral)
+        .hours(Math.floor(nextTriggerMinutes / 60))
+        .minutes(nextTriggerMinutes % 60)
+        .seconds(0)
+        .milliseconds(0);
       
       // If we've passed midnight, add a day
       if (nextTriggerMinutes >= 1440) {
-        nextTrigger.setDate(nextTrigger.getDate() + 1);
-        nextTrigger.setHours(0);
-        nextTrigger.setMinutes(0);
+        nextTriggerCentral = nextTriggerCentral.add(1, 'day').hours(0).minutes(0);
       }
       
       // Check if next trigger is within time window (for dailyWindow schedules)
       if (workflow.schedule.type === 'dailyWindow' && workflow.schedule.startTimeLocal && workflow.schedule.endTimeLocal) {
         // Convert to minutes for numeric comparison
-        const triggerMinutes = nextTrigger.getHours() * 60 + nextTrigger.getMinutes();
+        const triggerMinutes = nextTriggerCentral.hours() * 60 + nextTriggerCentral.minutes();
         const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
         const [endHour, endMin] = workflow.schedule.endTimeLocal.split(':').map(Number);
         const startMinutes = startHour * 60 + startMin;
@@ -340,13 +372,17 @@ class SchedulerService {
         
         // If next trigger is outside the window, move to next day's start time
         if (triggerMinutes < startMinutes || triggerMinutes > endMinutes) {
-          nextTrigger.setDate(nextTrigger.getDate() + 1);
-          nextTrigger.setHours(startHour);
-          nextTrigger.setMinutes(startMin);
-          nextTrigger.setSeconds(0);
-          nextTrigger.setMilliseconds(0);
+          nextTriggerCentral = nextTriggerCentral
+            .add(1, 'day')
+            .hours(startHour)
+            .minutes(startMin)
+            .seconds(0)
+            .milliseconds(0);
         }
       }
+      
+      // Convert to UTC Date for storage
+      const nextTrigger = nextTriggerCentral.toDate();
 
       // Update all board states after workflow completes
       await Promise.all(boards.map(async (board) => {

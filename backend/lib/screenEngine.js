@@ -141,9 +141,10 @@ class ScreenEngine {
     const template = templates.birthday;
     const matrix = JSON.parse(JSON.stringify(template));
     
-    // Check if there's a birthday TODAY
-    const today = new Date();
-    const todayStr = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+    // Check if there's a birthday TODAY (in Central Time)
+    const moment = require('moment-timezone');
+    const todayCentral = moment().tz('America/Chicago');
+    const todayStr = `${String(todayCentral.month() + 1).padStart(2, '0')}/${String(todayCentral.date()).padStart(2, '0')}`;
     
     const Birthday = require('../models/Birthday');
     const { ORG_CONFIG } = require('../../shared/constants');
@@ -193,9 +194,10 @@ class ScreenEngine {
       return null; // Skip this screen in workflow
     }
 
-    // Filter to only show TODAY's checkrides
-    const today = new Date();
-    const todayStr = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+    // Filter to only show TODAY's checkrides (in Central Time)
+    const moment = require('moment-timezone');
+    const todayCentral = moment().tz('America/Chicago');
+    const todayStr = `${String(todayCentral.month() + 1).padStart(2, '0')}/${String(todayCentral.date()).padStart(2, '0')}`;
     const todaysCheckrides = allCheckrides.filter(c => c.date === todayStr);
     
     if (todaysCheckrides.length === 0) {

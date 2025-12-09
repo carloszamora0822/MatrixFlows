@@ -136,7 +136,20 @@ const deleteBoard = async (req, res) => {
     return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Board ID required' } });
   }
 
+  // Delete the board
   await Vestaboard.deleteOne({ boardId: id, orgId: ORG_CONFIG.ID });
+  
+  // Clean up associated board state
+  const BoardState = require('../../models/BoardState');
+  const stateDeleted = await BoardState.findOneAndDelete({
+    boardId: id,
+    orgId: ORG_CONFIG.ID
+  });
+  
   console.log(`✅ Board deleted: ${id} by ${req.user.email}`);
+  if (stateDeleted) {
+    console.log(`✅ Board state cleaned up for ${id}`);
+  }
+  
   res.status(200).json({ message: 'Board deleted', id });
 };
