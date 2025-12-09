@@ -15,6 +15,10 @@ module.exports = async (req, res) => {
     }
 
     const boardStates = await BoardState.find({ orgId: ORG_CONFIG.ID });
+    console.log(`📊 Returning ${boardStates.length} board states`);
+    boardStates.forEach(state => {
+      console.log(`   - ${state.boardId}: nextTrigger=${state.nextScheduledTrigger ? state.nextScheduledTrigger.toISOString() : 'null'}, currentScreen=${state.currentScreenType || 'none'}`);
+    });
     res.status(200).json(boardStates);
   } catch (error) {
     console.error('❌ Board States API error:', error);

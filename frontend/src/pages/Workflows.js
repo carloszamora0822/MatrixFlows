@@ -894,6 +894,8 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
                       
                       // Get the stored nextScheduledTrigger from board state
                       const boardState = boardStates[assignedBoard.boardId];
+                      console.log(`[Workflows] Looking for boardId: ${assignedBoard.boardId}, found state:`, boardState);
+                      console.log(`[Workflows] Available boardStates keys:`, Object.keys(boardStates));
                       const nextTriggerTime = boardState?.nextScheduledTrigger ? 
                         new Date(boardState.nextScheduledTrigger) : 
                         null;
