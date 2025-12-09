@@ -890,6 +890,7 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                       }
                       
                       // Get the stored nextScheduledTrigger from board state
+                      // eslint-disable-next-line no-undef
                       const boardState = boardStates[assignedBoard.boardId];
                       const nextTriggerTime = boardState?.nextScheduledTrigger ? 
                         new Date(boardState.nextScheduledTrigger) : 
