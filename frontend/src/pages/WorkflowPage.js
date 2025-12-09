@@ -103,6 +103,11 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
         // Handle board assignments (both create and edit mode)
         const allBoards = await fetch('/api/boards', { credentials: 'include' }).then(r => r.json());
         
+        console.log('🔍 Board Assignment Debug:');
+        console.log('  Selected boards:', selectedBoards);
+        console.log('  Saved workflow ID:', savedWorkflow.workflowId);
+        console.log('  Initial workflow ID:', initialWorkflow?.workflowId);
+        
         for (const board of allBoards) {
           const boardId = board.boardId || board._id;
           const shouldBeAssigned = selectedBoards.includes(boardId);
@@ -110,9 +115,16 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
             ? board.defaultWorkflowId === initialWorkflow.workflowId
             : false;
           
+          console.log(`  Board "${board.name}" (${boardId}):`, {
+            shouldBeAssigned,
+            isCurrentlyAssigned,
+            currentWorkflowId: board.defaultWorkflowId
+          });
+          
           if (shouldBeAssigned && !isCurrentlyAssigned) {
             // Assign this workflow to the board (reassigns if already assigned elsewhere)
-            await fetch(`/api/boards?id=${boardId}`, {
+            console.log(`    → Assigning to workflow ${savedWorkflow.workflowId}`);
+            const response = await fetch(`/api/boards?id=${boardId}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
@@ -120,9 +132,11 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
                 defaultWorkflowId: savedWorkflow.workflowId
               })
             });
+            console.log(`    → Response:`, response.ok ? 'OK' : 'FAILED');
           } else if (!shouldBeAssigned && isCurrentlyAssigned) {
             // Unassign this workflow from the board (edit mode only)
-            await fetch(`/api/boards?id=${boardId}`, {
+            console.log(`    → Unassigning from workflow`);
+            const response = await fetch(`/api/boards?id=${boardId}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
@@ -130,6 +144,9 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
                 defaultWorkflowId: null
               })
             });
+            console.log(`    → Response:`, response.ok ? 'OK' : 'FAILED');
+          } else {
+            console.log(`    → No action needed`);
           }
         }
         
