@@ -31,13 +31,30 @@ class SchedulerService {
       
       // GROUP BOARDS BY WORKFLOW
       const workflowGroups = {};
+      const boardsWithoutWorkflow = [];
+      
       for (const board of boards) {
         if (board.defaultWorkflowId) {
           if (!workflowGroups[board.defaultWorkflowId]) {
             workflowGroups[board.defaultWorkflowId] = [];
           }
           workflowGroups[board.defaultWorkflowId].push(board);
+        } else {
+          boardsWithoutWorkflow.push(board);
         }
+      }
+      
+      // Log boards without workflows
+      if (boardsWithoutWorkflow.length > 0) {
+        console.log(`⚠️  ${boardsWithoutWorkflow.length} board(s) have no workflow assigned:`);
+        boardsWithoutWorkflow.forEach(board => {
+          console.log(`   - ${board.name} (${board.boardId})`);
+        });
+      }
+      
+      if (Object.keys(workflowGroups).length === 0) {
+        console.log(`⚠️  No boards with workflows to process`);
+        return { success: true, boardsProcessed: boards.length, successCount: 0, results: [] };
       }
       
       const results = [];
@@ -91,6 +108,57 @@ class SchedulerService {
       const workflow = await workflowService.getActiveWorkflow(primaryBoard);
       
       if (!workflow) {
+        console.log(`
+⏭️  Boards skipped (no active workflow):`);
+        boards.forEach(board => {
+          console.log(`   - ${board.name} (workflow: ${board.defaultWorkflowId || 'NONE'})`);
+        });
+        
+        // Try to get the workflow directly to see why it's not active
+        if (primaryBoard.defaultWorkflowId) {
+          const Workflow = require('../models/Workflow');
+          const workflowDirect = await Workflow.findOne({
+            workflowId: primaryBoard.defaultWorkflowId,
+            orgId: ORG_CONFIG.ID
+          });
+          
+          if (!workflowDirect) {
+            console.log(`   ❌ Workflow not found in database`);
+          } else if (!workflowDirect.isActive) {
+            console.log(`   ❌ Workflow is inactive`);
+          } else {
+            // Workflow exists and is active, but not active NOW
+            const nowCentral = moment().tz(TIMEZONE);
+            console.log(`   ⏰ Workflow "${workflowDirect.name}" exists but not active now:`);
+            console.log(`      Schedule type: ${workflowDirect.schedule.type}`);
+            
+            if (workflowDirect.schedule.type === 'dailyWindow') {
+              const currentTime = nowCentral.format('HH:mm');
+              const currentDay = nowCentral.day();
+              const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+              
+              console.log(`      Current time: ${nowCentral.format('h:mm A')} (${currentTime})`);
+              console.log(`      Current day: ${days[currentDay]}`);
+              console.log(`      Window: ${workflowDirect.schedule.startTimeLocal} - ${workflowDirect.schedule.endTimeLocal}`);
+              
+              if (workflowDirect.schedule.daysOfWeek && workflowDirect.schedule.daysOfWeek.length > 0) {
+                const scheduledDays = workflowDirect.schedule.daysOfWeek.map(d => days[d]).join(', ');
+                console.log(`      Scheduled days: ${scheduledDays}`);
+                
+                if (!workflowDirect.schedule.daysOfWeek.includes(currentDay)) {
+                  console.log(`      ❌ Today (${days[currentDay]}) is not a scheduled day`);
+                }
+              }
+              
+              if (currentTime < workflowDirect.schedule.startTimeLocal) {
+                console.log(`      ❌ Before window start (${workflowDirect.schedule.startTimeLocal})`);
+              } else if (currentTime > workflowDirect.schedule.endTimeLocal) {
+                console.log(`      ❌ After window end (${workflowDirect.schedule.endTimeLocal})`);
+              }
+            }
+          }
+        }
+        
         return boards.map(board => ({
           boardId: board.boardId,
           success: true,

@@ -112,14 +112,30 @@ const updateBoard = async (req, res) => {
     return res.status(404).json({ error: { code: ERROR_CODES.NOT_FOUND, message: 'Board not found' } });
   }
 
-  // If workflow changed, reset the board state so it triggers on next cron
+  // If workflow changed, reset the board state and force immediate trigger
   if (oldBoard && oldBoard.defaultWorkflowId !== updated.defaultWorkflowId) {
     const BoardState = require('../../models/BoardState');
+    const moment = require('moment-timezone');
+    
+    // Delete old state
     await BoardState.findOneAndDelete({
       boardId: id,
       orgId: ORG_CONFIG.ID
     });
-    console.log(`🔄 Board state reset for ${updated.name} due to workflow change`);
+    
+    // Create new state with immediate trigger if workflow assigned
+    if (updated.defaultWorkflowId) {
+      const newState = new BoardState({
+        orgId: ORG_CONFIG.ID,
+        boardId: updated.boardId,
+        currentStepIndex: 0,
+        nextScheduledTrigger: moment().tz('America/Chicago').toDate() // Trigger NOW
+      });
+      await newState.save();
+      console.log(`🔄 Board state reset for ${updated.name} - will trigger on next cron (within 60s)`);
+    } else {
+      console.log(`🔄 Board state deleted for ${updated.name} - workflow unassigned`);
+    }
   }
 
   console.log(`✅ Board updated: ${updated.name} by ${req.user.email}`);

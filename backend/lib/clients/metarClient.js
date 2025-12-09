@@ -20,12 +20,26 @@ class MetarClient {
 
     try {
       console.log(`🌐 Fetching fresh METAR for ${stationId} (cache miss)`);
-      const response = await axios.get(`${this.baseURL}?ids=${stationId}`, {
-        timeout: 10000,
-        headers: {
-          'User-Agent': 'VBT-Vestaboard-System/1.0'
-        }
-      });
+      
+      // Try with longer timeout and retry once if it fails
+      let response;
+      try {
+        response = await axios.get(`${this.baseURL}?ids=${stationId}`, {
+          timeout: 30000, // 30 seconds (aviationweather.gov can be slow)
+          headers: {
+            'User-Agent': 'VBT-Vestaboard-System/1.0'
+          }
+        });
+      } catch (firstError) {
+        console.log(`⚠️  First attempt failed, retrying... (${firstError.message})`);
+        // Retry once with even longer timeout
+        response = await axios.get(`${this.baseURL}?ids=${stationId}`, {
+          timeout: 45000, // 45 seconds on retry
+          headers: {
+            'User-Agent': 'VBT-Vestaboard-System/1.0'
+          }
+        });
+      }
 
       if (!response.data || response.data.trim() === '') {
         throw new Error('Empty METAR response');

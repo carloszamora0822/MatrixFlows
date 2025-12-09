@@ -82,6 +82,40 @@ const createWorkflow = async (req, res) => {
 
   await newWorkflow.save();
   console.log(`✅ Workflow created: ${newWorkflow.name} by ${req.user.email}`);
+  
+  // Find all boards assigned to this workflow and set immediate trigger
+  const Vestaboard = require('../../models/Vestaboard');
+  const BoardState = require('../../models/BoardState');
+  const moment = require('moment-timezone');
+  
+  const assignedBoards = await Vestaboard.find({
+    orgId: ORG_CONFIG.ID,
+    defaultWorkflowId: newWorkflow.workflowId,
+    isActive: true
+  });
+  
+  if (assignedBoards.length > 0) {
+    console.log(`🔄 Setting immediate trigger for ${assignedBoards.length} board(s)`);
+    
+    for (const board of assignedBoards) {
+      // Delete existing state
+      await BoardState.findOneAndDelete({
+        orgId: ORG_CONFIG.ID,
+        boardId: board.boardId
+      });
+      
+      // Create new state with immediate trigger
+      const newState = new BoardState({
+        orgId: ORG_CONFIG.ID,
+        boardId: board.boardId,
+        currentStepIndex: 0,
+        nextScheduledTrigger: moment().tz('America/Chicago').toDate()
+      });
+      await newState.save();
+      console.log(`   ✅ ${board.name} will trigger on next cron`);
+    }
+  }
+  
   res.status(201).json(newWorkflow);
 };
 
