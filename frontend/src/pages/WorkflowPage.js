@@ -249,20 +249,18 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
                     const boardId = board.boardId || board._id;
                     const isSelected = selectedBoards.includes(boardId);
                     const isAssignedToOther = board.defaultWorkflowId && board.defaultWorkflowId !== initialWorkflow?.workflowId;
-                    const canSelect = !isAssignedToOther;
                     
                     return (
                       <label
                         key={boardId}
-                        className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer hover:shadow-md ${
                           isSelected ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200'
-                        } ${canSelect ? 'cursor-pointer hover:shadow-md' : 'opacity-60 cursor-not-allowed'}`}
+                        }`}
                       >
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={(e) => {
-                            if (!canSelect) return;
                             const boardId = board.boardId || board._id;
                             setSelectedBoards(prev =>
                               e.target.checked
@@ -270,14 +268,13 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
                                 : prev.filter(id => id !== boardId)
                             );
                           }}
-                          disabled={!canSelect}
                           className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                         />
                         <div className="flex-1">
                           <div className="font-medium text-gray-900">{board.name}</div>
-                          {isAssignedToOther && (
+                          {isAssignedToOther && !isSelected && (
                             <div className="text-xs text-orange-600 mt-1">
-                              ⚠️ Already assigned to another workflow
+                              ⚠️ Currently assigned to another workflow (will be reassigned)
                             </div>
                           )}
                           {isSelected && (
