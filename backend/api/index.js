@@ -63,6 +63,21 @@ const initializeApp = async () => {
       console.log(`🗑️  Cleaned up ${deleteResult.deletedCount} orphaned board state(s)`);
     }
     
+    // Fix board states missing nextScheduledTrigger (migration for old states)
+    const statesWithoutTrigger = await BoardState.find({
+      orgId: ORG_CONFIG.ID,
+      nextScheduledTrigger: { $exists: false }
+    });
+    
+    if (statesWithoutTrigger.length > 0) {
+      for (const state of statesWithoutTrigger) {
+        // Set next trigger to now + 1 minute so it runs on next cron
+        state.nextScheduledTrigger = new Date(Date.now() + 60000);
+        await state.save();
+      }
+      console.log(`🔧 Fixed ${statesWithoutTrigger.length} board state(s) missing nextScheduledTrigger`);
+    }
+    
     console.log('✅ Application initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize application:', error);
