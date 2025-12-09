@@ -99,6 +99,9 @@ const updateBoard = async (req, res) => {
     }
   }
 
+  // Get the old board to check if workflow changed
+  const oldBoard = await Vestaboard.findOne({ boardId: id, orgId: ORG_CONFIG.ID });
+  
   const updated = await Vestaboard.findOneAndUpdate(
     { boardId: id, orgId: ORG_CONFIG.ID },
     updateData,
@@ -107,6 +110,16 @@ const updateBoard = async (req, res) => {
 
   if (!updated) {
     return res.status(404).json({ error: { code: ERROR_CODES.NOT_FOUND, message: 'Board not found' } });
+  }
+
+  // If workflow changed, reset the board state so it triggers on next cron
+  if (oldBoard && oldBoard.defaultWorkflowId !== updated.defaultWorkflowId) {
+    const BoardState = require('../../models/BoardState');
+    await BoardState.findOneAndDelete({
+      boardId: id,
+      orgId: ORG_CONFIG.ID
+    });
+    console.log(`🔄 Board state reset for ${updated.name} due to workflow change`);
   }
 
   console.log(`✅ Board updated: ${updated.name} by ${req.user.email}`);
