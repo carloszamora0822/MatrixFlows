@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Layout from '../components/layout/Layout';
@@ -15,15 +15,17 @@ const Workflows = () => {
 
   useEffect(() => {
     fetchData();
+  }, []);
+  
+  useEffect(() => {
     // Refresh board states every 30 seconds to keep next trigger times accurate
     const interval = setInterval(() => {
       fetchBoardStates();
     }, 30000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchBoardStates = async () => {
+  const fetchBoardStates = useCallback(async () => {
     try {
       const res = await fetch('/api/board-states');
       const states = await res.json();
@@ -36,7 +38,7 @@ const Workflows = () => {
     } catch (error) {
       console.error('Error fetching board states:', error);
     }
-  };
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -890,7 +892,6 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                       }
                       
                       // Get the stored nextScheduledTrigger from board state
-                      // eslint-disable-next-line no-undef
                       const boardState = boardStates[assignedBoard.boardId];
                       const nextTriggerTime = boardState?.nextScheduledTrigger ? 
                         new Date(boardState.nextScheduledTrigger) : 
