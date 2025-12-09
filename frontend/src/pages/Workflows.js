@@ -78,6 +78,7 @@ const Workflows = () => {
             <WorkflowsTab 
               workflows={workflows}
               boards={boards}
+              boardStates={boardStates}
               fetchData={fetchData}
               selectedBoard={currentBoard}
             />
@@ -101,7 +102,7 @@ const Workflows = () => {
 };
 
 
-const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
+const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard }) => {
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
