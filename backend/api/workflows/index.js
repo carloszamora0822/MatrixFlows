@@ -184,6 +184,39 @@ const updateWorkflow = async (req, res) => {
   }
 
   console.log(`✅ Workflow updated: ${updated.name} by ${req.user.email}`);
+  
+  // FORCE IMMEDIATE TRIGGER for all boards using this workflow
+  const Vestaboard = require('../../models/Vestaboard');
+  const BoardState = require('../../models/BoardState');
+  const moment = require('moment-timezone');
+  
+  const assignedBoards = await Vestaboard.find({
+    orgId: ORG_CONFIG.ID,
+    defaultWorkflowId: updated.workflowId,
+    isActive: true
+  });
+  
+  if (assignedBoards.length > 0) {
+    console.log(`🔄 FORCING immediate trigger for ${assignedBoards.length} board(s) after workflow update`);
+    
+    for (const board of assignedBoards) {
+      // Reset workflow running flag and set immediate trigger
+      await BoardState.findOneAndUpdate(
+        {
+          orgId: ORG_CONFIG.ID,
+          boardId: board.boardId
+        },
+        {
+          workflowRunning: false,
+          nextScheduledTrigger: moment().tz('America/Chicago').toDate(),
+          currentStepIndex: 0
+        },
+        { upsert: true }
+      );
+      console.log(`   ✅ ${board.name} will trigger on next cron (within 60s)`);
+    }
+  }
+  
   res.status(200).json(updated);
 };
 
