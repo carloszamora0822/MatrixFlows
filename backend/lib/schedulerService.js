@@ -58,6 +58,7 @@ class SchedulerService {
 
       console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
+      const successCount = results.filter(r => r.success).length;
       return {
         success: true,
         boardsProcessed: boards.length,
@@ -123,14 +124,13 @@ class SchedulerService {
 
       // Check if workflow is already running
       if (primaryBoardState.workflowRunning) {
-        const currentScreen = primaryBoardState.currentScreenIndex || 0;
         const totalScreens = workflow.steps.filter(s => s.isEnabled).length;
-        const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
-        const currentScreenType = enabledSteps[currentScreen]?.screenType || 'Unknown';
         
-        // Show each board's status
+        // Show each board's status with ACTUAL current screen from database
         boardStates.forEach(({ board, state }) => {
-          console.log(`   🟡 ${board.name}: Displaying ${currentScreenType} (screen ${currentScreen + 1}/${totalScreens})`);
+          const screenType = state?.currentScreenType || 'Unknown';
+          const screenIndex = (state?.currentScreenIndex || 0) + 1;
+          console.log(`   🟡 ${board.name}: Displaying ${screenType} (screen ${screenIndex}/${totalScreens})`);
         });
         
         return boards.map(board => ({
@@ -141,22 +141,24 @@ class SchedulerService {
         }));
       }
 
-      const shouldRun = intervalScheduler.shouldUpdateNow(
-        workflow,
-        primaryBoardState.lastUpdateAt
-      );
+      // Check if it's time to run based on nextScheduledTrigger
+      const now = new Date();
+      const shouldRun = primaryBoardState.nextScheduledTrigger ? 
+                       now >= primaryBoardState.nextScheduledTrigger :
+                       intervalScheduler.shouldUpdateNow(workflow, primaryBoardState.lastUpdateAt);
 
       if (!shouldRun) {
-        const lastUpdate = primaryBoardState.lastUpdateAt ? new Date(primaryBoardState.lastUpdateAt) : null;
-        const nextTrigger = lastUpdate ? new Date(lastUpdate.getTime() + workflow.schedule.updateIntervalMinutes * 60000) : new Date();
+        // Use stored nextScheduledTrigger if available, otherwise calculate
+        const nextTrigger = primaryBoardState.nextScheduledTrigger || 
+                           (primaryBoardState.lastUpdateAt ? 
+                            new Date(new Date(primaryBoardState.lastUpdateAt).getTime() + workflow.schedule.updateIntervalMinutes * 60000) : 
+                            new Date());
         
-        // Get the last screen that was displayed
-        const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
-        const lastScreenType = enabledSteps[enabledSteps.length - 1]?.screenType || 'Unknown';
-        
-        // Show each board's status
+        // Show each board's status with ACTUAL current screen from database
         boardStates.forEach(({ board, state }) => {
-          console.log(`   ⏳ ${board.name}: Displaying ${lastScreenType} | Next trigger ${nextTrigger.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`);
+          const screenType = state?.currentScreenType || 'Unknown';
+          const boardNextTrigger = state?.nextScheduledTrigger || nextTrigger;
+          console.log(`   ⏳ ${board.name}: Displaying ${screenType} | Next trigger ${boardNextTrigger.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`);
         });
         
         return boards.map(board => ({
@@ -225,12 +227,26 @@ class SchedulerService {
         
         // Update current screen index for progress tracking
         primaryBoardState.currentScreenIndex = i;
+        primaryBoardState.currentScreenType = screen.screenType;
         await primaryBoardState.save();
         
         // Post THIS screen to ALL boards simultaneously
         const screenResults = await Promise.all(boards.map(async (board) => {
           try {
             await vestaboardClient.postMessage(board.vestaboardWriteKey, screen.matrix);
+            
+            // Update each board's state with current screen
+            const boardState = await BoardState.findOne({
+              orgId: ORG_CONFIG.ID,
+              boardId: board.boardId
+            });
+            if (boardState) {
+              boardState.currentScreenType = screen.screenType;
+              boardState.currentScreenIndex = i;
+              boardState.lastScreenPostedAt = new Date();
+              await boardState.save();
+            }
+            
             return { boardId: board.boardId, boardName: board.name, success: true };
           } catch (error) {
             const errorType = error.message.includes('429') ? 'Rate Limited' : 
@@ -239,10 +255,6 @@ class SchedulerService {
             return { boardId: board.boardId, boardName: board.name, success: false, error: errorType };
           }
         }));
-        
-        // Log posting results
-        const successBoards = screenResults.filter(r => r.success).map(r => r.boardName);
-        const failedBoards = screenResults.filter(r => !r.success).map(r => `${r.boardName}(${r.error})`);
         
         // Show each board's posting result
         screenResults.forEach((result) => {
@@ -293,9 +305,46 @@ class SchedulerService {
         }
       }));
       
-      // Mark workflow as complete
+      // Mark workflow as complete and calculate NEXT scheduled trigger
       primaryBoardState.workflowRunning = false;
       primaryBoardState.currentScreenIndex = 0;
+      
+      // Calculate next trigger time aligned to interval boundaries
+      const currentTime = new Date();
+      const intervalMinutes = workflow.schedule.updateIntervalMinutes;
+      const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+      
+      // Round UP to next interval boundary (add 1 to ensure we go to NEXT boundary, not current)
+      let nextTriggerMinutes = Math.ceil((currentMinutes + 1) / intervalMinutes) * intervalMinutes;
+      let nextTrigger = new Date(currentTime);
+      nextTrigger.setHours(Math.floor(nextTriggerMinutes / 60));
+      nextTrigger.setMinutes(nextTriggerMinutes % 60);
+      nextTrigger.setSeconds(0);
+      nextTrigger.setMilliseconds(0);
+      
+      // If we've passed midnight, add a day
+      if (nextTriggerMinutes >= 1440) {
+        nextTrigger.setDate(nextTrigger.getDate() + 1);
+        nextTrigger.setHours(0);
+        nextTrigger.setMinutes(0);
+      }
+      
+      // Check if next trigger is within time window (for dailyWindow schedules)
+      if (workflow.schedule.type === 'dailyWindow' && workflow.schedule.startTimeLocal && workflow.schedule.endTimeLocal) {
+        const triggerTime = `${String(nextTrigger.getHours()).padStart(2, '0')}:${String(nextTrigger.getMinutes()).padStart(2, '0')}`;
+        
+        // If next trigger is outside the window, move to next day's start time
+        if (triggerTime < workflow.schedule.startTimeLocal || triggerTime > workflow.schedule.endTimeLocal) {
+          const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
+          nextTrigger.setDate(nextTrigger.getDate() + 1);
+          nextTrigger.setHours(startHour);
+          nextTrigger.setMinutes(startMin);
+          nextTrigger.setSeconds(0);
+          nextTrigger.setMilliseconds(0);
+        }
+      }
+      
+      primaryBoardState.nextScheduledTrigger = nextTrigger;
       await primaryBoardState.save();
       
       const totalSuccess = results.filter(r => r.success).length;

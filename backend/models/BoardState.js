@@ -28,11 +28,29 @@ const boardStateSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  workflowRunning: {
+    type: Boolean,
+    default: false
+  },
+  currentScreenIndex: {
+    type: Number,
+    default: 0
+  },
+  currentScreenType: {
+    type: String,
+    default: null
+  },
+  lastScreenPostedAt: {
+    type: Date
+  },
   lastMatrix: {
     type: [[Number]],
     default: null
   },
   lastUpdateAt: {
+    type: Date
+  },
+  nextScheduledTrigger: {
     type: Date
   },
   lastUpdateSuccess: {
