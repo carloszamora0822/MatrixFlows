@@ -331,11 +331,15 @@ class SchedulerService {
       
       // Check if next trigger is within time window (for dailyWindow schedules)
       if (workflow.schedule.type === 'dailyWindow' && workflow.schedule.startTimeLocal && workflow.schedule.endTimeLocal) {
-        const triggerTime = `${String(nextTrigger.getHours()).padStart(2, '0')}:${String(nextTrigger.getMinutes()).padStart(2, '0')}`;
+        // Convert to minutes for numeric comparison
+        const triggerMinutes = nextTrigger.getHours() * 60 + nextTrigger.getMinutes();
+        const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
+        const [endHour, endMin] = workflow.schedule.endTimeLocal.split(':').map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
         
         // If next trigger is outside the window, move to next day's start time
-        if (triggerTime < workflow.schedule.startTimeLocal || triggerTime > workflow.schedule.endTimeLocal) {
-          const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
+        if (triggerMinutes < startMinutes || triggerMinutes > endMinutes) {
           nextTrigger.setDate(nextTrigger.getDate() + 1);
           nextTrigger.setHours(startHour);
           nextTrigger.setMinutes(startMin);
