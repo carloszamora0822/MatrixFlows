@@ -100,10 +100,18 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
       if (response.ok) {
         const savedWorkflow = await response.json();
         
-        // Handle board assignments
-        if (!isEditMode && selectedBoards.length > 0) {
-          // Create mode: assign to selected boards
-          for (const boardId of selectedBoards) {
+        // Handle board assignments (both create and edit mode)
+        const allBoards = await fetch('/api/boards', { credentials: 'include' }).then(r => r.json());
+        
+        for (const board of allBoards) {
+          const boardId = board.boardId || board._id;
+          const shouldBeAssigned = selectedBoards.includes(boardId);
+          const isCurrentlyAssigned = isEditMode 
+            ? board.defaultWorkflowId === initialWorkflow.workflowId
+            : false;
+          
+          if (shouldBeAssigned && !isCurrentlyAssigned) {
+            // Assign this workflow to the board (reassigns if already assigned elsewhere)
             await fetch(`/api/boards?id=${boardId}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
@@ -112,38 +120,16 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
                 defaultWorkflowId: savedWorkflow.workflowId
               })
             });
-          }
-        } else if (isEditMode) {
-          // Edit mode: update board assignments
-          // First, get all boards and update their assignments
-          const allBoards = await fetch('/api/boards', { credentials: 'include' }).then(r => r.json());
-          
-          for (const board of allBoards) {
-            const boardId = board.boardId || board._id;
-            const shouldBeAssigned = selectedBoards.includes(boardId);
-            const isCurrentlyAssigned = board.defaultWorkflowId === initialWorkflow.workflowId;
-            
-            if (shouldBeAssigned && !isCurrentlyAssigned) {
-              // Assign this workflow to the board
-              await fetch(`/api/boards?id=${boardId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                  defaultWorkflowId: initialWorkflow.workflowId
-                })
-              });
-            } else if (!shouldBeAssigned && isCurrentlyAssigned) {
-              // Unassign this workflow from the board
-              await fetch(`/api/boards?id=${boardId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                  defaultWorkflowId: null
-                })
-              });
-            }
+          } else if (!shouldBeAssigned && isCurrentlyAssigned) {
+            // Unassign this workflow from the board (edit mode only)
+            await fetch(`/api/boards?id=${boardId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                defaultWorkflowId: null
+              })
+            });
           }
         }
         
