@@ -7,6 +7,7 @@ import MatrixPreview from '../components/ui/MatrixPreview';
 
 const Workflows = () => {
   const [boards, setBoards] = useState([]);
+  const [boardStates, setBoardStates] = useState({});
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBoard, setSelectedBoard] = useState(null);
@@ -14,7 +15,27 @@ const Workflows = () => {
 
   useEffect(() => {
     fetchData();
+    // Refresh board states every 30 seconds to keep next trigger times accurate
+    const interval = setInterval(() => {
+      fetchBoardStates();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchBoardStates = async () => {
+    try {
+      const res = await fetch('/api/board-states');
+      const states = await res.json();
+      // Create a map of boardId -> state for easy lookup
+      const stateMap = {};
+      states.forEach(state => {
+        stateMap[state.boardId] = state;
+      });
+      setBoardStates(stateMap);
+    } catch (error) {
+      console.error('Error fetching board states:', error);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -25,6 +46,9 @@ const Workflows = () => {
       
       if (boardsRes.ok) setBoards(await boardsRes.json());
       if (workflowsRes.ok) setWorkflows(await workflowsRes.json());
+      
+      // Fetch board states
+      await fetchBoardStates();
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -853,55 +877,29 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                       }
                     })()}
                     {isActive && (() => {
-                      // Find a board assigned to this workflow to get last update time
+                      // Find a board assigned to this workflow
                       const assignedBoard = boards.find(b => b.defaultWorkflowId === workflow.workflowId);
-                      const schedule = workflow.schedule || {};
-                      const intervalMinutes = schedule.updateIntervalMinutes || 30;
                       
-                      let nextTriggerTime;
+                      if (!assignedBoard) {
+                        return (
+                          <p className="text-xs text-green-700 mt-1 font-semibold">
+                            ⏰ Next trigger: Not scheduled
+                          </p>
+                        );
+                      }
                       
-                      if (!assignedBoard || !assignedBoard.lastUpdateAt) {
-                        // Never run before - check if we're in the time window NOW
-                        const now = new Date();
-                        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                        
-                        if (schedule.type === 'dailyWindow' && schedule.startTimeLocal && schedule.endTimeLocal) {
-                          if (currentTime >= schedule.startTimeLocal && currentTime <= schedule.endTimeLocal) {
-                            // We're in window now - will trigger on next cron run
-                            nextTriggerTime = new Date(now.getTime() + 60000); // Next minute
-                          } else if (currentTime < schedule.startTimeLocal) {
-                            // Before window - trigger at start time today
-                            const [startHour, startMin] = schedule.startTimeLocal.split(':').map(Number);
-                            nextTriggerTime = new Date();
-                            nextTriggerTime.setHours(startHour, startMin, 0, 0);
-                          } else {
-                            // After window - trigger at start time tomorrow
-                            const [startHour, startMin] = schedule.startTimeLocal.split(':').map(Number);
-                            nextTriggerTime = new Date();
-                            nextTriggerTime.setDate(nextTriggerTime.getDate() + 1);
-                            nextTriggerTime.setHours(startHour, startMin, 0, 0);
-                          }
-                        } else {
-                          // Always schedule - trigger on next cron run
-                          nextTriggerTime = new Date(now.getTime() + 60000);
-                        }
-                      } else {
-                        // Has run before - calculate based on last update + interval
-                        const lastUpdate = new Date(assignedBoard.lastUpdateAt);
-                        nextTriggerTime = new Date(lastUpdate.getTime() + intervalMinutes * 60 * 1000);
-                        
-                        // Check if next trigger is outside time window
-                        if (schedule.type === 'dailyWindow' && schedule.startTimeLocal && schedule.endTimeLocal) {
-                          const triggerTime = `${String(nextTriggerTime.getHours()).padStart(2, '0')}:${String(nextTriggerTime.getMinutes()).padStart(2, '0')}`;
-                          
-                          if (triggerTime < schedule.startTimeLocal || triggerTime > schedule.endTimeLocal) {
-                            // Next trigger is outside window - move to next day's start time
-                            const [startHour, startMin] = schedule.startTimeLocal.split(':').map(Number);
-                            nextTriggerTime = new Date(nextTriggerTime);
-                            nextTriggerTime.setDate(nextTriggerTime.getDate() + 1);
-                            nextTriggerTime.setHours(startHour, startMin, 0, 0);
-                          }
-                        }
+                      // Get the stored nextScheduledTrigger from board state
+                      const boardState = boardStates[assignedBoard.boardId];
+                      const nextTriggerTime = boardState?.nextScheduledTrigger ? 
+                        new Date(boardState.nextScheduledTrigger) : 
+                        null;
+                      
+                      if (!nextTriggerTime) {
+                        return (
+                          <p className="text-xs text-green-700 mt-1 font-semibold">
+                            ⏰ Next trigger: Pending first run
+                          </p>
+                        );
                       }
                       
                       return (

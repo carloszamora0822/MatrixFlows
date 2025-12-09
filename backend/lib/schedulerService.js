@@ -114,10 +114,41 @@ class SchedulerService {
       });
 
       if (!primaryBoardState) {
+        // Calculate initial nextScheduledTrigger for new workflow
+        const now = new Date();
+        const intervalMinutes = workflow.schedule.updateIntervalMinutes;
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        
+        // Check if we're in the time window NOW
+        let shouldTriggerNow = true;
+        if (workflow.schedule.type === 'dailyWindow' && workflow.schedule.startTimeLocal && workflow.schedule.endTimeLocal) {
+          const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
+          const [endHour, endMin] = workflow.schedule.endTimeLocal.split(':').map(Number);
+          const startMinutes = startHour * 60 + startMin;
+          const endMinutes = endHour * 60 + endMin;
+          
+          if (currentMinutes < startMinutes || currentMinutes > endMinutes) {
+            shouldTriggerNow = false;
+          }
+        }
+        
+        let initialNextTrigger;
+        if (shouldTriggerNow) {
+          // In window - trigger on next cron run (within 1 minute)
+          initialNextTrigger = new Date(now.getTime() + 60000);
+        } else {
+          // Outside window - calculate next aligned trigger at start of next window
+          const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
+          initialNextTrigger = new Date(now);
+          initialNextTrigger.setDate(initialNextTrigger.getDate() + 1);
+          initialNextTrigger.setHours(startHour, startMin, 0, 0);
+        }
+        
         primaryBoardState = new BoardState({
           orgId: ORG_CONFIG.ID,
           boardId: primaryBoard.boardId,
-          currentStepIndex: 0
+          currentStepIndex: 0,
+          nextScheduledTrigger: initialNextTrigger
         });
         await primaryBoardState.save();
       }
@@ -278,37 +309,6 @@ class SchedulerService {
         }
       }
       
-      // Update all board states after workflow completes
-      await Promise.all(boards.map(async (board) => {
-        try {
-          let boardState = await BoardState.findOne({
-            orgId: ORG_CONFIG.ID,
-            boardId: board.boardId
-          });
-
-          if (!boardState) {
-            boardState = new BoardState({
-              orgId: ORG_CONFIG.ID,
-              boardId: board.boardId,
-              currentStepIndex: 0
-            });
-          }
-
-          boardState.lastMatrix = screens[screens.length - 1].matrix;
-          boardState.lastUpdateAt = new Date();
-          boardState.lastUpdateSuccess = true;
-          boardState.currentWorkflowId = workflow.workflowId;
-          boardState.cycleCount = (boardState.cycleCount || 0) + 1;
-          await boardState.save();
-        } catch (error) {
-          console.error(`Failed to update state for ${board.name}:`, error.message);
-        }
-      }));
-      
-      // Mark workflow as complete and calculate NEXT scheduled trigger
-      primaryBoardState.workflowRunning = false;
-      primaryBoardState.currentScreenIndex = 0;
-      
       // Calculate next trigger time aligned to interval boundaries
       const currentTime = new Date();
       const intervalMinutes = workflow.schedule.updateIntervalMinutes;
@@ -347,8 +347,38 @@ class SchedulerService {
           nextTrigger.setMilliseconds(0);
         }
       }
+
+      // Update all board states after workflow completes
+      await Promise.all(boards.map(async (board) => {
+        try {
+          let boardState = await BoardState.findOne({
+            orgId: ORG_CONFIG.ID,
+            boardId: board.boardId
+          });
+
+          if (!boardState) {
+            boardState = new BoardState({
+              orgId: ORG_CONFIG.ID,
+              boardId: board.boardId,
+              currentStepIndex: 0
+            });
+          }
+
+          boardState.lastMatrix = screens[screens.length - 1].matrix;
+          boardState.lastUpdateAt = new Date();
+          boardState.lastUpdateSuccess = true;
+          boardState.currentWorkflowId = workflow.workflowId;
+          boardState.cycleCount = (boardState.cycleCount || 0) + 1;
+          boardState.nextScheduledTrigger = nextTrigger;  // Save to ALL boards
+          await boardState.save();
+        } catch (error) {
+          console.error(`Failed to update state for ${board.name}:`, error.message);
+        }
+      }));
       
-      primaryBoardState.nextScheduledTrigger = nextTrigger;
+      // Mark workflow as complete
+      primaryBoardState.workflowRunning = false;
+      primaryBoardState.currentScreenIndex = 0;
       await primaryBoardState.save();
       
       const totalSuccess = results.filter(r => r.success).length;
