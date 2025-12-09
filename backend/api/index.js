@@ -38,12 +38,29 @@ const initializeApp = async () => {
     
     // Clear any stale workflowRunning flags from previous server instance
     const BoardState = require('../models/BoardState');
+    const Vestaboard = require('../models/Vestaboard');
+    const { ORG_CONFIG } = require('../../shared/constants');
+    
     const result = await BoardState.updateMany(
       { workflowRunning: true },
       { $set: { workflowRunning: false } }
     );
     if (result.modifiedCount > 0) {
       console.log(`🔄 Cleared ${result.modifiedCount} stale workflow lock(s)`);
+    }
+    
+    // Clean up orphaned board states (states for deleted boards)
+    const allBoards = await Vestaboard.find({ orgId: ORG_CONFIG.ID });
+    const activeBoardIds = new Set(allBoards.map(b => b.boardId));
+    const allStates = await BoardState.find({ orgId: ORG_CONFIG.ID });
+    const orphanedStates = allStates.filter(state => !activeBoardIds.has(state.boardId));
+    
+    if (orphanedStates.length > 0) {
+      const deleteResult = await BoardState.deleteMany({
+        orgId: ORG_CONFIG.ID,
+        boardId: { $in: orphanedStates.map(s => s.boardId) }
+      });
+      console.log(`🗑️  Cleaned up ${deleteResult.deletedCount} orphaned board state(s)`);
     }
     
     console.log('✅ Application initialized successfully');
