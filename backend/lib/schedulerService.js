@@ -22,7 +22,8 @@ class SchedulerService {
         return { success: true, boardsProcessed: 0 };
       }
 
-      console.log(`\n� Processing ${boards.length} active board(s)`);
+      console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      console.log(`🕐 CRON: Processing ${boards.length} board(s)`);
       
       // GROUP BOARDS BY WORKFLOW
       const workflowGroups = {};
@@ -55,7 +56,8 @@ class SchedulerService {
       }
 
       const successCount = results.filter(r => r.success).length;
-      console.log(`✅ Complete: ${successCount}/${boards.length} updated\n`);
+      console.log(`✅ CRON: ${successCount}/${boards.length} boards processed`);
+      console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
       return {
         success: true,
@@ -81,12 +83,13 @@ class SchedulerService {
     if (!boards || boards.length === 0) return [];
     
     const primaryBoard = boards[0];
-    console.log(`\n🎯 Workflow: ${boards.map(b => b.name).join(', ')}`);
+    const boardNames = boards.map(b => b.name).join(', ');
 
     try {
       const workflow = await workflowService.getActiveWorkflow(primaryBoard);
       
       if (!workflow) {
+        console.log(`⏸️  ${boardNames}: No active workflow`);
         return boards.map(board => ({
           boardId: board.boardId,
           success: true,
@@ -112,7 +115,9 @@ class SchedulerService {
 
       // Check if workflow is already running
       if (primaryBoardState.workflowRunning) {
-        console.log('🔄 Workflow already running - skipping this cron run');
+        const currentScreen = primaryBoardState.currentScreenIndex || 0;
+        const totalScreens = workflow.steps.filter(s => s.isEnabled).length;
+        console.log(`🔄 ${boardNames}: Workflow "${workflow.name}" in progress (screen ${currentScreen + 1}/${totalScreens})`);
         return boards.map(board => ({
           boardId: board.boardId,
           success: true,
@@ -127,7 +132,9 @@ class SchedulerService {
       );
 
       if (!shouldRun) {
-        console.log('⏳ Not time to run yet (interval not reached)');
+        const lastUpdate = primaryBoardState.lastUpdateAt ? new Date(primaryBoardState.lastUpdateAt) : null;
+        const nextTrigger = lastUpdate ? new Date(lastUpdate.getTime() + workflow.schedule.updateIntervalMinutes * 60000) : new Date();
+        console.log(`⏳ ${boardNames}: "${workflow.name}" next trigger ${nextTrigger.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`);
         return boards.map(board => ({
           boardId: board.boardId,
           success: true,
@@ -139,17 +146,16 @@ class SchedulerService {
       // CRITICAL: Ensure minimum 15 seconds since last post to avoid rate limiting
       const timeSinceLastUpdate = (new Date() - new Date(primaryBoardState.lastUpdateAt)) / 1000;
       if (timeSinceLastUpdate < 15) {
-        console.log(`⏳ Too soon! Only ${Math.floor(timeSinceLastUpdate)}s since last post (need 15s minimum)`);
+        console.log(`⚠️  ${boardNames}: Rate limit protection (${Math.floor(timeSinceLastUpdate)}s since last post)`);
         return boards.map(board => ({
           boardId: board.boardId,
           success: true,
           skipped: true,
-          reason: 'Rate limit buffer - waiting for 15s gap'
+          reason: 'Rate limit protection'
         }));
       }
 
-      console.log(`✅ Interval trigger - running complete workflow for ${boards.length} board(s)`);
-      console.log(`⚠️  WORKFLOW RUNNING - This will take time, next cron should skip...`);
+      console.log(`▶️  ${boardNames}: Starting "${workflow.name}"`);
 
       // Mark workflow as running IMMEDIATELY (but don't update lastUpdateAt yet)
       primaryBoardState.workflowRunning = true;
@@ -159,20 +165,17 @@ class SchedulerService {
       const enabledSteps = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order);
       
       if (enabledSteps.length === 0) {
-        console.log('⚠️  No enabled steps in workflow');
+        console.log(`❌ ${boardNames}: No enabled steps in "${workflow.name}"`);
         primaryBoardState.workflowRunning = false;
         await primaryBoardState.save();
         return boards.map(board => ({ boardId: board.boardId, success: false, error: 'No enabled steps' }));
       }
 
-      console.log(`📋 Workflow: ${enabledSteps.length} screens`);
-
       // Generate all screens first
       const screens = [];
+      const renderResults = [];
       for (let i = 0; i < enabledSteps.length; i++) {
         const step = enabledSteps[i];
-        console.log(`\n🎨 Rendering ${i + 1}/${enabledSteps.length}: ${step.screenType}`);
-        
         const matrix = await screenEngine.render(step.screenType, step.screenConfig);
         if (matrix) {
           screens.push({
@@ -180,32 +183,43 @@ class SchedulerService {
             displaySeconds: step.displaySeconds,
             screenType: step.screenType
           });
-          console.log(`✅ Rendered (will display for ${step.displaySeconds}s)`);
-        } else {
-          console.log(`⚠️  Skipped - no data`);
+          renderResults.push(`${step.screenType}`);
         }
       }
+      console.log(`🎨 Rendered: ${renderResults.join(', ')}`);
 
       // Post screens to all boards - one screen at a time, all boards simultaneously
       const results = [];
       
       for (let i = 0; i < screens.length; i++) {
         const screen = screens[i];
-        console.log(`\n📺 Screen ${i + 1}/${screens.length}: ${screen.screenType}`);
+        
+        // Update current screen index for progress tracking
+        primaryBoardState.currentScreenIndex = i;
+        await primaryBoardState.save();
         
         // Post THIS screen to ALL boards simultaneously
         const screenResults = await Promise.all(boards.map(async (board) => {
           try {
-            console.log(`  📤 ${board.name} [Workflow: ${workflow.name}]`);
             await vestaboardClient.postMessage(board.vestaboardWriteKey, screen.matrix);
-            console.log(`  ✅ ${board.name} posted [Workflow: ${workflow.name}]`);
-            
-            return { boardId: board.boardId, success: true };
+            return { boardId: board.boardId, boardName: board.name, success: true };
           } catch (error) {
-            console.error(`  ❌ ${board.name} error:`, error.message);
-            return { boardId: board.boardId, success: false, error: error.message };
+            const errorType = error.message.includes('429') ? 'Rate Limited' : 
+                            error.message.includes('timeout') ? 'Timeout' : 
+                            error.message.includes('304') ? 'Not Modified' : 'Error';
+            return { boardId: board.boardId, boardName: board.name, success: false, error: errorType };
           }
         }));
+        
+        // Log posting results
+        const successBoards = screenResults.filter(r => r.success).map(r => r.boardName);
+        const failedBoards = screenResults.filter(r => !r.success).map(r => `${r.boardName}(${r.error})`);
+        
+        if (failedBoards.length === 0) {
+          console.log(`📤 Screen ${i + 1}/${screens.length} (${screen.screenType}): ${successBoards.join(', ')} ✅`);
+        } else {
+          console.log(`📤 Screen ${i + 1}/${screens.length} (${screen.screenType}): ${successBoards.join(', ')} ✅ | ${failedBoards.join(', ')} ❌`);
+        }
         
         results.push(...screenResults);
         
@@ -215,8 +229,7 @@ class SchedulerService {
         
         // Wait before next screen (except last)
         if (i < screens.length - 1) {
-          const delaySeconds = Math.max(screen.displaySeconds, 16); // Minimum 15s to avoid rate limiting
-          console.log(`⏳ Waiting ${delaySeconds}s before next screen (displaySeconds: ${screen.displaySeconds}s, minimum: 15s)...`);
+          const delaySeconds = Math.max(screen.displaySeconds, 16);
           await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
         }
       }
@@ -248,12 +261,14 @@ class SchedulerService {
         }
       }));
       
-      console.log(`\n✅ All boards complete`);
-
       // Mark workflow as complete
       primaryBoardState.workflowRunning = false;
+      primaryBoardState.currentScreenIndex = 0;
       await primaryBoardState.save();
-      console.log(`\n🎉 Workflow complete for all boards`);
+      
+      const totalSuccess = results.filter(r => r.success).length;
+      const totalAttempts = results.length;
+      console.log(`✅ ${boardNames}: "${workflow.name}" complete (${totalSuccess}/${totalAttempts} posts successful)`);
 
       return results;
 

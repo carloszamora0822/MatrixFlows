@@ -855,19 +855,54 @@ const WorkflowsTab = ({ workflows, boards, fetchData, selectedBoard }) => {
                     {isActive && (() => {
                       // Find a board assigned to this workflow to get last update time
                       const assignedBoard = boards.find(b => b.defaultWorkflowId === workflow.workflowId);
+                      const schedule = workflow.schedule || {};
+                      const intervalMinutes = schedule.updateIntervalMinutes || 30;
+                      
+                      let nextTriggerTime;
                       
                       if (!assignedBoard || !assignedBoard.lastUpdateAt) {
-                        return (
-                          <p className="text-xs text-blue-700 mt-1 font-semibold">
-                            ⏰ Next trigger: Ready to run
-                          </p>
-                        );
+                        // Never run before - check if we're in the time window NOW
+                        const now = new Date();
+                        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                        
+                        if (schedule.type === 'dailyWindow' && schedule.startTimeLocal && schedule.endTimeLocal) {
+                          if (currentTime >= schedule.startTimeLocal && currentTime <= schedule.endTimeLocal) {
+                            // We're in window now - will trigger on next cron run
+                            nextTriggerTime = new Date(now.getTime() + 60000); // Next minute
+                          } else if (currentTime < schedule.startTimeLocal) {
+                            // Before window - trigger at start time today
+                            const [startHour, startMin] = schedule.startTimeLocal.split(':').map(Number);
+                            nextTriggerTime = new Date();
+                            nextTriggerTime.setHours(startHour, startMin, 0, 0);
+                          } else {
+                            // After window - trigger at start time tomorrow
+                            const [startHour, startMin] = schedule.startTimeLocal.split(':').map(Number);
+                            nextTriggerTime = new Date();
+                            nextTriggerTime.setDate(nextTriggerTime.getDate() + 1);
+                            nextTriggerTime.setHours(startHour, startMin, 0, 0);
+                          }
+                        } else {
+                          // Always schedule - trigger on next cron run
+                          nextTriggerTime = new Date(now.getTime() + 60000);
+                        }
+                      } else {
+                        // Has run before - calculate based on last update + interval
+                        const lastUpdate = new Date(assignedBoard.lastUpdateAt);
+                        nextTriggerTime = new Date(lastUpdate.getTime() + intervalMinutes * 60 * 1000);
+                        
+                        // Check if next trigger is outside time window
+                        if (schedule.type === 'dailyWindow' && schedule.startTimeLocal && schedule.endTimeLocal) {
+                          const triggerTime = `${String(nextTriggerTime.getHours()).padStart(2, '0')}:${String(nextTriggerTime.getMinutes()).padStart(2, '0')}`;
+                          
+                          if (triggerTime < schedule.startTimeLocal || triggerTime > schedule.endTimeLocal) {
+                            // Next trigger is outside window - move to next day's start time
+                            const [startHour, startMin] = schedule.startTimeLocal.split(':').map(Number);
+                            nextTriggerTime = new Date(nextTriggerTime);
+                            nextTriggerTime.setDate(nextTriggerTime.getDate() + 1);
+                            nextTriggerTime.setHours(startHour, startMin, 0, 0);
+                          }
+                        }
                       }
-                      
-                      // Calculate next trigger: lastUpdateAt + interval
-                      const lastUpdate = new Date(assignedBoard.lastUpdateAt);
-                      const intervalMinutes = workflow.schedule?.updateIntervalMinutes || 30;
-                      const nextTriggerTime = new Date(lastUpdate.getTime() + intervalMinutes * 60 * 1000);
                       
                       return (
                         <p className="text-xs text-green-700 mt-1 font-semibold">

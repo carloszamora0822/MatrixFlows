@@ -31,14 +31,11 @@ class WorkflowService {
       });
 
       if (pinnedWorkflow && this.isWorkflowActiveNow(pinnedWorkflow, now)) {
-        console.log(`📌 PINNED SCREEN ACTIVE: ${pinnedWorkflow.name}`);
-        console.log(`🚫 BLOCKING all other workflows until pin expires or is removed`);
         return pinnedWorkflow;
       }
 
       // Get the board's assigned workflow
       if (!board.defaultWorkflowId) {
-        console.log(`⚠️  No workflow assigned to board ${board.boardId}`);
         return null;
       }
 
@@ -49,17 +46,14 @@ class WorkflowService {
       });
 
       if (!workflow) {
-        console.log(`⚠️  Workflow ${board.defaultWorkflowId} not found or inactive`);
         return null;
       }
       
       // Check if workflow should be active at this time
       if (this.isWorkflowActiveNow(workflow, now)) {
-        console.log(`✅ Active workflow: ${workflow.name} (${workflow.workflowId})`);
         return workflow;
       }
 
-      console.log(`⚠️  Workflow ${workflow.name} not scheduled to run at this time`);
       return null;
 
     } catch (error) {
@@ -108,7 +102,6 @@ class WorkflowService {
       if (schedule.daysOfWeek && schedule.daysOfWeek.length > 0) {
         const currentDay = localTime.getDay(); // 0=Sunday, 6=Saturday
         if (!schedule.daysOfWeek.includes(currentDay)) {
-          console.log(`⏸️  Not scheduled for day ${currentDay}`);
           return false;
         }
       }
@@ -116,10 +109,8 @@ class WorkflowService {
       // Check time window (using local time)
       if (schedule.startTimeLocal && schedule.endTimeLocal) {
         const currentTime = `${String(localTime.getHours()).padStart(2, '0')}:${String(localTime.getMinutes()).padStart(2, '0')}`;
-        console.log(`⏰ Current time: ${currentTime}, Window: ${schedule.startTimeLocal}-${schedule.endTimeLocal}`);
         
         if (currentTime < schedule.startTimeLocal || currentTime > schedule.endTimeLocal) {
-          console.log(`⏸️  Outside time window`);
           return false;
         }
       }

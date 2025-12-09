@@ -23,8 +23,6 @@ function shouldUpdateNow(workflow, lastUpdateAt, currentTime = new Date()) {
   const currentCentral = moment(currentTime).tz('America/Chicago');
   
   if (!lastUpdateAt) {
-    // Never updated before - trigger now if we're in the time window
-    console.log(`⏰ No previous update - triggering now`);
     return true;
   }
   
@@ -34,16 +32,8 @@ function shouldUpdateNow(workflow, lastUpdateAt, currentTime = new Date()) {
   // Calculate time elapsed since last update (in minutes)
   const minutesElapsed = currentCentral.diff(lastUpdateCentral, 'minutes');
   
-  console.log(`🔍 Interval check: last update ${lastUpdateCentral.format('YYYY-MM-DD HH:mm')}, current ${currentCentral.format('YYYY-MM-DD HH:mm')}, elapsed ${minutesElapsed}min, interval ${intervalMinutes}min`);
-  
   // Trigger if enough time has passed
-  if (minutesElapsed >= intervalMinutes) {
-    console.log(`⏰ Interval reached: ${minutesElapsed}min >= ${intervalMinutes}min - triggering now`);
-    return true;
-  }
-  
-  console.log(`⏳ Not time yet: ${minutesElapsed}min < ${intervalMinutes}min (${intervalMinutes - minutesElapsed}min remaining)`);
-  return false;
+  return minutesElapsed >= intervalMinutes;
 }
 
 /**
