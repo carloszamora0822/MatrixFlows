@@ -72,9 +72,17 @@ const updateBoard = async (req, res) => {
   // Build update object - only include provided fields
   const updateData = {};
   
-  // If this is a partial update (e.g., just toggling isActive)
-  if (isActive !== undefined && Object.keys(req.body).length === 1) {
-    updateData.isActive = isActive;
+  // Check if this is a partial update (workflow assignment or isActive toggle)
+  const isPartialUpdate = Object.keys(req.body).length === 1 && (isActive !== undefined || defaultWorkflowId !== undefined);
+  
+  if (isPartialUpdate) {
+    // Partial update - just update the specific field
+    if (isActive !== undefined) {
+      updateData.isActive = isActive;
+    }
+    if (defaultWorkflowId !== undefined) {
+      updateData.defaultWorkflowId = defaultWorkflowId || null;
+    }
   } else {
     // Full update - require name and API key
     if (!name || !vestaboardWriteKey) {
@@ -84,7 +92,7 @@ const updateBoard = async (req, res) => {
     updateData.name = name.trim();
     updateData.locationLabel = locationLabel?.trim();
     updateData.vestaboardWriteKey = vestaboardWriteKey.trim();
-    updateData.defaultWorkflowId = defaultWorkflowId || undefined;
+    updateData.defaultWorkflowId = defaultWorkflowId !== undefined ? (defaultWorkflowId || null) : undefined;
     
     if (isActive !== undefined) {
       updateData.isActive = isActive;
