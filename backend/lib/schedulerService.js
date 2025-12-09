@@ -230,6 +230,8 @@ class SchedulerService {
         
         // Create board states for ALL other boards sharing this workflow
         const otherBoards = boards.filter(b => b.boardId !== primaryBoard.boardId);
+        const firstScreenType = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order)[0]?.screenType || 'Unknown';
+        
         await Promise.all(otherBoards.map(async (board) => {
           const existingState = await BoardState.findOne({
             orgId: ORG_CONFIG.ID,
@@ -241,6 +243,7 @@ class SchedulerService {
               orgId: ORG_CONFIG.ID,
               boardId: board.boardId,
               currentStepIndex: 0,
+              currentScreenType: firstScreenType,
               nextScheduledTrigger: initialNextTrigger
             });
             await newState.save();
