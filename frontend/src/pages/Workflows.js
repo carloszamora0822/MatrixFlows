@@ -80,6 +80,7 @@ const Workflows = () => {
               boards={boards}
               boardStates={boardStates}
               fetchData={fetchData}
+              fetchBoardStates={fetchBoardStates}
               selectedBoard={currentBoard}
             />
           ) : (
@@ -102,7 +103,7 @@ const Workflows = () => {
 };
 
 
-const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard }) => {
+const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, fetchBoardStates, selectedBoard }) => {
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -770,7 +771,8 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
                   setForm({
                     name: '',
                     steps: [],
-                    schedule: { type: 'always', startTimeLocal: '00:00', endTimeLocal: '23:59', daysOfWeek: [0, 1, 2, 3, 4, 5, 6], updateIntervalMinutes: 30 }
+                    schedule: { type: 'always', startTimeLocal: '00:00', endTimeLocal: '23:59', daysOfWeek: [0, 1, 2, 3, 4, 5, 6], updateIntervalMinutes: 30 },
+                    boardIds: [] // ✅ Reset board selection
                   });
                 }}
                 className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-all"
