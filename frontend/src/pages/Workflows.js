@@ -120,7 +120,8 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
       endTimeLocal: '23:59',
       daysOfWeek: [0, 1, 2, 3, 4, 5, 6], // All days
       updateIntervalMinutes: 30 // Default 30 minutes
-    }
+    },
+    boardIds: [] // ✅ NEW: Board assignment during creation
   });
   const [loading, setLoading] = useState(false);
   const [triggeringNow, setTriggeringNow] = useState(false);
@@ -185,13 +186,17 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
         const workflowId = editingId || data.workflowId;
         let successMessage = editingId 
           ? '✅ Workflow settings updated!' 
-          : '✅ Workflow created!';
+          : `✅ Workflow created!${data.assignedBoardsCount ? ` Assigned to ${data.assignedBoardsCount} board(s).` : ''}`;
+        
+        // ✅ Show assignment errors if any
+        if (data.assignmentErrors && data.assignmentErrors.length > 0) {
+          successMessage += `\n\n⚠️ Assignment warnings:\n${data.assignmentErrors.join('\n')}`;
+        }
         
         // 🚀 TRIGGER NOW: If requested, immediately update all boards using this workflow
         if (triggerNow) {
           console.log('🚀 Triggering workflow immediately...');
           console.log('Workflow ID:', workflowId);
-          console.log('All boards:', boards);
           
           // Refresh boards to get latest data
           await fetchData();
@@ -202,35 +207,35 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
           console.log('Boards using workflow:', boardsUsingWorkflow);
           
           if (boardsUsingWorkflow.length === 0) {
-            successMessage += '\n\n⚠️ No boards assigned to this workflow yet. Assign it to a board in the Vestaboard Setup tab.';
+            successMessage += '\n\n⚠️ No boards assigned to this workflow yet. Assign it to a board in the Boards page.';
           } else {
-            let triggeredCount = 0;
-            for (const board of boardsUsingWorkflow) {
-              try {
-                console.log(`Triggering board: ${board.name} (${board.boardId}) - Running complete workflow`);
-                const triggerRes = await fetch(`/api/workflows/trigger?boardId=${board.boardId}`, {
-                  method: 'POST',
-                  credentials: 'include'
-                });
-                
-                console.log('Trigger response status:', triggerRes.status);
-                const triggerData = await triggerRes.json();
-                console.log('Trigger response data:', triggerData);
-                
-                if (triggerRes.ok) {
-                  console.log(`✅ Triggered board: ${board.name}`);
-                  triggeredCount++;
-                } else {
-                  console.error(`❌ Failed to trigger board: ${board.name}`, triggerData);
-                  alert(`❌ Failed to trigger ${board.name}: ${triggerData.error?.message || 'Unknown error'}`);
+            // ✅ CRITICAL FIX: Use multi-board trigger endpoint to trigger ALL boards simultaneously
+            try {
+              console.log(`🚀 Triggering ${boardsUsingWorkflow.length} board(s) simultaneously via multi-board endpoint`);
+              const triggerRes = await fetch(`/api/workflows/trigger-multi?workflowId=${workflowId}`, {
+                method: 'POST',
+                credentials: 'include'
+              });
+              
+              const triggerData = await triggerRes.json();
+              console.log('Multi-board trigger response:', triggerData);
+              
+              if (triggerRes.ok) {
+                const { stats } = triggerData;
+                successMessage += `\n\n🚀 Triggered ${boardsUsingWorkflow.length} board(s) simultaneously!`;
+                if (stats) {
+                  successMessage += `\n   Executed: ${stats.executed}, Skipped: ${stats.skipped}`;
                 }
-              } catch (triggerError) {
-                console.error(`❌ Trigger error for board ${board.name}:`, triggerError);
-                alert(`❌ Trigger error for ${board.name}: ${triggerError.message}`);
+                // ✅ Immediate UI refresh
+                await fetchBoardStates();
+              } else {
+                console.error('❌ Failed to trigger boards:', triggerData);
+                alert(`❌ Failed to trigger boards: ${triggerData.error?.message || 'Unknown error'}`);
               }
+            } catch (triggerError) {
+              console.error('❌ Trigger error:', triggerError);
+              alert(`❌ Trigger error: ${triggerError.message}`);
             }
-            
-            successMessage += `\n\n🚀 Triggered ${triggeredCount}/${boardsUsingWorkflow.length} board(s) immediately!`;
           }
         }
         
@@ -244,11 +249,14 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
             endTimeLocal: '23:59',
             daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
             updateIntervalMinutes: 30
-          }
+          },
+          boardIds: [] // ✅ Reset board selection
         });
         setEditingId(null);
         setShowForm(false);
+        // ✅ Refresh both workflows AND board states
         await fetchData();
+        await fetchBoardStates();
       } else {
         alert(`❌ Failed:\n\n${data.error?.message}\n\nDetails: ${JSON.stringify(data.error?.details || {})}`);
       }
@@ -316,6 +324,31 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
     } catch (error) {
       console.error('Failed to toggle workflow:', error);
       alert('Failed to update workflow status');
+    }
+  };
+
+  // ✅ FIX #5: Handle board resynchronization
+  const handleResyncWorkflow = async (workflowId) => {
+    if (!window.confirm('Resynchronize all boards for this workflow? They will all trigger on the next cron run.')) return;
+    
+    try {
+      const res = await fetch(`/api/workflows/trigger-now?workflowId=${workflowId}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (res.ok) {
+        // ✅ Immediate refresh
+        await fetchBoardStates();
+        await fetchData();
+        alert('✅ Boards synchronized! All will trigger within 60 seconds.');
+      } else {
+        const data = await res.json();
+        alert(`❌ Failed: ${data.error?.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to resync:', error);
+      alert('❌ Network error');
     }
   };
 
@@ -494,8 +527,9 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
                 setEditingId(null);
                 setForm({
                   name: '',
-                  steps: [], // Reset to empty
-                  schedule: { type: 'always', startTimeLocal: '00:00', endTimeLocal: '23:59', daysOfWeek: [0, 1, 2, 3, 4, 5, 6], updateIntervalMinutes: 30 }
+                  steps: [],
+                  schedule: { type: 'always', startTimeLocal: '00:00', endTimeLocal: '23:59', daysOfWeek: [0, 1, 2, 3, 4, 5, 6], updateIntervalMinutes: 30 },
+                  boardIds: [] // ✅ Reset board selection
                 });
               }}
               className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -517,10 +551,10 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
               />
             </div>
 
-            {/* Board Assignment - Read Only */}
+            {/* Board Assignment */}
             <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-5">
               <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-bold text-gray-700">📺 Assigned to Boards</label>
+                <label className="text-sm font-bold text-gray-700">📺 Assign to Boards</label>
                 {editingId && (
                   <span className="text-xs text-gray-600">
                     {boards.filter(b => b.isActive && b.defaultWorkflowId === editingId).length} board(s)
@@ -530,6 +564,7 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
               
               {editingId ? (
                 <>
+                  {/* Editing: Show assigned boards (read-only) */}
                   <div className="flex flex-wrap gap-2 mb-3">
                     {boards.filter(b => b.isActive && b.defaultWorkflowId === editingId).map(board => (
                       <span key={board.boardId} className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700">
@@ -547,9 +582,43 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
                   </div>
                 </>
               ) : (
-                <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                  <p className="text-sm text-orange-800 font-medium">💡 Save the workflow first, then assign boards in the Boards page</p>
-                </div>
+                <>
+                  {/* Creating: Allow board selection */}
+                  {boards.filter(b => b.isActive).length === 0 ? (
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                      <p className="text-sm text-orange-800 font-medium">⚠️ No active boards available. Create boards first.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2 mb-3">
+                        {boards.filter(b => b.isActive).map(board => (
+                          <label key={board.boardId} className="flex items-center space-x-3 p-3 hover:bg-gray-100 rounded-lg cursor-pointer border border-gray-200 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={form.boardIds.includes(board.boardId)}
+                              onChange={(e) => {
+                                const newBoardIds = e.target.checked
+                                  ? [...form.boardIds, board.boardId]
+                                  : form.boardIds.filter(id => id !== board.boardId);
+                                setForm({ ...form, boardIds: newBoardIds });
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded"
+                            />
+                            <span className="font-medium text-gray-700">📺 {board.name}</span>
+                            {board.locationLabel && (
+                              <span className="text-xs text-gray-500">({board.locationLabel})</span>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs text-gray-700">
+                          💡 <strong>Tip:</strong> Select boards now, or assign them later from the Boards page. Both work!
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </>
               )}
             </div>
 
@@ -910,6 +979,44 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, selectedBoard
                         <p className="text-xs text-green-700 mt-1 font-semibold">
                           ⏰ Next trigger: {nextTriggerTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Chicago' })}
                         </p>
+                      );
+                    })()}
+                    {/* ✅ FIX #5: Desync Detection */}
+                    {(() => {
+                      // Check sync status for multi-board workflows
+                      const boardsWithWorkflow = boards.filter(b => 
+                        b.isActive && b.defaultWorkflowId === workflow.workflowId
+                      );
+                      
+                      if (boardsWithWorkflow.length < 2) return null; // Skip for single-board workflows
+                      
+                      const triggerTimes = boardsWithWorkflow.map(b => {
+                        const state = boardStates[b.boardId];
+                        return state?.nextScheduledTrigger ? new Date(state.nextScheduledTrigger).getTime() : null;
+                      }).filter(t => t !== null);
+                      
+                      const isDesynchronized = triggerTimes.length > 1 && 
+                        !triggerTimes.every(t => t === triggerTimes[0]);
+                      
+                      if (!isDesynchronized) return null;
+                      
+                      const maxDiff = Math.max(...triggerTimes) - Math.min(...triggerTimes);
+                      const diffSeconds = Math.round(maxDiff / 1000);
+                      
+                      return (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-300 rounded text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-red-800 font-semibold">
+                              ⚠️ Boards out of sync! ({diffSeconds}s difference)
+                            </span>
+                            <button 
+                              onClick={() => handleResyncWorkflow(workflow.workflowId)}
+                              className="ml-2 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 font-semibold"
+                            >
+                              Fix Now
+                            </button>
+                          </div>
+                        </div>
                       );
                     })()}
                   </div>

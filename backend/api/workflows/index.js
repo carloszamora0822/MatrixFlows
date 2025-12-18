@@ -38,7 +38,7 @@ const createWorkflow = async (req, res) => {
     requireEditor(req, res, (err) => err ? reject(err) : resolve());
   });
 
-  const { name, steps, schedule, isDefault } = req.body;
+  const { name, steps, schedule, isDefault, boardIds } = req.body; // ✅ Accept boardIds array
   
   console.log('📝 Workflow creation request:', { name, stepsCount: steps?.length });
   
@@ -83,40 +83,70 @@ const createWorkflow = async (req, res) => {
   await newWorkflow.save();
   console.log(`✅ Workflow created: ${newWorkflow.name} by ${req.user.email}`);
   
-  // Find all boards assigned to this workflow and set immediate trigger
+  // ✅ NEW: Handle board assignment from request body
   const Vestaboard = require('../../models/Vestaboard');
   const BoardState = require('../../models/BoardState');
   const moment = require('moment-timezone');
   
-  const assignedBoards = await Vestaboard.find({
-    orgId: ORG_CONFIG.ID,
-    defaultWorkflowId: newWorkflow.workflowId,
-    isActive: true
-  });
+  let assignedCount = 0;
+  const assignmentErrors = [];
   
-  if (assignedBoards.length > 0) {
-    console.log(`🔄 Setting immediate trigger for ${assignedBoards.length} board(s)`);
+  if (boardIds && Array.isArray(boardIds) && boardIds.length > 0) {
+    console.log(`🔄 Assigning workflow to ${boardIds.length} board(s) from request`);
     
-    for (const board of assignedBoards) {
-      // Delete existing state
-      await BoardState.findOneAndDelete({
-        orgId: ORG_CONFIG.ID,
-        boardId: board.boardId
-      });
-      
-      // Create new state with immediate trigger
-      const newState = new BoardState({
-        orgId: ORG_CONFIG.ID,
-        boardId: board.boardId,
-        currentStepIndex: 0,
-        nextScheduledTrigger: moment().tz('America/Chicago').toDate()
-      });
-      await newState.save();
-      console.log(`   ✅ ${board.name} will trigger on next cron`);
+    // ✅ Validate boards exist and are active
+    const boards = await Vestaboard.find({
+      orgId: ORG_CONFIG.ID,
+      boardId: { $in: boardIds },
+      isActive: true
+    });
+    
+    if (boards.length !== boardIds.length) {
+      const foundIds = boards.map(b => b.boardId);
+      const missingIds = boardIds.filter(id => !foundIds.includes(id));
+      console.warn(`⚠️ Some boards not found or inactive. Missing: ${missingIds.join(', ')}`);
+      assignmentErrors.push(`${missingIds.length} board(s) not found or inactive`);
+    }
+    
+    const immediateNextTrigger = moment().tz('America/Chicago').toDate();
+    
+    // ✅ Update each board and create state
+    for (const board of boards) {
+      try {
+        // Update board's workflow assignment
+        board.defaultWorkflowId = newWorkflow.workflowId;
+        await board.save();
+        
+        // Delete old state if exists
+        await BoardState.findOneAndDelete({
+          orgId: ORG_CONFIG.ID,
+          boardId: board.boardId
+        });
+        
+        // Create new state with immediate trigger
+        const newState = new BoardState({
+          orgId: ORG_CONFIG.ID,
+          boardId: board.boardId,
+          currentStepIndex: 0,
+          nextScheduledTrigger: immediateNextTrigger
+        });
+        await newState.save();
+        
+        console.log(`   ✅ ${board.name} assigned and will trigger on next cron (within 60s)`);
+        assignedCount++;
+      } catch (error) {
+        console.error(`   ❌ Failed to assign ${board.name}:`, error.message);
+        assignmentErrors.push(`${board.name}: ${error.message}`);
+      }
     }
   }
   
-  res.status(201).json(newWorkflow);
+  // ✅ Return workflow with assignment info
+  res.status(201).json({
+    ...newWorkflow.toObject(),
+    assignedBoardsCount: assignedCount,
+    assignmentErrors: assignmentErrors.length > 0 ? assignmentErrors : undefined
+  });
 };
 
 const updateWorkflow = async (req, res) => {
@@ -199,8 +229,11 @@ const updateWorkflow = async (req, res) => {
   if (assignedBoards.length > 0) {
     console.log(`🔄 FORCING immediate trigger for ${assignedBoards.length} board(s) after workflow update`);
     
-    for (const board of assignedBoards) {
-      // Reset workflow running flag and set immediate trigger
+    // ✅ Calculate trigger time ONCE for all boards (atomic sync)
+    const immediateNextTrigger = moment().tz('America/Chicago').toDate();
+    
+    // ✅ Update all boards in parallel with same trigger time
+    await Promise.all(assignedBoards.map(async (board) => {
       await BoardState.findOneAndUpdate(
         {
           orgId: ORG_CONFIG.ID,
@@ -208,13 +241,14 @@ const updateWorkflow = async (req, res) => {
         },
         {
           workflowRunning: false,
-          nextScheduledTrigger: moment().tz('America/Chicago').toDate(),
+          nextScheduledTrigger: immediateNextTrigger,
           currentStepIndex: 0
         },
         { upsert: true }
       );
-      console.log(`   ✅ ${board.name} will trigger on next cron (within 60s)`);
-    }
+    }));
+    
+    console.log(`✅ All ${assignedBoards.length} board(s) synchronized - will trigger on next cron (within 60s)`);
   }
   
   res.status(200).json(updated);
@@ -235,9 +269,21 @@ const deleteWorkflow = async (req, res) => {
   
   // Clean up board states that reference this workflow
   const BoardState = require('../../models/BoardState');
+  // ✅ COMPLETE CLEANUP: Reset all workflow-related fields
   const cleanupResult = await BoardState.updateMany(
     { currentWorkflowId: id, orgId: ORG_CONFIG.ID },
-    { $unset: { currentWorkflowId: '', nextScheduledTrigger: '' } }
+    { 
+      $unset: { 
+        currentWorkflowId: '', 
+        nextScheduledTrigger: '',
+        currentScreenType: ''
+      },
+      $set: {
+        workflowRunning: false,
+        currentStepIndex: 0,
+        currentScreenIndex: 0
+      }
+    }
   );
   
   console.log(`✅ Workflow deleted: ${id} by ${req.user.email}`);

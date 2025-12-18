@@ -115,6 +115,8 @@ const updateBoard = async (req, res) => {
   // If workflow changed, reset the board state and force immediate trigger
   if (oldBoard && oldBoard.defaultWorkflowId !== updated.defaultWorkflowId) {
     const BoardState = require('../../models/BoardState');
+    const Workflow = require('../../models/Workflow');
+    const workflowService = require('../../lib/workflowService');
     const moment = require('moment-timezone');
     
     // Delete old state
@@ -123,18 +125,89 @@ const updateBoard = async (req, res) => {
       orgId: ORG_CONFIG.ID
     });
     
+    // Handle board REMOVAL from workflow
+    if (oldBoard.defaultWorkflowId && !updated.defaultWorkflowId) {
+      const oldWorkflowId = oldBoard.defaultWorkflowId;
+      const remainingBoards = await Vestaboard.find({
+        orgId: ORG_CONFIG.ID,
+        defaultWorkflowId: oldWorkflowId,
+        isActive: true,
+        boardId: { $ne: id }
+      });
+      
+      if (remainingBoards.length > 0) {
+        console.log(`🔄 ${remainingBoards.length} board(s) still use workflow ${oldWorkflowId} - they remain synced`);
+      }
+      console.log(`🔄 Board state deleted for ${updated.name} - workflow unassigned`);
+    }
+    
     // Create new state with immediate trigger if workflow assigned
     if (updated.defaultWorkflowId) {
-      const newState = new BoardState({
+      // ✅ CRITICAL: Check for active pinned workflows before syncing
+      const pinnedWorkflow = await Workflow.findOne({
         orgId: ORG_CONFIG.ID,
-        boardId: updated.boardId,
-        currentStepIndex: 0,
-        nextScheduledTrigger: moment().tz('America/Chicago').toDate() // Trigger NOW
+        isActive: true,
+        name: { $regex: /^Pinned -/ },
+        'schedule.type': 'specificDateRange'
       });
-      await newState.save();
-      console.log(`🔄 Board state reset for ${updated.name} - will trigger on next cron (within 60s)`);
-    } else {
-      console.log(`🔄 Board state deleted for ${updated.name} - workflow unassigned`);
+      
+      const isPinnedActive = pinnedWorkflow && 
+        workflowService.isWorkflowActiveNow(pinnedWorkflow, new Date());
+      
+      if (isPinnedActive) {
+        // ⚠️ Pinned workflow is active - only update THIS board, don't sync others
+        console.log(`⚠️ Pinned workflow "${pinnedWorkflow.name}" is active - skipping multi-board sync`);
+        
+        const newState = new BoardState({
+          orgId: ORG_CONFIG.ID,
+          boardId: updated.boardId,
+          currentStepIndex: 0,
+          nextScheduledTrigger: moment().tz('America/Chicago').toDate()
+        });
+        await newState.save();
+        console.log(`🔄 Board state created for ${updated.name} - will trigger after pin expires`);
+      } else {
+        // ✅ Safe to sync all boards sharing this workflow
+        const allBoardsWithWorkflow = await Vestaboard.find({
+          orgId: ORG_CONFIG.ID,
+          defaultWorkflowId: updated.defaultWorkflowId,
+          isActive: true
+        });
+        
+        const immediateNextTrigger = moment().tz('America/Chicago').toDate();
+        
+        console.log(`🔄 Synchronizing ${allBoardsWithWorkflow.length} board(s) for workflow ${updated.defaultWorkflowId}`);
+        
+        // ✅ SAFE: Use find-or-create pattern to avoid MongoDB duplicate key errors
+        for (const board of allBoardsWithWorkflow) {
+          let boardState = await BoardState.findOne({
+            orgId: ORG_CONFIG.ID,
+            boardId: board.boardId
+          });
+          
+          if (!boardState) {
+            // Create new state - stateId will auto-generate
+            boardState = new BoardState({
+              orgId: ORG_CONFIG.ID,
+              boardId: board.boardId,
+              currentStepIndex: 0,
+              nextScheduledTrigger: immediateNextTrigger,
+              workflowRunning: false
+            });
+            console.log(`   ✅ Created state for ${board.name}`);
+          } else {
+            // Update existing state
+            boardState.nextScheduledTrigger = immediateNextTrigger;
+            boardState.currentStepIndex = 0;
+            boardState.workflowRunning = false;
+            console.log(`   🔄 Synchronized ${board.name}`);
+          }
+          
+          await boardState.save();
+        }
+        
+        console.log(`✅ All ${allBoardsWithWorkflow.length} board(s) synchronized - will trigger on next cron (within 60s)`);
+      }
     }
   }
 

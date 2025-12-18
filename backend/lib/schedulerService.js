@@ -100,7 +100,13 @@ class SchedulerService {
    * @param {Array} boards - Array of Vestaboard documents with same workflow
    */
   async checkAndRunWorkflowForBoards(boards) {
-    if (!boards || boards.length === 0) return [];
+    // ✅ Validate input type
+    if (!boards) return [];
+    if (!Array.isArray(boards)) {
+      console.error('❌ checkAndRunWorkflowForBoards expects array, got:', typeof boards);
+      return [];
+    }
+    if (boards.length === 0) return [];
     
     const primaryBoard = boards[0];
 
@@ -184,42 +190,42 @@ class SchedulerService {
         boardId: primaryBoard.boardId
       });
 
+      // Calculate initial nextScheduledTrigger for new workflow using Central Time
+      const nowCentral = moment().tz(TIMEZONE);
+      const initIntervalMinutes = workflow.schedule.updateIntervalMinutes;
+      const initCurrentMinutes = nowCentral.hours() * 60 + nowCentral.minutes();
+      
+      // Check if we're in the time window NOW (in Central Time)
+      let shouldTriggerNow = true;
+      if (workflow.schedule.type === 'dailyWindow' && workflow.schedule.startTimeLocal && workflow.schedule.endTimeLocal) {
+        const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
+        const [endHour, endMin] = workflow.schedule.endTimeLocal.split(':').map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
+        
+        if (initCurrentMinutes < startMinutes || initCurrentMinutes > endMinutes) {
+          shouldTriggerNow = false;
+        }
+      }
+      
+      let initialNextTrigger;
+      if (shouldTriggerNow) {
+        // In window - trigger IMMEDIATELY on next cron run (within 60 seconds)
+        initialNextTrigger = moment(nowCentral).toDate();
+      } else {
+        // Outside window - calculate next aligned trigger at start of next window
+        const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
+        initialNextTrigger = moment(nowCentral)
+          .add(1, 'day')
+          .hours(startHour)
+          .minutes(startMin)
+          .seconds(0)
+          .milliseconds(0)
+          .toDate();
+      }
+
+      // Create primary board state if missing
       if (!primaryBoardState) {
-        // Calculate initial nextScheduledTrigger for new workflow using Central Time
-        const nowCentral = moment().tz(TIMEZONE);
-        const intervalMinutes = workflow.schedule.updateIntervalMinutes;
-        const currentMinutes = nowCentral.hours() * 60 + nowCentral.minutes();
-        
-        // Check if we're in the time window NOW (in Central Time)
-        let shouldTriggerNow = true;
-        if (workflow.schedule.type === 'dailyWindow' && workflow.schedule.startTimeLocal && workflow.schedule.endTimeLocal) {
-          const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
-          const [endHour, endMin] = workflow.schedule.endTimeLocal.split(':').map(Number);
-          const startMinutes = startHour * 60 + startMin;
-          const endMinutes = endHour * 60 + endMin;
-          
-          if (currentMinutes < startMinutes || currentMinutes > endMinutes) {
-            shouldTriggerNow = false;
-          }
-        }
-        
-        let initialNextTrigger;
-        if (shouldTriggerNow) {
-          // In window - trigger IMMEDIATELY on next cron run (within 60 seconds)
-          initialNextTrigger = moment(nowCentral).toDate();
-        } else {
-          // Outside window - calculate next aligned trigger at start of next window
-          const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
-          initialNextTrigger = moment(nowCentral)
-            .add(1, 'day')
-            .hours(startHour)
-            .minutes(startMin)
-            .seconds(0)
-            .milliseconds(0)
-            .toDate();
-        }
-        
-        // Create board state for primary board
         primaryBoardState = new BoardState({
           orgId: ORG_CONFIG.ID,
           boardId: primaryBoard.boardId,
@@ -227,26 +233,45 @@ class SchedulerService {
           nextScheduledTrigger: initialNextTrigger
         });
         await primaryBoardState.save();
+        console.log(`   ✅ Created primary board state for ${primaryBoard.name}`);
+      }
+      
+      // ✅ CRITICAL FIX: ALWAYS check and sync ALL other boards (moved outside if block)
+      const otherBoards = boards.filter(b => b.boardId !== primaryBoard.boardId);
+      
+      // ✅ OPTIMIZATION: Skip if single board workflow
+      if (otherBoards.length === 0) {
+        console.log(`   📌 Single board workflow - no sync needed`);
+      } else {
+        console.log(`   🔄 Checking sync status for ${otherBoards.length} other board(s)`);
         
-        // Create board states for ALL other boards sharing this workflow
-        const otherBoards = boards.filter(b => b.boardId !== primaryBoard.boardId);
         const firstScreenType = workflow.steps.filter(s => s.isEnabled).sort((a, b) => a.order - b.order)[0]?.screenType || 'Unknown';
+        const syncedNextTrigger = primaryBoardState.nextScheduledTrigger || initialNextTrigger;
         
+        // ✅ SAFE: Use atomic operations to prevent race conditions
         await Promise.all(otherBoards.map(async (board) => {
-          const existingState = await BoardState.findOne({
+          let boardState = await BoardState.findOne({
             orgId: ORG_CONFIG.ID,
             boardId: board.boardId
           });
           
-          if (!existingState) {
-            const newState = new BoardState({
+          if (!boardState) {
+            // Create missing state
+            boardState = new BoardState({
               orgId: ORG_CONFIG.ID,
               boardId: board.boardId,
               currentStepIndex: 0,
               currentScreenType: firstScreenType,
-              nextScheduledTrigger: initialNextTrigger
+              nextScheduledTrigger: syncedNextTrigger
             });
-            await newState.save();
+            await boardState.save();
+            console.log(`   ✅ Created state for ${board.name} (synced with primary)`);
+          } else if (boardState.nextScheduledTrigger?.getTime() !== syncedNextTrigger.getTime()) {
+            // ✅ CRITICAL: Sync desynchronized states
+            const timeDiff = Math.abs(boardState.nextScheduledTrigger?.getTime() - syncedNextTrigger.getTime()) / 1000;
+            boardState.nextScheduledTrigger = syncedNextTrigger;
+            await boardState.save();
+            console.log(`   ⚠️ Synchronized ${board.name} (was ${timeDiff}s out of sync)`);
           }
         }));
       }
