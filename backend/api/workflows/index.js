@@ -155,7 +155,7 @@ const updateWorkflow = async (req, res) => {
   });
 
   const { id } = req.query;
-  const { name, steps, schedule, isDefault, isActive } = req.body;
+  const { name, steps, schedule, isDefault, isActive, boardIds } = req.body; // ✅ Accept boardIds for editing
   
   if (!id) {
     return res.status(400).json({ error: { code: ERROR_CODES.VALIDATION_ERROR, message: 'Workflow ID required' } });
@@ -215,10 +215,57 @@ const updateWorkflow = async (req, res) => {
 
   console.log(`✅ Workflow updated: ${updated.name} by ${req.user.email}`);
   
-  // FORCE IMMEDIATE TRIGGER for all boards using this workflow
   const Vestaboard = require('../../models/Vestaboard');
   const BoardState = require('../../models/BoardState');
   const moment = require('moment-timezone');
+  
+  // ✅ NEW: Handle board assignment changes during edit
+  if (boardIds && Array.isArray(boardIds)) {
+    console.log(`🔄 Processing board assignment changes for workflow ${id}`);
+    
+    // Get currently assigned boards
+    const currentlyAssigned = await Vestaboard.find({
+      orgId: ORG_CONFIG.ID,
+      defaultWorkflowId: id,
+      isActive: true
+    });
+    
+    const currentBoardIds = currentlyAssigned.map(b => b.boardId);
+    
+    // Find boards to ADD
+    const toAdd = boardIds.filter(bid => !currentBoardIds.includes(bid));
+    
+    // Find boards to REMOVE
+    const toRemove = currentBoardIds.filter(bid => !boardIds.includes(bid));
+    
+    console.log(`   ➕ Adding ${toAdd.length} board(s)`);
+    console.log(`   ➖ Removing ${toRemove.length} board(s)`);
+    
+    // REMOVE boards
+    for (const boardId of toRemove) {
+      const board = await Vestaboard.findOne({ boardId, orgId: ORG_CONFIG.ID });
+      if (board) {
+        board.defaultWorkflowId = null;
+        await board.save();
+        
+        // Delete board state
+        await BoardState.findOneAndDelete({ boardId, orgId: ORG_CONFIG.ID });
+        console.log(`   ✅ Removed ${board.name} from workflow`);
+      }
+    }
+    
+    // ADD new boards
+    for (const boardId of toAdd) {
+      const board = await Vestaboard.findOne({ boardId, orgId: ORG_CONFIG.ID });
+      if (board) {
+        board.defaultWorkflowId = id;
+        await board.save();
+        console.log(`   ✅ Added ${board.name} to workflow`);
+      }
+    }
+  }
+  
+  // FORCE IMMEDIATE TRIGGER for all boards using this workflow
   
   const assignedBoards = await Vestaboard.find({
     orgId: ORG_CONFIG.ID,

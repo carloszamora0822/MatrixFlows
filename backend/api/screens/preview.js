@@ -75,7 +75,21 @@ module.exports = async (req, res) => {
     console.log(`🎨 Generating preview for ${screenType} screen`);
 
     // Generate matrix using screen engine
-    const matrix = await screenEngine.render(screenType, screenConfig);
+    let matrix = await screenEngine.render(screenType, screenConfig);
+
+    // ✅ Handle null (no data) gracefully for previews
+    if (!matrix) {
+      console.log(`ℹ️ No data available for ${screenType} - generating "No Data" screen`);
+      matrix = screenEngine.createNoDataScreen(screenType);
+      
+      return res.status(200).json({
+        matrix,
+        screenType,
+        timestamp: new Date().toISOString(),
+        noData: true,
+        message: `No ${screenType.toLowerCase().replace('_', ' ')} data available for today`
+      });
+    }
 
     // Validate generated matrix
     if (!screenEngine.validateMatrix(matrix)) {

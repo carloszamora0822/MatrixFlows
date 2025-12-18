@@ -272,15 +272,22 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, fetchBoardSta
 
   const handleEdit = (workflow) => {
     setEditingId(workflow.workflowId);
+    
+    // ✅ Get currently assigned boards
+    const assignedBoardIds = boards
+      .filter(b => b.defaultWorkflowId === workflow.workflowId)
+      .map(b => b.boardId);
+    
     setForm({
       name: workflow.name,
-      steps: [], // No steps in edit form anymore!
+      steps: [],
       schedule: workflow.schedule || {
         type: 'always',
         startTimeLocal: '08:00',
         endTimeLocal: '18:00',
         daysOfWeek: [1, 2, 3, 4, 5]
-      }
+      },
+      boardIds: assignedBoardIds // ✅ Pre-populate with current assignments
     });
     setShowForm(true);
   };
@@ -565,20 +572,41 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, fetchBoardSta
               
               {editingId ? (
                 <>
-                  {/* Editing: Show assigned boards (read-only) */}
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {boards.filter(b => b.isActive && b.defaultWorkflowId === editingId).map(board => (
-                      <span key={board.boardId} className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700">
-                        📺 {board.name}
-                      </span>
-                    ))}
-                    {boards.filter(b => b.isActive && b.defaultWorkflowId === editingId).length === 0 && (
-                      <span className="text-sm text-gray-500 italic">No boards assigned</span>
-                    )}
+                  {/* Editing: Allow board selection changes */}
+                  <div className="space-y-2 mb-3">
+                    {boards.filter(b => b.isActive).map(board => {
+                      const isCurrentlyAssigned = board.defaultWorkflowId === editingId;
+                      const isSelected = form.boardIds.includes(board.boardId);
+                      
+                      return (
+                        <label key={board.boardId} className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer border transition-colors ${
+                          isSelected ? 'bg-green-50 border-green-300' : 'hover:bg-gray-100 border-gray-200'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const newBoardIds = e.target.checked
+                                ? [...form.boardIds, board.boardId]
+                                : form.boardIds.filter(id => id !== board.boardId);
+                              setForm({ ...form, boardIds: newBoardIds });
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
+                          <span className="font-medium text-gray-700">📺 {board.name}</span>
+                          {isCurrentlyAssigned && !isSelected && (
+                            <span className="text-xs text-red-600 font-semibold">(will be removed)</span>
+                          )}
+                          {!isCurrentlyAssigned && isSelected && (
+                            <span className="text-xs text-green-600 font-semibold">(will be added)</span>
+                          )}
+                        </label>
+                      );
+                    })}
                   </div>
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-gray-700">
-                      💡 To assign or unassign boards, go to the <a href="/boards" className="text-blue-600 hover:underline font-semibold">Boards page</a>
+                      💡 <strong>Tip:</strong> Check/uncheck boards to modify assignments. You can also manage boards from the <a href="/boards" className="text-blue-600 hover:underline font-semibold">Boards page</a>.
                     </p>
                   </div>
                 </>

@@ -735,10 +735,37 @@ class ScreenEngine {
   }
 
   /**
+   * Create a "No Data Available" screen for previews
+   * Used when a screen type has no data to display
+   */
+  createNoDataScreen(screenType) {
+    const matrix = Array(6).fill(null).map(() => Array(22).fill(0));
+    
+    // Row 1: Screen type name
+    const typeName = screenType.replace(/_/g, ' ');
+    const typeRow = this.centerText(typeName, 0, 21);
+    matrix[1] = typeRow;
+    
+    // Row 3: "NO DATA"
+    const noDataRow = this.centerText('NO DATA', 0, 21);
+    matrix[3] = noDataRow;
+    
+    // Row 4: "AVAILABLE"
+    const availableRow = this.centerText('AVAILABLE', 0, 21);
+    matrix[4] = availableRow;
+    
+    return matrix;
+  }
+
+  /**
    * Validate matrix format
    */
   validateMatrix(matrix) {
-    if (!Array.isArray(matrix) || matrix.length !== 6) {
+    if (!matrix || !Array.isArray(matrix)) {
+      return false;
+    }
+
+    if (matrix.length !== 6) {
       return false;
     }
 
@@ -746,6 +773,7 @@ class ScreenEngine {
       if (!Array.isArray(row) || row.length !== 22) {
         return false;
       }
+
       for (const cell of row) {
         if (!Number.isInteger(cell) || cell < 0 || cell > 70) {
           return false;
