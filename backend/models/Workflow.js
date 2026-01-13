@@ -25,7 +25,7 @@ const workflowStepSchema = new mongoose.Schema({
     required: true,
     min: 15, // Minimum 15 seconds to avoid Vestaboard rate limiting
     max: 86400, // 24 hours max (1 day)
-    default: 15
+    default: 20 // Default 20 seconds (matches UI)
   },
   isEnabled: {
     type: Boolean,

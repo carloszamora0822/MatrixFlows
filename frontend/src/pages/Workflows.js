@@ -742,28 +742,19 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, fetchBoardSta
                           const interval = form.schedule.updateIntervalMinutes || 30;
                           
                           const times = [];
-                          let currentMin = Math.floor(startMin / interval) * interval;
-                          let currentHour = startHour;
+                          // Use SAME calculation as backend: Math.ceil((currentMinutes + 1) / interval) * interval
+                          const startMinutes = startHour * 60 + startMin;
+                          const endMinutes = endHour * 60 + endMin;
+                          let nextTriggerMinutes = Math.ceil((startMinutes + 1) / interval) * interval;
                           
-                          if (currentMin < startMin) {
-                            currentMin += interval;
-                            if (currentMin >= 60) {
-                              currentMin -= 60;
-                              currentHour++;
-                            }
-                          }
-                          
-                          while (currentHour < endHour || (currentHour === endHour && currentMin <= endMin)) {
+                          while (nextTriggerMinutes <= endMinutes) {
+                            const currentHour = Math.floor(nextTriggerMinutes / 60);
+                            const currentMin = nextTriggerMinutes % 60;
                             const h = currentHour % 12 || 12;
                             const ampm = currentHour < 12 ? 'AM' : 'PM';
                             times.push(`${h}:${currentMin.toString().padStart(2, '0')}${ampm}`);
                             
-                            currentMin += interval;
-                            if (currentMin >= 60) {
-                              currentMin -= 60;
-                              currentHour++;
-                            }
-                            
+                            nextTriggerMinutes += interval;
                             if (times.length > 20) {
                               times.push('...');
                               break;

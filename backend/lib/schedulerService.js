@@ -4,6 +4,7 @@ const screenEngine = require('./screenEngine');
 const vestaboardClient = require('./clients/vestaboardClient');
 const pinScreenService = require('./pinScreenService');
 const intervalScheduler = require('./intervalScheduler');
+const timeUtils = require('./timeUtils');
 const { ORG_CONFIG } = require('../../shared/constants');
 const moment = require('moment-timezone');
 
@@ -190,38 +191,36 @@ class SchedulerService {
         boardId: primaryBoard.boardId
       });
 
-      // Calculate initial nextScheduledTrigger for new workflow using Central Time
-      const nowCentral = moment().tz(TIMEZONE);
-      const initIntervalMinutes = workflow.schedule.updateIntervalMinutes;
-      const initCurrentMinutes = nowCentral.hours() * 60 + nowCentral.minutes();
-      
-      // Check if we're in the time window NOW (in Central Time)
+      // Calculate initial nextScheduledTrigger for new workflow
       let shouldTriggerNow = true;
+      
+      // Check if we're in the time window NOW
       if (workflow.schedule.type === 'dailyWindow' && workflow.schedule.startTimeLocal && workflow.schedule.endTimeLocal) {
-        const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
-        const [endHour, endMin] = workflow.schedule.endTimeLocal.split(':').map(Number);
-        const startMinutes = startHour * 60 + startMin;
-        const endMinutes = endHour * 60 + endMin;
-        
-        if (initCurrentMinutes < startMinutes || initCurrentMinutes > endMinutes) {
-          shouldTriggerNow = false;
-        }
+        shouldTriggerNow = timeUtils.isInWindow(
+          workflow.schedule.startTimeLocal,
+          workflow.schedule.endTimeLocal,
+          workflow.schedule.daysOfWeek
+        );
       }
       
       let initialNextTrigger;
       if (shouldTriggerNow) {
         // In window - trigger IMMEDIATELY on next cron run (within 60 seconds)
-        initialNextTrigger = moment(nowCentral).toDate();
+        initialNextTrigger = timeUtils.now().toDate();
       } else {
-        // Outside window - calculate next aligned trigger at start of next window
-        const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
-        initialNextTrigger = moment(nowCentral)
-          .add(1, 'day')
-          .hours(startHour)
-          .minutes(startMin)
-          .seconds(0)
-          .milliseconds(0)
-          .toDate();
+        // Outside window - calculate next trigger using centralized utility
+        const intervalMinutes = workflow.schedule.updateIntervalMinutes;
+        let windowConfig = null;
+        
+        if (workflow.schedule.type === 'dailyWindow' && workflow.schedule.startTimeLocal && workflow.schedule.endTimeLocal) {
+          windowConfig = {
+            startTime: workflow.schedule.startTimeLocal,
+            endTime: workflow.schedule.endTimeLocal,
+            daysOfWeek: workflow.schedule.daysOfWeek
+          };
+        }
+        
+        initialNextTrigger = timeUtils.calculateNextTrigger(intervalMinutes, windowConfig);
       }
 
       // Create primary board state if missing
@@ -312,7 +311,8 @@ class SchedulerService {
         boardStates.forEach(({ board, state }) => {
           const screenType = state?.currentScreenType || 'Unknown';
           const boardNextTrigger = state?.nextScheduledTrigger || nextTrigger;
-          console.log(`   ⏳ ${board.name}: Displaying ${screenType} | Next trigger ${boardNextTrigger.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Chicago' })}`);
+          const nextTriggerCentral = moment(boardNextTrigger).tz(TIMEZONE);
+          console.log(`   ⏳ ${board.name}: Displaying ${screenType} | Next trigger ${nextTriggerCentral.format('h:mm A')}`);
         });
         
         return boards.map(board => ({
@@ -432,53 +432,25 @@ class SchedulerService {
         
         // Wait before next screen (except last)
         if (i < screens.length - 1) {
-          const delaySeconds = Math.max(screen.displaySeconds, 16);
+          const delaySeconds = screen.displaySeconds || 20; // Use user's setting, default 20 if missing
           await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
         }
       }
       
-      // Calculate next trigger time aligned to interval boundaries using Central Time
-      const currentTimeCentral = moment().tz(TIMEZONE);
+      // Calculate next trigger time using centralized time utility
       const intervalMinutes = workflow.schedule.updateIntervalMinutes;
-      const currentMinutes = currentTimeCentral.hours() * 60 + currentTimeCentral.minutes();
       
-      // Round UP to next interval boundary (add 1 to ensure we go to NEXT boundary, not current)
-      let nextTriggerMinutes = Math.ceil((currentMinutes + 1) / intervalMinutes) * intervalMinutes;
-      
-      // Create next trigger time in Central Time
-      let nextTriggerCentral = moment(currentTimeCentral)
-        .hours(Math.floor(nextTriggerMinutes / 60))
-        .minutes(nextTriggerMinutes % 60)
-        .seconds(0)
-        .milliseconds(0);
-      
-      // If we've passed midnight, add a day
-      if (nextTriggerMinutes >= 1440) {
-        nextTriggerCentral = nextTriggerCentral.add(1, 'day').hours(0).minutes(0);
-      }
-      
-      // Check if next trigger is within time window (for dailyWindow schedules)
+      // Build window config if dailyWindow schedule
+      let windowConfig = null;
       if (workflow.schedule.type === 'dailyWindow' && workflow.schedule.startTimeLocal && workflow.schedule.endTimeLocal) {
-        // Convert to minutes for numeric comparison
-        const triggerMinutes = nextTriggerCentral.hours() * 60 + nextTriggerCentral.minutes();
-        const [startHour, startMin] = workflow.schedule.startTimeLocal.split(':').map(Number);
-        const [endHour, endMin] = workflow.schedule.endTimeLocal.split(':').map(Number);
-        const startMinutes = startHour * 60 + startMin;
-        const endMinutes = endHour * 60 + endMin;
-        
-        // If next trigger is outside the window, move to next day's start time
-        if (triggerMinutes < startMinutes || triggerMinutes > endMinutes) {
-          nextTriggerCentral = nextTriggerCentral
-            .add(1, 'day')
-            .hours(startHour)
-            .minutes(startMin)
-            .seconds(0)
-            .milliseconds(0);
-        }
+        windowConfig = {
+          startTime: workflow.schedule.startTimeLocal,
+          endTime: workflow.schedule.endTimeLocal,
+          daysOfWeek: workflow.schedule.daysOfWeek
+        };
       }
       
-      // Convert to UTC Date for storage
-      const nextTrigger = nextTriggerCentral.toDate();
+      const nextTrigger = timeUtils.calculateNextTrigger(intervalMinutes, windowConfig);
 
       // Update all board states after workflow completes
       await Promise.all(boards.map(async (board) => {
@@ -579,8 +551,8 @@ class SchedulerService {
       );
       
       if (!shouldUpdate) {
-        const currentTime = new Date();
-        const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+        const currentTimeCentral = moment().tz(TIMEZONE);
+        const currentMinutes = currentTimeCentral.hours() * 60 + currentTimeCentral.minutes();
         const nextTrigger = intervalScheduler.getNextAlignedTime(currentMinutes, intervalMinutes);
         console.log(`⏸️  Not time to run yet. Next trigger at ${intervalScheduler.formatTime(nextTrigger)}`);
         return { 
@@ -666,8 +638,8 @@ class SchedulerService {
         );
         
         if (!shouldUpdate) {
-          const currentTime = new Date();
-          const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+          const currentTimeCentral = moment().tz(TIMEZONE);
+          const currentMinutes = currentTimeCentral.hours() * 60 + currentTimeCentral.minutes();
           const nextTrigger = intervalScheduler.getNextAlignedTime(currentMinutes, intervalMinutes);
           console.log(`⏸️  Not time to update yet. Next trigger at ${intervalScheduler.formatTime(nextTrigger)}`);
           return { 
@@ -793,7 +765,7 @@ class SchedulerService {
 
         screens.push({
           matrix,
-          displaySeconds: step.displaySeconds || 300,
+          displaySeconds: step.displaySeconds || 20,
           screenType: step.screenType
         });
         

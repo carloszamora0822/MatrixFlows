@@ -61,6 +61,17 @@ function getNextTriggerTime(lastUpdateAt, intervalMinutes) {
 }
 
 /**
+ * Get the next aligned time (in minutes since midnight) based on current time
+ * @param {number} currentMinutes - Current minutes since midnight (0-1439)
+ * @param {number} intervalMinutes - Interval in minutes
+ * @returns {number} - Next aligned minutes since midnight
+ */
+function getNextAlignedTime(currentMinutes, intervalMinutes) {
+  // Round UP to next interval boundary
+  return Math.ceil((currentMinutes + 1) / intervalMinutes) * intervalMinutes;
+}
+
+/**
  * Format minutes since midnight to HH:MM
  * @param {number} minutes
  * @returns {string}
@@ -103,6 +114,7 @@ module.exports = {
   shouldUpdateNow,
   isAlignedTime,
   getNextTriggerTime,
+  getNextAlignedTime,
   getTriggerTimes,
   formatTime
 };
