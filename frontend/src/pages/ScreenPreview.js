@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MatrixPreview from '../components/ui/MatrixPreview';
 
+const screenTypes = [
+  { value: 'BIRTHDAY', label: '🎂 Birthday', dataPath: '/data/birthdays' },
+  { value: 'CHECKRIDES', label: '✈️ Checkrides', dataPath: '/data/checkrides' },
+  { value: 'UPCOMING_EVENTS', label: '📅 Events', dataPath: '/data/events' },
+  { value: 'NEWEST_PILOT', label: '🎓 Newest Pilot', dataPath: '/data/pilots' },
+  { value: 'EMPLOYEE_RECOGNITION', label: '⭐ Recognition', dataPath: '/data/recognition' },
+  { value: 'WEATHER', label: '🌤️ Weather', dataPath: null },
+  { value: 'METAR', label: '🛩️ METAR', dataPath: null }
+];
 
 const ScreenPreview = () => {
   const navigate = useNavigate();
@@ -11,31 +20,7 @@ const ScreenPreview = () => {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
 
-  const screenTypes = [
-    { value: 'BIRTHDAY', label: '🎂 Birthday', dataPath: '/data/birthdays' },
-    { value: 'CHECKRIDES', label: '✈️ Checkrides', dataPath: '/data/checkrides' },
-    { value: 'UPCOMING_EVENTS', label: '📅 Events', dataPath: '/data/events' },
-    { value: 'NEWEST_PILOT', label: '🎓 Newest Pilot', dataPath: '/data/pilots' },
-    { value: 'EMPLOYEE_RECOGNITION', label: '⭐ Recognition', dataPath: '/data/recognition' },
-    { value: 'WEATHER', label: '🌤️ Weather', dataPath: null },
-    { value: 'METAR', label: '🛩️ METAR', dataPath: null }
-  ];
-
-  useEffect(() => {
-    loadAllPreviews();
-    loadSavedScreens();
-    
-    // Auto-refresh all built-in screens every hour
-    const refreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing built-in screens...');
-      loadAllPreviews();
-    }, 60 * 60 * 1000); // 1 hour in milliseconds
-    
-    // Cleanup interval on unmount
-    return () => clearInterval(refreshInterval);
-  }, []);
-
-  const loadAllPreviews = async () => {
+  const loadAllPreviews = useCallback(async () => {
     setLoading(true);
     const previews = {};
     
@@ -59,7 +44,7 @@ const ScreenPreview = () => {
     setScreenPreviews(previews);
     setLastRefresh(new Date());
     setLoading(false);
-  };
+  }, []);
 
   const loadSavedScreens = async () => {
     try {
@@ -72,6 +57,20 @@ const ScreenPreview = () => {
       console.error('Failed to load saved screens:', error);
     }
   };
+
+  useEffect(() => {
+    loadAllPreviews();
+    loadSavedScreens();
+
+    // Auto-refresh all built-in screens every hour
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing built-in screens...');
+      loadAllPreviews();
+    }, 60 * 60 * 1000); // 1 hour in milliseconds
+
+    // Cleanup interval on unmount
+    return () => clearInterval(refreshInterval);
+  }, [loadAllPreviews]);
 
   const deleteScreen = async (screenId, screenName) => {
     if (!window.confirm(`Delete "${screenName}" from library?\n\nThis will also remove it from any workflows.`)) return;

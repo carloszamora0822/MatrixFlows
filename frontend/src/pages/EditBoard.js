@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 
@@ -6,26 +6,19 @@ const EditBoard = () => {
   const navigate = useNavigate();
   const { boardId } = useParams(); // If boardId exists, we're editing; otherwise, creating
   const isEditing = !!boardId;
-  
+
   const [workflows, setWorkflows] = useState([]);
-  const [form, setForm] = useState({ 
-    name: '', 
-    locationLabel: '', 
-    vestaboardWriteKey: '', 
-    defaultWorkflowId: '', 
-    isActive: true 
+  const [form, setForm] = useState({
+    name: '',
+    locationLabel: '',
+    vestaboardWriteKey: '',
+    defaultWorkflowId: '',
+    isActive: true
   });
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditing);
 
-  useEffect(() => {
-    fetchWorkflows();
-    if (isEditing) {
-      fetchBoard();
-    }
-  }, [boardId]);
-
-  const fetchWorkflows = async () => {
+  const fetchWorkflows = useCallback(async () => {
     try {
       const res = await fetch('/api/workflows', { credentials: 'include' });
       if (res.ok) {
@@ -35,9 +28,9 @@ const EditBoard = () => {
     } catch (error) {
       console.error('Failed to fetch workflows:', error);
     }
-  };
+  }, []);
 
-  const fetchBoard = async () => {
+  const fetchBoard = useCallback(async () => {
     try {
       const res = await fetch('/api/boards', { credentials: 'include' });
       if (res.ok) {
@@ -58,7 +51,14 @@ const EditBoard = () => {
     } finally {
       setInitialLoading(false);
     }
-  };
+  }, [boardId]);
+
+  useEffect(() => {
+    fetchWorkflows();
+    if (isEditing) {
+      fetchBoard();
+    }
+  }, [fetchWorkflows, fetchBoard, isEditing]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

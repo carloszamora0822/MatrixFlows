@@ -4,9 +4,9 @@ import Layout from '../components/layout/Layout';
 import MatrixPreview from '../components/ui/MatrixPreview';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  useAuth(); // Auth check only
   const [stats, setStats] = useState(null);
-  const [activity, setActivity] = useState([]);
+  const [, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

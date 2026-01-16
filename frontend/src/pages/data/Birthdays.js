@@ -13,18 +13,18 @@ const Birthdays = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
   
-  const { matrix, generatePreview, loading: previewLoading } = useScreenPreview();
+  const { matrix, generatePreview } = useScreenPreview();
 
   useEffect(() => {
     fetchBirthdays();
     generatePreview('BIRTHDAY');
-  }, []);
+  }, [generatePreview]);
 
   useEffect(() => {
     if (formData.firstName || formData.date) {
       generatePreview('BIRTHDAY');
     }
-  }, [formData]);
+  }, [formData, generatePreview]);
 
   const fetchBirthdays = async () => {
     try {
