@@ -50,7 +50,7 @@ const MiniVestaboard = ({ screenType, screenConfig, displaySeconds, stepNumber, 
     };
 
     fetchPreview();
-  }, [screenType, screenConfig?.customScreenId, screenConfig?.message]);
+  }, [screenType, screenConfig]);
 
   if (loading) {
     return (

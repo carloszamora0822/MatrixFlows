@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import MatrixPreview from '../components/ui/MatrixPreview';
@@ -30,14 +30,7 @@ const CustomScreenEditor = () => {
     { value: 'white', label: '⚪ White', class: 'bg-white' }
   ];
 
-  // Load screen data if editing
-  useEffect(() => {
-    if (isEditing) {
-      loadScreenData();
-    }
-  }, [screenId]);
-
-  const loadScreenData = async () => {
+  const loadScreenData = useCallback(async () => {
     try {
       const response = await fetch('/api/custom-screens', { credentials: 'include' });
       if (response.ok) {
@@ -58,7 +51,14 @@ const CustomScreenEditor = () => {
     } catch (error) {
       console.error('Failed to load screen:', error);
     }
-  };
+  }, [screenId]);
+
+  // Load screen data if editing
+  useEffect(() => {
+    if (isEditing) {
+      loadScreenData();
+    }
+  }, [isEditing, loadScreenData]);
 
   // Generate preview when message or colors change
   useEffect(() => {
