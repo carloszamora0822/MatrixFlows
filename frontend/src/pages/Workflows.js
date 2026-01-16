@@ -839,33 +839,28 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, fetchBoardSta
             
             const schedule = workflow.schedule || { type: 'always' };
             let scheduleStr = '24/7';
-            let isActive = false;
-            
-            // Check if workflow is assigned to any ACTIVE board
-            const isAssignedToBoard = boards.some(board => board.isActive && board.defaultWorkflowId === workflow.workflowId);
-            
-            // Check if this is a pinned workflow
-            const isPinnedWorkflow = workflow.name?.startsWith('Pinned -');
-            
-            // Check if there's ANY active pinned workflow (blocks all others)
-            const hasActivePinnedWorkflow = workflows.some(w => 
-              w.name?.startsWith('Pinned -') && 
-              w.schedule?.type === 'specificDateRange' &&
-              w.isActive
-            );
-            
+
+            // FIX #3: Use backend-computed isActiveNow instead of browser time
+            // Backend computes this in Central Time, preventing timezone mismatches
+            // Look for any board using this workflow that has isActiveNow=true
+            const boardsWithThisWorkflow = boards.filter(b => b.isActive && b.defaultWorkflowId === workflow.workflowId);
+            const isActive = boardsWithThisWorkflow.some(board => {
+              const state = boardStates[board.boardId];
+              return state?.isActiveNow === true;
+            });
+
+            // Build schedule string for display (no time computation, just formatting)
             if (schedule.type === 'dailyWindow' || schedule.type === 'timeWindow') {
-              // Check if it's truly 24/7 (all 7 days, 00:00-23:59)
               const isAll7Days = schedule.daysOfWeek?.length === 7;
-              const isFullDay = (schedule.startTimeLocal === '00:00' || !schedule.startTimeLocal) && 
+              const isFullDay = (schedule.startTimeLocal === '00:00' || !schedule.startTimeLocal) &&
                                (schedule.endTimeLocal === '23:59' || !schedule.endTimeLocal);
-              
+
               if (isAll7Days && isFullDay) {
                 scheduleStr = '24/7';
               } else {
                 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 let daysStr = '';
-                
+
                 if (schedule.daysOfWeek?.length === 7) {
                   daysStr = 'Daily';
                 } else if (schedule.daysOfWeek?.length === 5 && schedule.daysOfWeek.includes(1) && schedule.daysOfWeek.includes(5)) {
@@ -877,37 +872,11 @@ const WorkflowsTab = ({ workflows, boards, boardStates, fetchData, fetchBoardSta
                 } else {
                   daysStr = 'No days';
                 }
-                
+
                 scheduleStr = `${daysStr} ${schedule.startTimeLocal || '00:00'}-${schedule.endTimeLocal || '23:59'}`;
               }
-              
-              // Check if current time falls within schedule
-              const now = new Date();
-              const currentDay = now.getDay();
-              const currentTime = now.toTimeString().slice(0, 5);
-              
-              const isDayActive = schedule.daysOfWeek?.includes(currentDay);
-              const isTimeActive = currentTime >= (schedule.startTimeLocal || '00:00') && 
-                                   currentTime <= (schedule.endTimeLocal || '23:59');
-              
-              // Regular workflows are active if schedule matches AND no pin is blocking AND assigned to a board AND workflow.isActive is true
-              isActive = !isPinnedWorkflow && isDayActive && isTimeActive && !hasActivePinnedWorkflow && isAssignedToBoard && workflow.isActive !== false;
             } else if (schedule.type === 'specificDateRange') {
-              const now = new Date();
-              const currentDate = now.toISOString().split('T')[0];
-              const currentTime = now.toTimeString().slice(0, 5);
-              
-              isActive = isPinnedWorkflow &&
-                        schedule.startDate <= currentDate &&
-                        schedule.endDate >= currentDate &&
-                        (!schedule.startTimeLocal || currentTime >= schedule.startTimeLocal) &&
-                        (!schedule.endTimeLocal || currentTime <= schedule.endTimeLocal) &&
-                        workflow.isActive !== false;
-              
               scheduleStr = `${schedule.startDate} - ${schedule.endDate}`;
-            } else {
-              // Always running, but blocked if pinned workflow exists AND must be assigned to a board AND workflow.isActive is true
-              isActive = !hasActivePinnedWorkflow && isAssignedToBoard && workflow.isActive !== false;
             }
             
             return (

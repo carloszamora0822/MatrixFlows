@@ -125,13 +125,16 @@ class WorkflowService {
   }
 
   /**
-   * Check if current date is within date range
+   * Check if current date is within date range (using Central Time)
    * @param {object} schedule
    * @param {Date} now
    * @returns {boolean}
    */
   isInDateRange(schedule, now) {
-    const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    // FIX: Use Central Time for date comparison, not UTC
+    // At 23:59 CT, toISOString() would return next day's UTC date (05:59 UTC)
+    // This caused day-boundary failures where workflows ended 6 hours early
+    const currentDate = moment(now).tz(TIMEZONE).format('YYYY-MM-DD');
 
     if (schedule.startDate && currentDate < schedule.startDate) {
       return false;

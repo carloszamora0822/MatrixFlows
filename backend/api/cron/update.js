@@ -3,6 +3,9 @@ const schedulerService = require('../../lib/schedulerService');
 const CustomScreen = require('../../models/CustomScreen');
 const Workflow = require('../../models/Workflow');
 const { ERROR_CODES, ORG_CONFIG } = require('../../../shared/constants');
+const moment = require('moment-timezone');
+
+const TIMEZONE = 'America/Chicago';
 
 /**
  * Cron endpoint to trigger board updates
@@ -102,9 +105,26 @@ module.exports = async (req, res) => {
           
           // Check if screen has workflow-specific expiration
           if (step.screenType === 'CUSTOM_MESSAGE' && step.screenConfig?.hasExpiration && step.screenConfig?.expiresAt) {
-            const expiresDateTime = new Date(`${step.screenConfig.expiresAt}T${step.screenConfig.expiresAtTime || '23:59'}:00.000Z`);
+            // FIX: Parse expiration in Central Time, not UTC
+            // OLD BUG: "2026-01-16T17:00:00.000Z" was interpreted as 5 PM UTC (11 AM CT)
+            // FIX: Parse "2026-01-16 17:00" as 5 PM CT (11 PM UTC)
+            const expiresAt = step.screenConfig.expiresAt;
+            const expiresAtTime = step.screenConfig.expiresAtTime || '23:59';
+
+            // Guardrail: validate date format before parsing
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
+              console.warn(`⚠️ Invalid expiresAt format: ${expiresAt}, skipping expiration check`);
+              return true; // Keep the step, don't crash
+            }
+
+            const expiresDateTime = moment.tz(
+              `${expiresAt} ${expiresAtTime}`,
+              'YYYY-MM-DD HH:mm',
+              TIMEZONE
+            ).toDate();
+
             if (expiresDateTime <= now) {
-              console.log(`🗑️  Removing workflow-expired screen from workflow: ${workflow.name}`);
+              console.log(`🗑️  Removing workflow-expired screen from workflow: ${workflow.name} (expired at ${expiresAt} ${expiresAtTime} CT)`);
               return false;
             }
           }
