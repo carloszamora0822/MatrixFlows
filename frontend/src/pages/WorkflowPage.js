@@ -59,7 +59,7 @@ const WorkflowPage = ({ mode, initialWorkflow }) => {
       setIntervalValue(mins);
       setIntervalUnit('minutes');
     }
-  }, []);
+  }, [schedule.updateIntervalMinutes]);
 
   const handleSave = async (updatedSteps) => {
     if (!workflowName.trim()) {

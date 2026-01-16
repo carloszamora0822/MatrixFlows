@@ -8,11 +8,13 @@ const WorkflowEditor = ({ workflow, onSave, onCancel, hideHeader = false, showBu
   const [stepUnits, setStepUnits] = useState({});
 
   // Auto-sync steps to parent when they change (only when buttons are hidden)
+  // Intentionally only sync when steps change, not on callback reference changes
   useEffect(() => {
     if (onSave && !showButtons) {
       console.log('🔄 Auto-syncing steps to parent:', steps.length, 'steps');
       onSave(steps);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [steps]);
   const [availableScreens, setAvailableScreens] = useState({
     builtin: [],
@@ -36,6 +38,7 @@ const WorkflowEditor = ({ workflow, onSave, onCancel, hideHeader = false, showBu
 
   useEffect(() => {
     loadAvailableScreens();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Track mouse position globally when dragging
@@ -224,28 +227,6 @@ const WorkflowEditor = ({ workflow, onSave, onCancel, hideHeader = false, showBu
     
     // Store the unit for this step
     setStepUnits(prev => ({ ...prev, [index]: unit }));
-  };
-
-  const incrementDelay = (index, unit) => {
-    const step = steps[index];
-    let currentValue = step.displaySeconds;
-    
-    if (unit === 'minutes') currentValue = Math.floor(currentValue / 60);
-    if (unit === 'hours') currentValue = Math.floor(currentValue / 3600);
-    
-    handleDurationChange(index, currentValue + 1, unit);
-  };
-
-  const decrementDelay = (index, unit) => {
-    const step = steps[index];
-    let currentValue = step.displaySeconds;
-    
-    if (unit === 'minutes') currentValue = Math.floor(currentValue / 60);
-    if (unit === 'hours') currentValue = Math.floor(currentValue / 3600);
-    
-    if (currentValue > 1) {
-      handleDurationChange(index, currentValue - 1, unit);
-    }
   };
 
   const handleSaveWorkflow = async () => {
